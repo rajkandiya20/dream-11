@@ -31,14 +31,8 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Install Android SDK
-        run: |
-          wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O cmdline-tools.zip
-          mkdir -p $ANDROID_HOME/cmdline-tools
-          unzip -q cmdline-tools.zip -d $ANDROID_HOME/cmdline-tools
-          mkdir -p $ANDROID_HOME/cmdline-tools/latest
-          mv $ANDROID_HOME/cmdline-tools/*/* $ANDROID_HOME/cmdline-tools/latest/ || true
-          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --sdk_root=${ANDROID_HOME} "build-tools;33.0.2" "platform-33"
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
 
       - name: Build React App
         run: npm run build
@@ -46,7 +40,6 @@ jobs:
       - name: Setup Capacitor Android
         run: |
           npm install -g @capacitor/cli@5
-          npx cap init com.dreameleven.app "Dream 11" || true
           npx cap add android
 
       - name: Generate Debug Keystore
