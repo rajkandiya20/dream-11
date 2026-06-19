@@ -1,6 +1,6 @@
 {
-  "short_name": "React App",
-  "name": "Create React App Sample",
+  "short_name": "Dream 11",
+  "name": "Dream 11 - Fantasy Cricket",
   "icons": [
     {
       "src": "favicon.ico",
@@ -20,6 +20,6 @@
   ],
   "start_url": ".",
   "display": "standalone",
-  "theme_color": "var(--black)",
+  "theme_color": "#000000",
   "background_color": "#ffffff"
 }

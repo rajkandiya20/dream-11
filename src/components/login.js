@@ -32,7 +32,11 @@ export function Login() {
 
   useEffect(() => {
     if (isAuthenticated) {
-      navigate("/");
+      if (user?.email === "rexoagency.in@gmail.com") {
+        navigate("/admin");
+      } else {
+        navigate("/");
+      }
     }
     if (error) {
       alert.error(error);

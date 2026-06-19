@@ -1,0 +1,15 @@
+import { defineConfig } from '@capacitor/cli';
+
+export default defineConfig({
+  appId: 'com.dreameleven.app',
+  appName: 'Dream 11',
+  webDir: 'build',
+  server: {
+    androidScheme: 'https'
+  },
+  plugins: {
+    SplashScreen: {
+      launchShowDuration: 0
+    }
+  }
+});
