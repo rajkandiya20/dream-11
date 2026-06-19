@@ -11,7 +11,7 @@ import ContestDetail from "./components/contestdetail";
 import Counter from "./components/counter";
 import CreateTeam from "./components/createteam/createteam";
 import { ForgotPassword } from "./components/forget-password";
-import Logingoogle from "./components/googlesignin";
+
 import Home from "./components/home/home";
 import JoinedContests from "./components/joinedcontests";
 import Login from "./components/login";
@@ -28,7 +28,7 @@ import "react-whatsapp-widget/dist/index.css";
 import MyInfo from "./components/myinfo/MyInfo";
 import TransactionTabs from "./components/transaction";
 import Admin from "./components/admin/Admin";
-import AdminLogin from "./components/admin/AdminLogin";
+
 import ContestManager from "./components/admin/ContestManager";
 import PlayerManager from "./components/admin/PlayerManager";
 
@@ -95,13 +95,13 @@ function App() {
           <Route path="/test" element={<Test />} />
           <Route path="/counter" element={<Counter />} />
           <Route path="/payment" element={<Payment />} />
-          <Route path="/googlelogin" element={<Logingoogle />} />
+
           <Route path="/newusers" element={<NewUsers />} />
           <Route path="/findpeople" element={<FindPeople />} />
           <Route path="/my-info" element={<MyInfo />} />
           <Route path="/transaction" element={<TransactionTabs />} />
           <Route path="/admin" element={<Admin/>} />
-          <Route path="/admin/login" element={<AdminLogin/>} />
+
           <Route path="/admin/contests" element={<ContestManager/>} />
           <Route path="/admin/players" element={<PlayerManager/>} />
         </Routes>
