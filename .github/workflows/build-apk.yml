@@ -15,44 +15,39 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
-        with:
-          persist-credentials: false
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '18'
           cache: 'npm'
 
       - name: Install Dependencies
-        run: npm install --force
+        run: npm install
 
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '17'
+          java-version: '11'
 
       - name: Setup Android SDK
-        uses: android-actions/setup-android@v2
+        uses: subosito/android-platform@v1
         with:
-          api-level: 34
+          api-level: 33
+
+      - name: Add Android SDK to PATH
+        run: |
+          echo "ANDROID_SDK_ROOT=${ANDROID_SDK_ROOT}" >> $GITHUB_ENV
 
       - name: Build React App
         run: npm run build
 
-      - name: Setup Capacitor
+      - name: Setup Capacitor Android
         run: |
           npm install -g @capacitor/cli@5
           npx cap init com.dreameleven.app "Dream 11" || true
-          npx cap add android || true
-
-      - name: Generate Debug Keystore
-        run: |
-          keytool -genkeypair -v -storetype PKCS12 -keystore debug.keystore -alias debug -keyalg RSA -keysize 2048 -validity 10000 -storepass androiddebug -keypass androiddebug -dname "CN=Android Debug,O=Android,C=US" || true
-
-      - name: Copy Web Assets to Android
-        run: npx cap copy android
+          npx cap add android
 
       - name: Build Debug APK
         run: |
