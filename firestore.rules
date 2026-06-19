@@ -1,0 +1,153 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ============ USERS COLLECTION ============
+    match /users/{userId} {
+      // Users can read and write their own data
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      
+      // Admins can read all users
+      allow read: if isAdmin();
+      
+      // Allow reading user data for team/match purposes
+      allow read: if request.auth != null;
+    }
+    
+    // ============ TOURNAMENTS COLLECTION ============
+    match /tournaments/{tournamentId} {
+      // Anyone can read tournaments
+      allow read: if request.auth != null;
+      
+      // Only admins can write
+      allow write: if isAdmin();
+    }
+    
+    // ============ MATCHES COLLECTION ============
+    match /matches/{matchId} {
+      // Anyone can read matches
+      allow read: if request.auth != null;
+      
+      // Only admins can write
+      allow write: if isAdmin();
+    }
+    
+    // ============ PLAYERS COLLECTION ============
+    match /players/{playerId} {
+      // Anyone can read players
+      allow read: if request.auth != null;
+      
+      // Only admins can write
+      allow write: if isAdmin();
+    }
+    
+    // ============ TEAMS COLLECTION ============
+    match /teams/{teamId} {
+      // Users can read all teams
+      allow read: if request.auth != null;
+      
+      // Users can create their own teams
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      
+      // Users can update/delete their own teams
+      allow update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+    }
+    
+    // ============ FANTASY TEAMS COLLECTION ============
+    match /fantasy_teams/{teamId} {
+      // Users can read all fantasy teams
+      allow read: if request.auth != null;
+      
+      // Users can create their own fantasy teams
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      
+      // Users can update/delete their own fantasy teams
+      allow update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+    }
+    
+    // ============ CONTESTS COLLECTION ============
+    match /contests/{contestId} {
+      // Anyone can read contests
+      allow read: if request.auth != null;
+      
+      // Only admins can write
+      allow write: if isAdmin();
+    }
+    
+    // ============ LEADERBOARDS COLLECTION ============
+    match /leaderboards/{leaderboardId} {
+      // Anyone can read leaderboards
+      allow read: if request.auth != null;
+      
+      // System writes only (via Cloud Functions or Admin SDK)
+      allow write: if false;
+    }
+    
+    // ============ GROUPS COLLECTION ============
+    match /groups/{groupId} {
+      // Users can read groups they're members of
+      allow read: if request.auth != null && 
+        (resource.data.members[request.auth.uid] != null || 
+         resource.data.createdBy == request.auth.uid);
+      
+      // Users can create groups
+      allow create: if request.auth != null;
+      
+      // Group admins and creators can update
+      allow update: if request.auth != null && 
+        (resource.data.createdBy == request.auth.uid ||
+         resource.data.admins[request.auth.uid] == true);
+    }
+    
+    // ============ NOTIFICATIONS COLLECTION ============
+    match /notifications/{notificationId} {
+      // Users can read their own notifications
+      allow read: if request.auth != null && resource.data.userId == request.auth.uid;
+      
+      // System writes only
+      allow write: if false;
+    }
+    
+    // ============ TRANSACTIONS COLLECTION ============
+    match /transactions/{transactionId} {
+      // Users can read their own transactions
+      allow read: if request.auth != null && resource.data.userId == request.auth.uid;
+      
+      // System writes only
+      allow write: if false;
+    }
+    
+    // ============ WALLETS COLLECTION ============
+    match /wallets/{walletId} {
+      // Users can read their own wallet
+      allow read: if request.auth != null && resource.data.userId == request.auth.uid;
+      
+      // System writes only
+      allow write: if false;
+    }
+    
+    // ============ CHAT MESSAGES COLLECTION ============
+    match /chat_messages/{messageId} {
+      // Users can read messages in groups they're part of
+      allow read: if request.auth != null;
+      
+      // Users can create messages
+      allow create: if request.auth != null && request.resource.data.senderId == request.auth.uid;
+    }
+    
+    // ============ ADMINS COLLECTION ============
+    match /admins/{adminId} {
+      // Only admins can read
+      allow read: if isAdmin();
+      
+      // System writes only
+      allow write: if false;
+    }
+    
+    // ============ HELPER FUNCTIONS ============
+    function isAdmin() {
+      return request.auth != null && 
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+  }
+}
