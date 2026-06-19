@@ -83,8 +83,7 @@
     "sync:android": "react-scripts build && capacitor sync android"
   },
   "devDependencies": {
-    "@capacitor/cli": "^5.0.0",
-    "capgo": "^1.0.0"
+    "@capacitor/cli": "^5.0.0"
   },
   "eslintConfig": {
     "extends": [
