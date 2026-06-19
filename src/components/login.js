@@ -1,23 +1,15 @@
 import "./register.css";
 
-import styled from "@emotion/styled";
-import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import EmojiEventsOutlinedIcon from "@mui/icons-material/EmojiEventsOutlined";
 import Button from "@mui/material/Button";
+import CircularProgress from "@mui/material/CircularProgress";
 import Paper from "@mui/material/Paper";
 import TextField from "@mui/material/TextField";
-import axios from "axios";
 import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Link, useNavigate } from "react-router-dom";
-
 import { login } from "../actions/userAction";
-import { URL } from "../constants/userConstants";
 import { useAlert } from "react-alert";
-
-const Err = styled.p`
-  color: red;
-`;
 
 export function Login() {
   const { user, isAuthenticated, loading, error } = useSelector(
@@ -28,14 +20,11 @@ export function Login() {
   const [email, setEmail] = useState("");
   const alert = useAlert();
   const [password, setPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    if (isAuthenticated) {
-      if (user?.email === "rexoagency.in@gmail.com") {
-        navigate("/admin");
-      } else {
-        navigate("/");
-      }
+    if (isAuthenticated && user) {
+      navigate("/");
     }
     if (error) {
       alert.error(error);
@@ -44,9 +33,21 @@ export function Login() {
 
   const handlesubmit = async (e) => {
     e.preventDefault();
-    console.log(email, password);
-    const formdata = { email, password };
-    dispatch(login(formdata));
+    if (!email || !password) {
+      alert.error("Please enter email and password");
+      return;
+    }
+    
+    setIsLoading(true);
+    const result = await dispatch(login({ email, password }));
+    setIsLoading(false);
+    
+    if (result.success) {
+      alert.success("Login successful!");
+      navigate("/");
+    } else {
+      alert.error(result.message || "Login failed");
+    }
   };
 
   return (
@@ -58,39 +59,47 @@ export function Login() {
 
       <div className="register">
         <Paper style={{ padding: "2vh 2vw" }}>
-          <h5 style={{ marginBottom: "10px" }}>LOG IN & PLAY</h5>
+          <h5 style={{ marginBottom: "10px", textAlign: "center" }}>LOG IN</h5>
           <form onSubmit={handlesubmit} className="loginform">
             <TextField
-              id="fullWidth"
-              defaultValue="Hello World"
+              id="email"
               variant="standard"
               placeholder="Email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               type="email"
+              fullWidth
+              margin="normal"
+              required
             />
-
             <TextField
-              id="fullWidth"
-              defaultValue="Hello World"
+              id="password"
               variant="standard"
               type="password"
               placeholder="Password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              fullWidth
+              margin="normal"
+              required
             />
             <Button
               type="submit"
               className="itseveryday"
               variant="contained"
               disableElevation
-              style={{ backgroundColor: "#24B937" }}
+              style={{ backgroundColor: "#24B937", marginTop: "20px" }}
+              disabled={isLoading}
             >
-              Log in
+              {isLoading ? <CircularProgress size={24} color="inherit" /> : "Log in"}
             </Button>
           </form>
-          <Link to="/forgot-password">forgot password</Link>
-          <Link to="/register">Dont have a account?Sign up</Link>
+          <div style={{ marginTop: "15px", textAlign: "center" }}>
+            <Link to="/forgot-password" style={{ display: "block", marginBottom: "10px" }}>
+              Forgot Password?
+            </Link>
+            <Link to="/register">Don't have an account? Sign up</Link>
+          </div>
         </Paper>
       </div>
     </>
