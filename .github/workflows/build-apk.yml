@@ -40,7 +40,6 @@ jobs:
       - name: Setup Capacitor Android
         run: |
           npm install -g @capacitor/cli@5
-          npx cap init com.dreameleven.app "Dream 11" || true
           npx cap add android
 
       - name: Generate Debug Keystore
