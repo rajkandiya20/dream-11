@@ -2,6 +2,14 @@ import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 import { getDatabase } from "firebase/database";
+import { 
+  getAuth, 
+  createUserWithEmailAndPassword, 
+  signInWithEmailAndPassword,
+  signOut,
+  sendPasswordResetEmail,
+  onAuthStateChanged
+} from "firebase/auth";
 
 // Firebase configuration for dream11local project
 const firebaseConfig = {
@@ -18,4 +26,30 @@ export const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 export const storage = getStorage(app);
 export const realtimeDb = getDatabase(app);
+export const auth = getAuth(app);
 export default db;
+
+// Auth helper functions
+export const registerUser = async (email, password) => {
+  return await createUserWithEmailAndPassword(auth, email, password);
+};
+
+export const loginUser = async (email, password) => {
+  return await signInWithEmailAndPassword(auth, email, password);
+};
+
+export const logoutUser = async () => {
+  return await signOut(auth);
+};
+
+export const resetPassword = async (email) => {
+  return await sendPasswordResetEmail(auth, email);
+};
+
+export const getCurrentUser = () => {
+  return auth.currentUser;
+};
+
+export const onAuthChange = (callback) => {
+  return onAuthStateChanged(auth, callback);
+};
