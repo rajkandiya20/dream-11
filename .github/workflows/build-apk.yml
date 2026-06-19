@@ -40,10 +40,17 @@ jobs:
         run: npm run build
 
       - name: Setup Capacitor
-        run: npm install -g @capacitor/cli
+        run: |
+          npm install -g @capacitor/cli
+          npx cap init com.dreameleven.app "Dream 11" || true
+          npx cap add android || true
+
+      - name: Generate Debug Keystore
+        run: |
+          keytool -genkeypair -v -storetype PKCS12 -keystore debug.keystore -alias debug -keyalg RSA -keysize 2048 -validity 10000 -storepass androiddebug -keypass androiddebug -dname "CN=Android Debug,O=Android,C=US" || true
 
       - name: Copy Web Assets to Android
-        run: npx cap copy android || npx cap add android
+        run: npx cap copy android
 
       - name: Build Debug APK
         run: |

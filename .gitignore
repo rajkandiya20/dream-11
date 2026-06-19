@@ -30,3 +30,5 @@ yarn-error.log*
 /android/**/*.ap_
 /android/app/src/debug
 /android/app/google-services.json
+/android/debug.keystore
+/android/keystore.properties
