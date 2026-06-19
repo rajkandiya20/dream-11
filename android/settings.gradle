@@ -1,3 +1,11 @@
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+        mavenCentral()
+        google()
+    }
+}
+
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
@@ -6,5 +14,6 @@ dependencyResolutionManagement {
         gradlePluginPortal()
     }
 }
+
 rootProject.name = "Dream 11"
 include ':app'

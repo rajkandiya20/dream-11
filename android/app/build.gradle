@@ -1,15 +1,21 @@
 apply plugin: 'com.android.application'
+apply plugin: 'com.google.gms.google-services'
 
 android {
-    compileSdk 33
+    namespace "com.dreameleven.app"
+    compileSdk rootProject.ext.targetSdkVersion
+    compileSdkVersion rootProject.ext.targetSdkVersion
 
     defaultConfig {
         applicationId "com.dreameleven.app"
-        minSdk 24
-        targetSdk 33
+        minSdk rootProject.ext.minSdkVersion
+        targetSdk rootProject.ext.targetSdkVersion
         versionCode 1
         versionName "1.0.0-debug"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        vectorDrawables {
+            useSupportLibrary = true
+        }
     }
 
     buildTypes {
@@ -19,24 +25,29 @@ android {
         }
         debug {
             debuggable true
+            minifyEnabled false
         }
     }
-
+    
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_11
-        targetCompatibility JavaVersion.VERSION_11
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
     }
-
-    namespace 'com.dreameleven.app'
+    
+    buildFeatures {
+        viewBinding true
+    }
 }
 
 repositories {
     google()
     mavenCentral()
-    gradlePluginPortal()
 }
 
 dependencies {
-    implementation 'androidx.appcompat:appcompat:1.6.1'
-    implementation 'com.getcapacitor:capacitor:5.0.0'
+    implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
+    implementation "androidx.core:core-splashscreen:$androidxCoreVersion"
+    implementation "com.getcapacitor:capacitor:5.0.0"
+    implementation platform('com.google.firebase:firebase-bom:32.7.0')
+    implementation 'com.google.firebase:firebase-analytics'
 }

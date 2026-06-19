@@ -28,6 +28,9 @@ import "react-whatsapp-widget/dist/index.css";
 import MyInfo from "./components/myinfo/MyInfo";
 import TransactionTabs from "./components/transaction";
 import Admin from "./components/admin/Admin";
+import AdminLogin from "./components/admin/AdminLogin";
+import ContestManager from "./components/admin/ContestManager";
+import PlayerManager from "./components/admin/PlayerManager";
 
 function App() {
   const dispatch = useDispatch();
@@ -98,6 +101,9 @@ function App() {
           <Route path="/my-info" element={<MyInfo />} />
           <Route path="/transaction" element={<TransactionTabs />} />
           <Route path="/admin" element={<Admin/>} />
+          <Route path="/admin/login" element={<AdminLogin/>} />
+          <Route path="/admin/contests" element={<ContestManager/>} />
+          <Route path="/admin/players" element={<PlayerManager/>} />
         </Routes>
       </BrowserRouter>
       {confetti && (

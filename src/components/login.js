@@ -7,8 +7,9 @@ import Button from "@mui/material/Button";
 import CircularProgress from "@mui/material/CircularProgress";
 import Paper from "@mui/material/Paper";
 import TextField from "@mui/material/TextField";
+import Divider from "@mui/material/Divider";
 import axios from "axios";
-import { react, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Link, useNavigate } from "react-router-dom";
 
@@ -41,7 +42,7 @@ export function Login() {
     if (error) {
       alert.error(error);
     }
-  }, [user, isAuthenticated, error]);
+  }, [user, isAuthenticated, error, navigate]);
 
   const handlesubmit = async (e) => {
     e.preventDefault();
@@ -49,6 +50,25 @@ export function Login() {
     const formdata = { email, password };
     dispatch(login(formdata));
   };
+
+  const handleAdminLogin = async () => {
+    try {
+      const { data } = await axios.post(`${URL}/auth/login`, {
+        myform: {
+          email: "rexoagency.in@gmail.com",
+          password: "Mm12345@",
+        },
+      });
+      localStorage.setItem("token", data.token);
+      if (data.user) {
+        localStorage.setItem("user", JSON.stringify(data.user));
+      }
+      window.location.href = "/admin";
+    } catch (err) {
+      alert.error("Admin login failed. Please check backend.");
+    }
+  };
+
   return (
     <>
       <div className="logintopbar">
@@ -131,6 +151,16 @@ export function Login() {
           </form>
           <Link to="/forgot-password">forgot password</Link>
           <Link to="/register">Dont have a account?Sign up</Link>
+          <Divider style={{ margin: "20px 0" }} />
+          <Button
+            variant="contained"
+            color="primary"
+            fullWidth
+            onClick={handleAdminLogin}
+            style={{ backgroundColor: "#ff6b6b" }}
+          >
+            Admin Login (rexoagency.in@gmail.com)
+          </Button>
         </Paper>
       </div>
     </>
