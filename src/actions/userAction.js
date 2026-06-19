@@ -1,4 +1,17 @@
 import axios from "axios";
+import { 
+  auth, 
+  registerUser as firebaseRegister, 
+  loginUser as firebaseLogin,
+  logoutUser as firebaseLogout,
+  resetPassword as firebaseResetPassword
+} from "../firebase";
+import { 
+  doc, 
+  setDoc, 
+  getDoc
+} from "firebase/firestore";
+import db from "../firebase";
 
 import {
   ADD_CONFETTI,
@@ -15,19 +28,11 @@ import {
   URL,
 } from "../constants/userConstants";
 
-//import {API} from "../shared/api"
-
 export const API = axios.create({ baseURL: `${URL}` });
-const API_NEW = axios.create({ baseURL: `${URL}` });
-
-// for ec2 environment
-// const API = axios.create({ baseURL: 'http://54.84.192.90:8080/api' });
-// const API_NEW = axios.create({ baseURL: 'http://54.84.192.90:8081/api' });
 
 API.interceptors.request.use((req) => {
   if (localStorage.getItem("token")) {
-    const servertoken =
-      localStorage.getItem("token") && localStorage.getItem("token");
+    const servertoken = localStorage.getItem("token");
     req.headers.Authorization = `Bearer ${servertoken}`;
     req.headers.servertoken = servertoken;
     req.headers.ContentType = "application/json";
@@ -35,60 +40,131 @@ API.interceptors.request.use((req) => {
   return req;
 });
 
-const headers = {
-  Accept: "application/json",
-};
-export const register = (myform) => async (dispatch) => {
+// Register user with Firebase Auth
+export const register = (formData) => async (dispatch) => {
   try {
-    console.log(myform);
     dispatch({ type: REGISTER_USER_REQUEST });
-    const { data } = await axios.post(`${URL}/auth/register`, {
-      myform,
+    
+    const { email, password, username, phoneNumber } = formData;
+    
+    // Create user in Firebase Auth
+    const userCredential = await firebaseRegister(email, password);
+    const user = userCredential.user;
+    
+    // Store additional user data in Firestore
+    await setDoc(doc(db, "users", user.uid), {
+      uid: user.uid,
+      email: email,
+      username: username,
+      phoneNumber: phoneNumber,
+      createdAt: new Date().toISOString(),
+      role: "user"
     });
-    localStorage.setItem("server_token", data.server_token);
-    dispatch({ type: REGISTER_USER_SUCCESS, payload: data.user });
+    
+    // Store token in localStorage
+    const token = await user.getIdToken();
+    localStorage.setItem("token", token);
+    localStorage.setItem("user", JSON.stringify({
+      uid: user.uid,
+      email: email,
+      username: username,
+      role: "user"
+    }));
+    
+    dispatch({ 
+      type: REGISTER_USER_SUCCESS, 
+      payload: {
+        uid: user.uid,
+        email: email,
+        username: username,
+        role: "user"
+      }
+    });
+    
+    return { success: true };
   } catch (error) {
-    console.log(error.response, "asdfgh");
+    console.log(error, "register error");
     dispatch({
       type: REGISTER_USER_FAIL,
-      payload: error.response.data.message,
+      payload: error.message || "Registration failed",
     });
+    return { success: false, message: error.message };
   }
 };
 
-export const login = (myform) => async (dispatch) => {
+// Login user with Firebase Auth
+export const login = (formData) => async (dispatch) => {
   try {
-    console.log(myform, "huccha");
     dispatch({ type: LOGIN_REQUEST });
-    const { data } = await axios.post(`${URL}/auth/login`, {
-      myform,
-    });
-    localStorage.setItem("token", data.token);
-    dispatch({ type: LOGIN_SUCCESS, payload: data.user });
+    
+    const { email, password } = formData;
+    
+    // Login with Firebase Auth
+    const userCredential = await firebaseLogin(email, password);
+    const user = userCredential.user;
+    
+    // Get additional user data from Firestore
+    const userDoc = await getDoc(doc(db, "users", user.uid));
+    let userData = {
+      uid: user.uid,
+      email: user.email,
+      role: "user"
+    };
+    
+    if (userDoc.exists()) {
+      userData = { ...userData, ...userDoc.data() };
+    } else {
+      // Create user document if it doesn't exist
+      await setDoc(doc(db, "users", user.uid), {
+        uid: user.uid,
+        email: user.email,
+        username: email.split('@')[0],
+        createdAt: new Date().toISOString(),
+        role: "user"
+      });
+      userData.username = email.split('@')[0];
+    }
+    
+    // Store token in localStorage
+    const token = await user.getIdToken();
+    localStorage.setItem("token", token);
+    localStorage.setItem("user", JSON.stringify(userData));
+    
+    dispatch({ type: LOGIN_SUCCESS, payload: userData });
+    return { success: true, user: userData };
   } catch (error) {
-    console.log(error.response, "asdfgh");
-    dispatch({ type: LOGIN_FAIL, payload: error.response.data.message });
+    console.log(error, "login error");
+    dispatch({
+      type: LOGIN_FAIL,
+      payload: error.message || "Login failed",
+    });
+    return { success: false, message: error.message };
   }
 };
 
+// Forgot password
 export const forgot = (email) => async (dispatch) => {
   try {
     dispatch({ type: LOGIN_REQUEST });
-    const { data } = await axios.get(`${URL}/auth/forgot-password/${email}`);
-    localStorage.setItem("token", data.token);
-    dispatch({ type: LOGIN_SUCCESS, payload: data.user });
+    await firebaseResetPassword(email);
+    dispatch({ type: LOGIN_SUCCESS, payload: null });
+    return { success: true, message: "Password reset email sent!" };
   } catch (error) {
-    console.log(error.response, "asdfgh");
-    dispatch({ type: LOGIN_FAIL, payload: error.response.data.message });
+    console.log(error, "forgot password error");
+    dispatch({ type: LOGIN_FAIL, payload: error.message });
+    return { success: false, message: error.message };
   }
 };
 
+// Logout user
 export const logout = () => async (dispatch) => {
   try {
+    await firebaseLogout();
     localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    window.location.href = "/login";
   } catch (error) {
-    console.log(error.response, "asdfgh");
-    dispatch({ type: LOGIN_FAIL, payload: error.response.data.message });
+    console.log(error, "logout error");
   }
 };
 
@@ -96,8 +172,7 @@ export const addconfetti = () => async (dispatch) => {
   try {
     dispatch({ type: ADD_CONFETTI });
   } catch (error) {
-    console.log(error.response, "asdfgh");
-    dispatch({ type: LOGIN_FAIL, payload: error.response.data.message });
+    dispatch({ type: LOGIN_FAIL, payload: error.message });
   }
 };
 
@@ -105,21 +180,22 @@ export const removeconfetti = () => async (dispatch) => {
   try {
     dispatch({ type: REMOVE_CONFETTI });
   } catch (error) {
-    console.log(error.response, "asdfgh");
-    dispatch({ type: LOGIN_FAIL, payload: error.response.data.message });
+    dispatch({ type: LOGIN_FAIL, payload: error.message });
   }
 };
 
+// Load user from localStorage
 export const loadUser = () => async (dispatch) => {
   try {
-    const servertoken =
-      localStorage.getItem("token") && localStorage.getItem("token");
     dispatch({ type: LOAD_USER_REQUEST });
-    const { data } = await API.get(`/auth/loaduser`);
-    if (data.message) {
-      dispatch({ type: LOAD_USER_SUCCESS, payload: data.message });
+    
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) {
+      const userData = JSON.parse(storedUser);
+      dispatch({ type: LOAD_USER_SUCCESS, payload: userData });
     }
   } catch (error) {
     console.log(error);
+    dispatch({ type: LOAD_USER_FAIL });
   }
 };
