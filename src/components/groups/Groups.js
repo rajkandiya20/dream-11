@@ -4,8 +4,8 @@ import styled from "@emotion/styled";
 import GroupsOutlinedIcon from "@mui/icons-material/GroupsOutlined";
 import AddIcon from "@mui/icons-material/Add";
 import { Button } from "@mui/material";
-import { collection, getDocs, query, where } from "firebase/firestore";
-import { useEffect, useState } from "react";
+import { collection, getDocs } from "firebase/firestore";
+import { useEffect, useRef, useState } from "react";
 import { useSelector } from "react-redux";
 import db from "../../firebase";
 import Bottomnav from "../navbar/bottomnavbar";
@@ -108,7 +108,12 @@ export function Groups() {
 
   const LOADING_TIMEOUT = 10000; // 10 seconds max loading
 
+  const isMountedRef = useRef(true);
+  const timerRef = useRef(null);
+
   useEffect(() => {
+    isMountedRef.current = true;
+
     if (user && (user._id || user.uid)) {
       fetchGroups();
     } else {
@@ -116,11 +121,16 @@ export function Groups() {
     }
 
     // Timeout to prevent infinite loading
-    const timer = setTimeout(() => {
-      setLoading(false);
+    timerRef.current = setTimeout(() => {
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
     }, LOADING_TIMEOUT);
 
-    return () => clearTimeout(timer);
+    return () => {
+      isMountedRef.current = false;
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
   }, [user]);
 
   const fetchGroups = async () => {
@@ -134,27 +144,36 @@ export function Groups() {
         return;
       }
 
+      // members is a map { userId: boolean }, not an array.
+      // Firestore does not support array-contains on map fields.
+      // Query all groups and filter client-side by checking the map key.
       const groupsRef = collection(db, "groups");
-      const groupsQuery = query(
-        groupsRef,
-        where("members", "array-contains", userId)
-      );
-      const snapshot = await getDocs(groupsQuery);
+      const snapshot = await getDocs(groupsRef);
+
+      if (!isMountedRef.current) return;
 
       if (snapshot.empty) {
         setGroups([]);
         setLoading(false);
+        if (timerRef.current) clearTimeout(timerRef.current);
         return;
       }
 
       const userGroups = [];
       snapshot.forEach((doc) => {
-        userGroups.push({ id: doc.id, ...doc.data() });
+        const data = doc.data();
+        // Check if user is a member using map key lookup
+        if (data.members && data.members[userId] === true) {
+          userGroups.push({ id: doc.id, ...data });
+        }
       });
 
+      if (!isMountedRef.current) return;
       setGroups(userGroups);
       setLoading(false);
+      if (timerRef.current) clearTimeout(timerRef.current);
     } catch (err) {
+      if (!isMountedRef.current) return;
       console.error("Error fetching groups:", err);
       // If collection doesn't exist or no permissions, show empty state
       if (err.code === "permission-denied" || err.code === "not-found") {
@@ -164,6 +183,7 @@ export function Groups() {
         setError("Unable to load groups. Please try again.");
         setLoading(false);
       }
+      if (timerRef.current) clearTimeout(timerRef.current);
     }
   };
 
@@ -219,7 +239,7 @@ export function Groups() {
                 <GroupInfo>
                   <GroupName>{group.name || "Unnamed Group"}</GroupName>
                   <GroupMembers>
-                    {group.members?.length || 0} member{group.members?.length !== 1 ? "s" : ""}
+                    {group.members ? Object.keys(group.members).length : 0} member{(group.members ? Object.keys(group.members).length : 0) !== 1 ? "s" : ""}
                   </GroupMembers>
                 </GroupInfo>
               </GroupCard>

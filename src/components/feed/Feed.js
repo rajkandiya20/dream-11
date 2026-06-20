@@ -4,7 +4,7 @@ import styled from "@emotion/styled";
 import FeedOutlinedIcon from "@mui/icons-material/FeedOutlined";
 import { Button } from "@mui/material";
 import { collection, getDocs, query, orderBy } from "firebase/firestore";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSelector } from "react-redux";
 import db from "../../firebase";
 import Bottomnav from "../navbar/bottomnavbar";
@@ -101,15 +101,24 @@ export function Feed() {
 
   const LOADING_TIMEOUT = 10000; // 10 seconds max loading
 
+  const isMountedRef = useRef(true);
+  const timerRef = useRef(null);
+
   useEffect(() => {
+    isMountedRef.current = true;
     fetchFeedPosts();
 
     // Timeout to prevent infinite loading
-    const timer = setTimeout(() => {
-      setLoading(false);
+    timerRef.current = setTimeout(() => {
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
     }, LOADING_TIMEOUT);
 
-    return () => clearTimeout(timer);
+    return () => {
+      isMountedRef.current = false;
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
   }, []);
 
   const fetchFeedPosts = async () => {
@@ -121,9 +130,12 @@ export function Feed() {
       const feedQuery = query(feedRef, orderBy("createdAt", "desc"));
       const snapshot = await getDocs(feedQuery);
 
+      if (!isMountedRef.current) return;
+
       if (snapshot.empty) {
         setPosts([]);
         setLoading(false);
+        if (timerRef.current) clearTimeout(timerRef.current);
         return;
       }
 
@@ -132,9 +144,12 @@ export function Feed() {
         feedPosts.push({ id: doc.id, ...doc.data() });
       });
 
+      if (!isMountedRef.current) return;
       setPosts(feedPosts);
       setLoading(false);
+      if (timerRef.current) clearTimeout(timerRef.current);
     } catch (err) {
+      if (!isMountedRef.current) return;
       console.error("Error fetching feed posts:", err);
       // If collection doesn't exist, show empty state instead of error
       if (err.code === "permission-denied" || err.code === "not-found") {
@@ -144,6 +159,7 @@ export function Feed() {
         setError("Unable to load feed. Please try again.");
         setLoading(false);
       }
+      if (timerRef.current) clearTimeout(timerRef.current);
     }
   };
 

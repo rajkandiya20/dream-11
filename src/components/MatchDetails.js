@@ -30,7 +30,7 @@ import {
   updateDoc,
   where,
 } from "firebase/firestore";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import ReactCanvasConfetti from "react-confetti";
 import { useDispatch, useSelector } from "react-redux";
 import {
@@ -180,6 +180,8 @@ export function MatchDetails({ players }) {
     width: window.innerWidth,
     height: window.innerHeight,
   });
+  const unsubRef = useRef(null);
+  const isMountedRef = useRef(true);
   const showAnimation = () => {
     setDimensions({
       width: window.innerWidth,
@@ -187,23 +189,29 @@ export function MatchDetails({ players }) {
     });
   };
   useEffect(() => {
-    let unsub = null;
+    isMountedRef.current = true;
     async function getdata(m) {
       if (match_details?.matchId) {
         try {
           const docRef = doc(db, "cities", match_details.matchId);
           const docSnap = await getDoc(docRef);
+
+          if (!isMountedRef.current) return;
+
           if (docSnap.exists()) {
             const data = docSnap.data();
             if (data.capital) setCommentary([...data.capital]);
             if (data.miniscore) setLivescore({ ...data.miniscore });
           }
 
-          unsub = onSnapshot(
+          const listener = onSnapshot(
             doc(db, "cities", match_details?.matchId),
             (doc) => {
+              if (!isMountedRef.current) return;
               if (doc.data()) {
-                console.log(doc.data(), "data");
+                if (process.env.NODE_ENV === 'development') {
+                  console.log(doc.data(), "data");
+                }
                 if (doc.data().capital) setCommentary([...doc.data().capital]);
                 if (doc.data().miniscore) setLivescore({ ...doc.data().miniscore });
               }
@@ -212,6 +220,7 @@ export function MatchDetails({ players }) {
               console.error("Firestore onSnapshot error:", error);
             }
           );
+          unsubRef.current = listener;
         } catch (error) {
           console.error("Error fetching match details from Firestore:", error);
         }
@@ -220,7 +229,11 @@ export function MatchDetails({ players }) {
     getdata(match_details);
 
     return () => {
-      if (unsub) unsub();
+      isMountedRef.current = false;
+      if (unsubRef.current) {
+        unsubRef.current();
+        unsubRef.current = null;
+      }
     };
   }, [match_details]);
 

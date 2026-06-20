@@ -2,7 +2,7 @@ import styled from "@emotion/styled";
 import NotificationsOutlinedIcon from "@mui/icons-material/NotificationsOutlined";
 import { Button } from "@mui/material";
 import { collection, getDocs, query, where, orderBy } from "firebase/firestore";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSelector } from "react-redux";
 import db from "../../firebase";
 import Bottomnav from "../navbar/bottomnavbar";
@@ -80,7 +80,12 @@ export function Notifications() {
 
   const LOADING_TIMEOUT = 10000; // 10 seconds max loading
 
+  const isMountedRef = useRef(true);
+  const timerRef = useRef(null);
+
   useEffect(() => {
+    isMountedRef.current = true;
+
     if (user && (user._id || user.uid)) {
       fetchNotifications();
     } else {
@@ -88,11 +93,16 @@ export function Notifications() {
     }
 
     // Timeout to prevent infinite loading
-    const timer = setTimeout(() => {
-      setLoading(false);
+    timerRef.current = setTimeout(() => {
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
     }, LOADING_TIMEOUT);
 
-    return () => clearTimeout(timer);
+    return () => {
+      isMountedRef.current = false;
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
   }, [user]);
 
   const fetchNotifications = async () => {
@@ -114,9 +124,12 @@ export function Notifications() {
       );
       const snapshot = await getDocs(notifQuery);
 
+      if (!isMountedRef.current) return;
+
       if (snapshot.empty) {
         setNotifications([]);
         setLoading(false);
+        if (timerRef.current) clearTimeout(timerRef.current);
         return;
       }
 
@@ -125,9 +138,12 @@ export function Notifications() {
         notifList.push({ id: doc.id, ...doc.data() });
       });
 
+      if (!isMountedRef.current) return;
       setNotifications(notifList);
       setLoading(false);
+      if (timerRef.current) clearTimeout(timerRef.current);
     } catch (err) {
+      if (!isMountedRef.current) return;
       console.error("Error fetching notifications:", err);
       if (err.code === "permission-denied" || err.code === "not-found") {
         setNotifications([]);
@@ -136,6 +152,7 @@ export function Notifications() {
         setError("Unable to load notifications. Please try again.");
         setLoading(false);
       }
+      if (timerRef.current) clearTimeout(timerRef.current);
     }
   };
 
