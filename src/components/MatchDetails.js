@@ -250,8 +250,15 @@ export function MatchDetails({ players }) {
                 style={{ cursor: "pointer" }}
               />
               {match_details && (
-                <h1>
-                  {match_details.teamAwayCode} Vs {match_details.teamHomeCode}
+                <h1 style={{ display: "flex", alignItems: "center" }}>
+                  {match_details.team_a_flag && (
+                    <img src={match_details.team_a_flag} alt="" style={{ width: 24, height: 24, objectFit: "contain", marginRight: 4, borderRadius: 3 }} />
+                  )}
+                  {match_details.teamAwayCode || match_details.team_a_name} Vs{" "}
+                  {match_details.team_b_flag && (
+                    <img src={match_details.team_b_flag} alt="" style={{ width: 24, height: 24, objectFit: "contain", marginLeft: 4, marginRight: 4, borderRadius: 3 }} />
+                  )}
+                  {match_details.teamHomeCode || match_details.team_b_name}
                 </h1>
               )}
             </LeftSide>
@@ -274,8 +281,13 @@ export function MatchDetails({ players }) {
                       height: "15px",
                       textOverflow: "ellipsis",
                       overflow: "hidden",
+                      display: "flex",
+                      alignItems: "center",
                     }}
                   >
+                    {match_details?.team_a_flag && (
+                      <img src={match_details.team_a_flag} alt="" style={{ width: 16, height: 16, objectFit: "contain", marginRight: 4 }} />
+                    )}
                     {matchlive.titleFI}
                   </p>
                   <p>
@@ -306,10 +318,15 @@ export function MatchDetails({ players }) {
                           height: "15px",
                           textOverflow: "ellipsis",
                           overflow: "hidden",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "flex-end",
                         }}
                       >
-                        {" "}
                         {matchlive.titleSI}
+                        {match_details?.team_b_flag && (
+                          <img src={match_details.team_b_flag} alt="" style={{ width: 16, height: 16, objectFit: "contain", marginLeft: 4 }} />
+                        )}
                       </p>
                       <p>
                         {" "}

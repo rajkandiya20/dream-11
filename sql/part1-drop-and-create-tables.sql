@@ -3,6 +3,8 @@
 -- Run this FIRST in Supabase SQL Editor
 -- =====================================================
 
+DROP TABLE IF EXISTS commentary CASCADE;
+DROP TABLE IF EXISTS payment_methods CASCADE;
 DROP TABLE IF EXISTS scoreboard CASCADE;
 DROP TABLE IF EXISTS leaderboard CASCADE;
 DROP TABLE IF EXISTS notifications CASCADE;
@@ -99,6 +101,11 @@ CREATE TABLE matches (
   winner_team_id UUID REFERENCES teams(id) ON DELETE SET NULL,
   team_a_score TEXT,
   team_b_score TEXT,
+  current_over DECIMAL(4,1),
+  current_score_a TEXT,
+  current_score_b TEXT,
+  current_wickets_a INTEGER DEFAULT 0,
+  current_wickets_b INTEGER DEFAULT 0,
   live BOOLEAN DEFAULT false,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -237,5 +244,27 @@ CREATE TABLE scoreboard (
   economy DECIMAL(5,2) DEFAULT 0,
   strike_rate DECIMAL(6,2) DEFAULT 0,
   points DECIMAL(10,2) DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE commentary (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  match_id UUID REFERENCES matches(id) ON DELETE CASCADE,
+  over_number DECIMAL(4,1),
+  ball_number INTEGER,
+  runs INTEGER DEFAULT 0,
+  event_type TEXT,
+  description TEXT,
+  batsman TEXT,
+  bowler TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE payment_methods (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  method_type TEXT NOT NULL,
+  details JSONB,
+  is_default BOOLEAN DEFAULT false,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );

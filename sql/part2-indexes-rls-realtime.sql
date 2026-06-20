@@ -14,6 +14,8 @@ CREATE INDEX idx_notifications_user ON notifications(user_id);
 CREATE INDEX idx_transactions_user ON transactions(user_id);
 CREATE INDEX idx_scoreboard_match ON scoreboard(match_id);
 CREATE INDEX idx_admins_email ON admins(email);
+CREATE INDEX idx_commentary_match ON commentary(match_id);
+CREATE INDEX idx_payment_methods_user ON payment_methods(user_id);
 
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE admins ENABLE ROW LEVEL SECURITY;
@@ -33,6 +35,8 @@ ALTER TABLE transactions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE leaderboard ENABLE ROW LEVEL SECURITY;
 ALTER TABLE scoreboard ENABLE ROW LEVEL SECURITY;
+ALTER TABLE commentary ENABLE ROW LEVEL SECURITY;
+ALTER TABLE payment_methods ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "read_all" ON users FOR SELECT USING (true);
 CREATE POLICY "read_all" ON admins FOR SELECT USING (true);
@@ -52,6 +56,8 @@ CREATE POLICY "read_all" ON transactions FOR SELECT USING (true);
 CREATE POLICY "read_all" ON notifications FOR SELECT USING (true);
 CREATE POLICY "read_all" ON leaderboard FOR SELECT USING (true);
 CREATE POLICY "read_all" ON scoreboard FOR SELECT USING (true);
+CREATE POLICY "read_all" ON commentary FOR SELECT USING (true);
+CREATE POLICY "read_all" ON payment_methods FOR SELECT USING (true);
 
 CREATE POLICY "write_all" ON users FOR INSERT WITH CHECK (true);
 CREATE POLICY "update_all" ON users FOR UPDATE USING (true);
@@ -92,6 +98,12 @@ CREATE POLICY "update_all" ON leaderboard FOR UPDATE USING (true);
 CREATE POLICY "write_all" ON scoreboard FOR INSERT WITH CHECK (true);
 CREATE POLICY "update_all" ON scoreboard FOR UPDATE USING (true);
 CREATE POLICY "delete_all" ON scoreboard FOR DELETE USING (true);
+CREATE POLICY "write_all" ON commentary FOR INSERT WITH CHECK (true);
+CREATE POLICY "update_all" ON commentary FOR UPDATE USING (true);
+CREATE POLICY "delete_all" ON commentary FOR DELETE USING (true);
+CREATE POLICY "write_all" ON payment_methods FOR INSERT WITH CHECK (true);
+CREATE POLICY "update_all" ON payment_methods FOR UPDATE USING (true);
+CREATE POLICY "delete_all" ON payment_methods FOR DELETE USING (true);
 
 ALTER PUBLICATION supabase_realtime ADD TABLE matches;
 ALTER PUBLICATION supabase_realtime ADD TABLE tournaments;
@@ -100,3 +112,4 @@ ALTER PUBLICATION supabase_realtime ADD TABLE players;
 ALTER PUBLICATION supabase_realtime ADD TABLE scoreboard;
 ALTER PUBLICATION supabase_realtime ADD TABLE notifications;
 ALTER PUBLICATION supabase_realtime ADD TABLE teams;
+ALTER PUBLICATION supabase_realtime ADD TABLE commentary;

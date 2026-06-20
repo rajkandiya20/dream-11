@@ -2,11 +2,13 @@ import "./../register.css";
 import "./myInfo.css";
 import styled from "@emotion/styled";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import CameraAltIcon from "@mui/icons-material/CameraAlt";
 import Button from "@mui/material/Button";
 import Paper from "@mui/material/Paper";
 import TextField from "@mui/material/TextField";
+import CircularProgress from "@mui/material/CircularProgress";
 import axios from "axios";
-import { react, useState, useEffect } from "react";
+import { react, useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useForm, Controller } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
@@ -27,6 +29,8 @@ import MenuItem from "@mui/material/MenuItem";
 import FormControl from "@mui/material/FormControl";
 import { Country, State, City } from "country-state-city";
 import Select from "react-select";
+import uploadImage from "../../utils/imageUpload";
+import { upsertUser } from "../../services/supabaseService";
 
 const PHONE_REGEX = new RegExp(
   /"^[\+]?[(]?[0-9]{3}[)]?[-\s\.]?[0-9]{3}[-\s\.]?[0-9]{4,6}$"/gim
@@ -34,6 +38,45 @@ const PHONE_REGEX = new RegExp(
 
 const Err = styled.p`
   color: red;
+`;
+
+const AvatarContainer = styled.div`
+  display: flex;
+  justify-content: center;
+  margin-bottom: 20px;
+  position: relative;
+`;
+
+const AvatarCircle = styled.div`
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  border: 3px solid var(--green);
+  overflow: hidden;
+  position: relative;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #f0f0f0;
+`;
+
+const AvatarImg = styled.img`
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+`;
+
+const AvatarOverlay = styled.div`
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 30px;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 `;
 
 export function MyInfo() {
@@ -53,12 +96,16 @@ export function MyInfo() {
   const [selectedCountry, setSelectedCountry] = useState("");
   const [selectedState, setSelectedState] = useState("");
   const [selectedCity, setSelectedCity] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState("");
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const fileInputRef = useRef(null);
   useEffect(() => {
     setValue("email", user?.email);
     setValue("username", user?.username);
     setValue("phoneNumber", user?.phonenumber);
     setValue("password", user?.password);
     setValue("country", "india");
+    setAvatarUrl(user?.avatar_url || "");
   }, [user]);
   useEffect(() => {
     const getCountries = async () => {
@@ -187,6 +234,28 @@ export function MyInfo() {
     alert.success(data.data.message);
   };
 
+  const handleAvatarUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setUploadingAvatar(true);
+    try {
+      const url = await uploadImage(file, "avatars");
+      if (url) {
+        setAvatarUrl(url);
+        // Update in Supabase
+        if (user?.uid) {
+          await upsertUser({ uid: user.uid, avatar_url: url });
+        }
+        alert.success("Profile image updated");
+      } else {
+        alert.error("Upload failed");
+      }
+    } catch (err) {
+      alert.error("Upload failed");
+    }
+    setUploadingAvatar(false);
+  };
+
   return (
     <>
       <div className="myInfoTop">
@@ -198,6 +267,27 @@ export function MyInfo() {
       </div>
       <div className="myInfo">
         <form onSubmit={handleSubmit(onSubmit)} className="myInfoForm">
+          <AvatarContainer>
+            <AvatarCircle onClick={() => fileInputRef.current?.click()}>
+              {uploadingAvatar ? (
+                <CircularProgress size={30} />
+              ) : avatarUrl ? (
+                <AvatarImg src={avatarUrl} alt="Profile" />
+              ) : (
+                <CameraAltIcon style={{ color: "#888", fontSize: 36 }} />
+              )}
+              <AvatarOverlay>
+                <CameraAltIcon style={{ color: "#fff", fontSize: 16 }} />
+              </AvatarOverlay>
+            </AvatarCircle>
+            <input
+              type="file"
+              accept="image/*"
+              ref={fileInputRef}
+              onChange={handleAvatarUpload}
+              style={{ display: "none" }}
+            />
+          </AvatarContainer>
           <TextField
             required
             id="email"

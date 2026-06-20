@@ -11,10 +11,7 @@ import {
   InputLabel,
   Grid,
   IconButton,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
+  Drawer,
 } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -28,6 +25,7 @@ import {
   deletePlayer,
 } from "../../services/supabaseService";
 import { subscribeToPlayers } from "../../services/realtimeService";
+import uploadImage from "../../utils/imageUpload";
 
 const Container = styled.div`
   padding: 20px;
@@ -54,10 +52,12 @@ export default function PlayerManager() {
   const [players, setPlayers] = useState([]);
   const [openDialog, setOpenDialog] = useState(false);
   const [editingPlayer, setEditingPlayer] = useState(null);
+  const [confirmingDelete, setConfirmingDelete] = useState(null);
   const [formData, setFormData] = useState({
     name: "",
     role: "Batsman",
     credits: 8.0,
+    image: "",
   });
 
   useEffect(() => {
@@ -106,6 +106,7 @@ export default function PlayerManager() {
       name: "",
       role: "Batsman",
       credits: 8.0,
+      image: "",
     });
     setOpenDialog(true);
   };
@@ -116,6 +117,7 @@ export default function PlayerManager() {
       name: player.name || "",
       role: player.role || "Batsman",
       credits: player.credits || 8.0,
+      image: player.image || "",
     });
     setOpenDialog(true);
   };
@@ -154,12 +156,10 @@ export default function PlayerManager() {
   };
 
   const handleDelete = async (playerId) => {
-    if (!window.confirm("Are you sure you want to delete this player?")) {
-      return;
-    }
     try {
       await deletePlayer(playerId);
       alert.success("Player deleted successfully");
+      setConfirmingDelete(null);
       fetchPlayers(selectedTeam.id);
     } catch (error) {
       alert.error("Failed to delete player");
@@ -200,19 +200,36 @@ export default function PlayerManager() {
                 <CardWrapper>
                   <CardContent>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <div>
-                        <Typography variant="h6">{player.name}</Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          Role: {player.role} | Credits: {player.credits}
-                        </Typography>
+                      <div style={{ display: "flex", alignItems: "center" }}>
+                        {player.image && (
+                          <img
+                            src={player.image}
+                            alt={player.name}
+                            style={{ width: 36, height: 36, borderRadius: "50%", objectFit: "cover", marginRight: 10 }}
+                          />
+                        )}
+                        <div>
+                          <Typography variant="h6">{player.name}</Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            Role: {player.role} | Credits: {player.credits}
+                          </Typography>
+                        </div>
                       </div>
                       <div>
                         <IconButton size="small" onClick={() => handleOpenEdit(player)}>
                           <EditIcon fontSize="small" />
                         </IconButton>
-                        <IconButton size="small" onClick={() => handleDelete(player.id)}>
-                          <DeleteIcon fontSize="small" />
-                        </IconButton>
+                        {confirmingDelete === player.id ? (
+                          <span style={{ fontSize: "12px" }}>
+                            Sure?{" "}
+                            <Button size="small" color="error" onClick={() => handleDelete(player.id)}>Yes</Button>
+                            <Button size="small" onClick={() => setConfirmingDelete(null)}>No</Button>
+                          </span>
+                        ) : (
+                          <IconButton size="small" onClick={() => setConfirmingDelete(player.id)}>
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        )}
                       </div>
                     </div>
                   </CardContent>
@@ -223,11 +240,17 @@ export default function PlayerManager() {
         </>
       )}
 
-      <Dialog open={openDialog} onClose={() => setOpenDialog(false)} fullWidth maxWidth="sm">
-        <DialogTitle>
-          {editingPlayer ? "Edit Player" : "Add Player"}
-        </DialogTitle>
-        <DialogContent>
+      <Drawer anchor="bottom" open={openDialog} onClose={() => setOpenDialog(false)}>
+        <div style={{ borderRadius: "16px 16px 0 0", maxHeight: "85vh", overflowY: "auto" }}>
+          <div style={{ display: "flex", justifyContent: "center", padding: "10px 0 0" }}>
+            <div style={{ width: "40px", height: "4px", borderRadius: "2px", backgroundColor: "#ccc" }} />
+          </div>
+          <div style={{ padding: "16px 20px 8px", borderBottom: "1px solid #eee" }}>
+            <Typography variant="h6">
+              {editingPlayer ? "Edit Player" : "Add Player"}
+            </Typography>
+          </div>
+          <div style={{ padding: "10px 20px 20px" }}>
           <TextField
             label="Name"
             value={formData.name}
@@ -258,14 +281,45 @@ export default function PlayerManager() {
             margin="normal"
             inputProps={{ step: 0.5, min: 1, max: 20 }}
           />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
-          <Button onClick={handleSave} variant="contained">
-            {editingPlayer ? "Update" : "Add"}
-          </Button>
-        </DialogActions>
-      </Dialog>
+          <Typography variant="body2" sx={{ mt: 2, mb: 1 }}>
+            Player Image
+          </Typography>
+          <input
+            type="file"
+            accept="image/*"
+            onChange={async (e) => {
+              const file = e.target.files[0];
+              if (!file) return;
+              const url = await uploadImage(file, "players");
+              if (url) {
+                setFormData((prev) => ({ ...prev, image: url }));
+              }
+            }}
+          />
+          {formData.image && (
+            <img
+              src={formData.image}
+              alt="Player preview"
+              style={{ width: 50, height: 50, objectFit: "cover", marginTop: 8, borderRadius: "50%", border: "1px solid #eee" }}
+            />
+          )}
+          <TextField
+            label="Or enter Image URL"
+            value={formData.image}
+            onChange={(e) => setFormData({ ...formData, image: e.target.value })}
+            fullWidth
+            margin="normal"
+            size="small"
+          />
+          </div>
+          <div style={{ position: "sticky", bottom: 0, backgroundColor: "#fff", padding: "12px 20px", borderTop: "1px solid #eee", display: "flex", justifyContent: "space-between" }}>
+            <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
+            <Button onClick={handleSave} variant="contained">
+              {editingPlayer ? "Update" : "Add"}
+            </Button>
+          </div>
+        </div>
+      </Drawer>
     </Container>
   );
 }

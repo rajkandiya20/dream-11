@@ -3,7 +3,8 @@ import { useEffect, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import { addconfetti, removeconfetti } from "../actions/userAction";
-import { subscribeToScoreboard } from "../services/realtimeService";
+import { subscribeToScoreboard, subscribeToCommentary } from "../services/realtimeService";
+import { getCommentary } from "../services/supabaseService";
 
 const CommentaryContainer = styled.div`
   padding: 15px 0;
@@ -97,12 +98,43 @@ export function Commentary({ matchdata }) {
     const matchId = matchdata?.matchId || matchdata?.id || matchdata?._id;
     if (!matchId) return;
 
-    const unsubscribe = subscribeToScoreboard(matchId, (payload) => {
+    // Fetch existing commentary entries
+    async function fetchCommentary() {
+      const existing = await getCommentary(matchId);
+      if (existing && existing.length > 0) {
+        const formatted = existing.map((entry) => ({
+          event: entry.event_type || "",
+          overNumber: entry.over_number ? String(entry.over_number) : "",
+          commText: entry.description || "",
+          batsman: entry.batsman || "",
+          bowler: entry.bowler || "",
+          overSeparator: null,
+        }));
+        setCommentary(formatted);
+      }
+    }
+    fetchCommentary();
+
+    // Subscribe to new commentary entries from the commentary table
+    const unsubCommentary = subscribeToCommentary(matchId, (payload) => {
+      const newData = payload.new;
+      if (!newData) return;
+      const entry = {
+        event: newData.event_type || "",
+        overNumber: newData.over_number ? String(newData.over_number) : "",
+        commText: newData.description || "",
+        batsman: newData.batsman || "",
+        bowler: newData.bowler || "",
+        overSeparator: null,
+      };
+      setCommentary((prev) => [entry, ...prev]);
+    });
+
+    // Also subscribe to scoreboard changes for real-time run updates
+    const unsubScoreboard = subscribeToScoreboard(matchId, (payload) => {
       const newData = payload.new;
       if (!newData) return;
 
-      // Build a commentary entry from actual scoreboard table fields:
-      // runs, wickets, catches, fours, sixes, balls_faced, overs_bowled, economy, strike_rate, points, player_id, match_id
       setCommentary((prev) => {
         const event = newData.wickets > 0
           ? 'WICKET'
@@ -115,6 +147,8 @@ export function Commentary({ matchdata }) {
           event,
           overNumber: newData.overs_bowled ? String(newData.overs_bowled) : '',
           commText: `${newData.runs || 0} runs` + (newData.wickets > 0 ? `, ${newData.wickets} wicket(s)` : ''),
+          batsman: '',
+          bowler: '',
           overSeparator: null,
         };
         return [entry, ...prev];
@@ -122,7 +156,8 @@ export function Commentary({ matchdata }) {
     });
 
     return () => {
-      unsubscribe();
+      unsubCommentary();
+      unsubScoreboard();
     };
   }, [matchdata]);
 
@@ -196,7 +231,10 @@ export function Commentary({ matchdata }) {
                 </Event>
                 {p?.overNumber}
               </Left>
-              <Des>{p?.commText?.replace("$", "").replace("B0", "")}</Des>
+              <Des>
+                {p?.batsman && p?.bowler ? `${p.batsman} vs ${p.bowler} - ` : ""}
+                {p?.commText?.replace("$", "").replace("B0", "")}
+              </Des>
             </Comment>
           )}
         </div>

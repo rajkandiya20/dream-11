@@ -30,6 +30,8 @@ import Stats from "./stats";
 import { TeamShort } from "./TeamShort";
 import { leaderboardChanges } from "../utils/leaderboardchanges";
 import EmojiEventsOutlined from "@mui/icons-material/EmojiEventsOutlined";
+import { getScoreboard, getMatchById } from "../services/supabaseService";
+import { subscribeToScoreboard, subscribeToMatches } from "../services/realtimeService";
 const ContestsContainer = styled(Grid)``;
 const ContestContainer = styled.div`
   box-shadow: 0 2px 5px 1px rgba(64, 60, 67, 0.16);
@@ -304,6 +306,48 @@ export default function MatchTabs({ tabs, g, livescore }) {
   const [contest, setContest] = React.useState([]);
   const [modal, setModal] = React.useState(null);
   const navigate = useNavigate();
+  const [scoreboard, setScoreboard] = React.useState([]);
+  const [liveMatch, setLiveMatch] = React.useState(null);
+
+  useEffect(() => {
+    async function fetchScoreboard() {
+      if (id) {
+        const data = await getScoreboard(id);
+        setScoreboard(data || []);
+      }
+    }
+    fetchScoreboard();
+  }, [id]);
+
+  useEffect(() => {
+    async function fetchLiveMatch() {
+      if (id) {
+        const data = await getMatchById(id);
+        setLiveMatch(data);
+      }
+    }
+    fetchLiveMatch();
+
+    if (!id) return;
+    const unsubMatch = subscribeToMatches((payload) => {
+      if (payload.new && payload.new.id === id) {
+        setLiveMatch(payload.new);
+      }
+    });
+    const unsubScoreboard = subscribeToScoreboard(id, (payload) => {
+      if (payload.eventType === "INSERT") {
+        setScoreboard((prev) => [payload.new, ...prev]);
+      } else if (payload.eventType === "UPDATE") {
+        setScoreboard((prev) =>
+          prev.map((s) => (s.id === payload.new.id ? payload.new : s))
+        );
+      }
+    });
+    return () => {
+      unsubMatch();
+      unsubScoreboard();
+    };
+  }, [id]);
 
   useEffect(() => {
     async function getplayers() {
@@ -400,11 +444,11 @@ export default function MatchTabs({ tabs, g, livescore }) {
             >
               <Tab label="Contests" {...a11yProps(0)} />
               <Tab
-                label={`My Contests(${contest && contest.length})`}
+                label={`My Contests(${contest ? contest.length : 0})`}
                 {...a11yProps(1)}
               />
               <Tab
-                label={`My Teams(${team && team.length})`}
+                label={`My Teams(${team ? team.length : 0})`}
                 {...a11yProps(2)}
               />
               <Tab label="Commentary" {...a11yProps(3)} />
@@ -619,21 +663,109 @@ export default function MatchTabs({ tabs, g, livescore }) {
             <Commentary matchdata={match_details} />
           </TabP>
           <TabP value={value} index={4}>
-            <ScoreCard data={matchlive} g={g} livescore={livescore} />
+            {scoreboard.length > 0 ? (
+              <div style={{ overflowX: "auto" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px" }}>
+                  <thead>
+                    <tr style={{ backgroundColor: "#f5f5f5", textAlign: "left" }}>
+                      <th style={{ padding: "8px 6px" }}>Player</th>
+                      <th style={{ padding: "8px 6px" }}>R</th>
+                      <th style={{ padding: "8px 6px" }}>W</th>
+                      <th style={{ padding: "8px 6px" }}>C</th>
+                      <th style={{ padding: "8px 6px" }}>4s</th>
+                      <th style={{ padding: "8px 6px" }}>6s</th>
+                      <th style={{ padding: "8px 6px" }}>Pts</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {scoreboard.map((entry, idx) => (
+                      <tr key={entry.id || idx} style={{ borderBottom: "1px solid #eee" }}>
+                        <td style={{ padding: "6px" }}>{entry.player?.name || "Player"}</td>
+                        <td style={{ padding: "6px" }}>{entry.runs || 0}</td>
+                        <td style={{ padding: "6px" }}>{entry.wickets || 0}</td>
+                        <td style={{ padding: "6px" }}>{entry.catches || 0}</td>
+                        <td style={{ padding: "6px" }}>{entry.fours || 0}</td>
+                        <td style={{ padding: "6px" }}>{entry.sixes || 0}</td>
+                        <td style={{ padding: "6px", fontWeight: "bold" }}>{entry.points || 0}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <ScoreCard data={matchlive} g={g} livescore={livescore} />
+            )}
           </TabP>
           <TabP value={value} index={5}>
-            <Stats matchdata={matchlive || match_details} team={team} />
+            {scoreboard.length > 0 ? (
+              <div style={{ padding: "10px 0" }}>
+                <h4 style={{ fontSize: "14px", marginBottom: "10px", color: "#333" }}>Top Scorers</h4>
+                {[...scoreboard].sort((a, b) => (b.runs || 0) - (a.runs || 0)).slice(0, 5).map((entry, idx) => (
+                  <div key={entry.id || idx} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid #f0f0f0" }}>
+                    <span style={{ fontSize: "13px" }}>{idx + 1}. {entry.player?.name || "Player"}</span>
+                    <span style={{ fontSize: "13px", fontWeight: "bold" }}>{entry.runs || 0} runs</span>
+                  </div>
+                ))}
+                <h4 style={{ fontSize: "14px", margin: "15px 0 10px", color: "#333" }}>Top Wicket Takers</h4>
+                {[...scoreboard].sort((a, b) => (b.wickets || 0) - (a.wickets || 0)).filter(e => (e.wickets || 0) > 0).slice(0, 5).map((entry, idx) => (
+                  <div key={entry.id || idx} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid #f0f0f0" }}>
+                    <span style={{ fontSize: "13px" }}>{idx + 1}. {entry.player?.name || "Player"}</span>
+                    <span style={{ fontSize: "13px", fontWeight: "bold" }}>{entry.wickets || 0} wkts</span>
+                  </div>
+                ))}
+                <h4 style={{ fontSize: "14px", margin: "15px 0 10px", color: "#333" }}>Batting Average</h4>
+                {[...scoreboard].filter(e => (e.runs || 0) > 0).slice(0, 5).map((entry, idx) => (
+                  <div key={entry.id || idx} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid #f0f0f0" }}>
+                    <span style={{ fontSize: "13px" }}>{entry.player?.name || "Player"}</span>
+                    <span style={{ fontSize: "13px" }}>SR: {entry.strike_rate || "-"}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <Stats matchdata={matchlive || match_details} team={team} />
+            )}
           </TabP>
           <TabP value={value} index={6}>
-            <video
-              id="videoPlayer"
-              width="100%"
-              controls
-              autoPlay
-              muted={false}
-            >
-              <source src={`${URL}/video`} type="video/mp4" />
-            </video>
+            {liveMatch ? (
+              <div style={{ padding: "10px 0" }}>
+                <div style={{ textAlign: "center", marginBottom: "15px" }}>
+                  <span style={{ 
+                    display: "inline-block", padding: "3px 10px", borderRadius: "12px", fontSize: "11px", fontWeight: "600",
+                    backgroundColor: liveMatch.status === "live" ? "#ffebee" : "#e3f2fd",
+                    color: liveMatch.status === "live" ? "#c62828" : "#1565c0"
+                  }}>
+                    {liveMatch.status === "live" ? "LIVE" : (liveMatch.status || "").toUpperCase()}
+                  </span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px", backgroundColor: "#fafafa", borderRadius: "8px" }}>
+                  <div style={{ textAlign: "center" }}>
+                    <p style={{ fontWeight: "bold", fontSize: "16px" }}>{liveMatch.team_a_name || "Team A"}</p>
+                    <p style={{ fontSize: "20px", fontWeight: "bold", color: "#333" }}>
+                      {liveMatch.current_score_a || 0}/{liveMatch.current_wickets_a || 0}
+                    </p>
+                  </div>
+                  <div style={{ textAlign: "center" }}>
+                    <p style={{ fontSize: "12px", color: "#888" }}>Over</p>
+                    <p style={{ fontSize: "18px", fontWeight: "bold" }}>{liveMatch.current_over || "0"}</p>
+                  </div>
+                  <div style={{ textAlign: "center" }}>
+                    <p style={{ fontWeight: "bold", fontSize: "16px" }}>{liveMatch.team_b_name || "Team B"}</p>
+                    <p style={{ fontSize: "20px", fontWeight: "bold", color: "#333" }}>
+                      {liveMatch.current_score_b || 0}/{liveMatch.current_wickets_b || 0}
+                    </p>
+                  </div>
+                </div>
+                <div style={{ textAlign: "center", marginTop: "12px" }}>
+                  <p style={{ fontSize: "12px", color: "#666" }}>
+                    {liveMatch.venue || ""} {liveMatch.date_time ? " | " + new Date(liveMatch.date_time).toLocaleString() : ""}
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div style={{ textAlign: "center", padding: "40px 0", color: "#888" }}>
+                <p>Live match data not available</p>
+              </div>
+            )}
           </TabP>
         </Box>
       ) : (
