@@ -8,8 +8,6 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/utils/validators.dart';
-import '../../../../shared/components/notification_controller.dart';
-import '../../../../shared/components/top_notification.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/app_text_field.dart';
 import '../../domain/providers/auth_provider.dart';
@@ -43,16 +41,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           password: _passwordController.text,
         );
 
-    if (success && mounted) {
+    if (!mounted) return;
+
+    if (success) {
       context.go(AppRoutes.home);
-    } else if (mounted) {
-      final error = ref.read(authProvider).errorMessage;
-      if (error != null) {
-        ref.read(notificationControllerProvider.notifier).showError(
-              title: 'Login Failed',
-              message: error,
-            );
-      }
+    } else {
+      final error = ref.read(authProvider).errorMessage ?? 'Login failed';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error), backgroundColor: Colors.red),
+      );
     }
   }
 
