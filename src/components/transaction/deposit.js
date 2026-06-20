@@ -152,16 +152,26 @@ export default function Deposit({ tabs, g, livescore }) {
 
   useEffect(() => {
     async function getplayers() {
-      if (user?._id && id) {
-        const data = await axios.get(
-          `${URL}/getteam/?matchId=${id}&userid=${user._id}`
-        );
-        const joinedC = await axios.get(
-          `${URL}/getjoinedcontest/${id}?userid=${user._id}`
-        );
-        leaderboardChanges(joinedC.data.contests);
-        setContest([...joinedC.data.contests]);
-        setTeam([...data.data.team]);
+      const userId = user?._id || user?.uid;
+      if (userId && id) {
+        try {
+          const data = await axios.get(
+            `${URL}/getteam/?matchId=${id}&userid=${userId}`,
+            { timeout: 10000 }
+          );
+          const joinedC = await axios.get(
+            `${URL}/getjoinedcontest/${id}?userid=${userId}`,
+            { timeout: 10000 }
+          );
+          if (joinedC.data.contests) {
+            setContest([...joinedC.data.contests]);
+          }
+          if (data.data.team) {
+            setTeam([...data.data.team]);
+          }
+        } catch (error) {
+          console.error('Error fetching deposit data:', error);
+        }
       }
     }
     getplayers();
@@ -169,10 +179,15 @@ export default function Deposit({ tabs, g, livescore }) {
   useEffect(() => {
     async function getteams() {
       if (contest[0]?._id) {
-        const teamdata = await axios.get(
-          `${URL}/getteamsofcontest/${contest[0]?._id}`
-        );
-        setLeaderboard(teamdata.data.teams);
+        try {
+          const teamdata = await axios.get(
+            `${URL}/getteamsofcontest/${contest[0]?._id}`,
+            { timeout: 10000 }
+          );
+          setLeaderboard(teamdata.data.teams);
+        } catch (error) {
+          console.error('Error fetching teams of contest:', error);
+        }
       }
     }
     getteams();
@@ -228,7 +243,7 @@ export default function Deposit({ tabs, g, livescore }) {
           console.log("File available at", downloadURL);
           let data = {
             ...formData,
-            userId:user._id,
+            userId: user._id || user.uid,
             recieptUrl: downloadURL,
           };
           axios

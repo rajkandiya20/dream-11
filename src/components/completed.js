@@ -184,12 +184,13 @@ export function Completed() {
       {!loading ? (
         <div className="homecontainer">
           <div className="matches">
-            {past?.length > 0 ? (
+            {past && past.length > 0 ? (
               <>
                 {past.map((u) => (
                   <div
+                    key={u.id || u._id}
                     className="matchcontainer"
-                    onClick={() => navigate(`/contests/${u.id}`)}
+                    onClick={() => navigate(`/contests/${u.id || u._id}`)}
                     style={{
                       postion: "absolute !important",
                       backgroundColor: "#000",
@@ -316,7 +317,15 @@ export function Completed() {
                   </div>
                 ))}
               </>
-            ) : null}
+            ) : (
+              <div style={{ textAlign: 'center', padding: '60px 20px' }}>
+                <SportsCricketOutlined style={{ fontSize: 60, color: '#ccc' }} />
+                <h4 style={{ color: '#666', marginTop: 20 }}>No Completed Matches Yet</h4>
+                <p style={{ color: '#999', fontSize: 14, marginTop: 10 }}>
+                  Your completed matches will appear here
+                </p>
+              </div>
+            )}
           </div>
         </div>
       ) : (

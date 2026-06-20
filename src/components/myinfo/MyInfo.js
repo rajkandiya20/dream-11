@@ -64,7 +64,7 @@ export function MyInfo() {
     const getCountries = async () => {
       try {
         setIsLoading(true);
-        const result = await csc.getAllCountries();
+        const result = Country.getAllCountries();
         let allCountries = [];
         allCountries = result?.map(({ isoCode, name }) => ({
           isoCode,
@@ -86,7 +86,7 @@ export function MyInfo() {
   useEffect(() => {
     const getStates = async () => {
       try {
-        const result = await csc.getStatesOfCountry(selectedCountry);
+        const result = State.getStatesOfCountry(selectedCountry);
         let allStates = [];
         allStates = result?.map(({ isoCode, name }) => ({
           isoCode,
@@ -110,7 +110,7 @@ export function MyInfo() {
   useEffect(() => {
     const getCities = async () => {
       try {
-        const result = await csc.getCitiesOfState(
+        const result = City.getCitiesOfState(
           selectedCountry,
           selectedState
         );
