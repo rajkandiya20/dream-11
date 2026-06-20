@@ -1,11 +1,16 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../constants/env.dart';
 
 /// Provider for the Supabase client instance.
-final supabaseClientProvider = Provider<SupabaseClient>((ref) {
-  return Supabase.instance.client;
+final supabaseClientProvider = Provider<SupabaseClient?>((ref) {
+  try {
+    return Supabase.instance.client;
+  } catch (e) {
+    return null;
+  }
 });
 
 /// Helper class for Supabase operations including real-time subscriptions.
@@ -28,6 +33,10 @@ class SupabaseClientHelper {
 
   /// Initialize Supabase with environment configuration.
   static Future<void> initialize() async {
+    if (Env.supabaseUrl.isEmpty || Env.supabaseAnonKey.isEmpty) {
+      debugPrint('⚠️ Supabase credentials not configured, skipping initialization');
+      return;
+    }
     await Supabase.initialize(
       url: Env.supabaseUrl,
       anonKey: Env.supabaseAnonKey,

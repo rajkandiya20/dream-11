@@ -27,13 +27,13 @@ class AuthResult {
 /// Repository handling Firebase Auth and Supabase user upsert.
 class AuthRepository {
   final FirebaseAuth _firebaseAuth;
-  final SupabaseClient _supabaseClient;
+  final SupabaseClient? _supabaseClient;
 
   AuthRepository({
     FirebaseAuth? firebaseAuth,
     SupabaseClient? supabaseClient,
   })  : _firebaseAuth = firebaseAuth ?? FirebaseAuth.instance,
-        _supabaseClient = supabaseClient ?? Supabase.instance.client;
+        _supabaseClient = supabaseClient;
 
   /// Get the current Firebase user.
   User? get currentFirebaseUser => _firebaseAuth.currentUser;
@@ -62,7 +62,7 @@ class AuthRepository {
       // Fetch or create user in Supabase
       final user = await _upsertSupabaseUser(credential.user!);
       return AuthResult.success(user);
-    } on FirebaseAuthException catch (e) {
+    } on FirebaseException catch (e) {
       return AuthResult.failure(_mapFirebaseError(e.code));
     } catch (e) {
       return AuthResult.failure('An unexpected error occurred. Please try again.');
@@ -99,7 +99,7 @@ class AuthRepository {
       );
 
       return AuthResult.success(user);
-    } on FirebaseAuthException catch (e) {
+    } on FirebaseException catch (e) {
       return AuthResult.failure(_mapFirebaseError(e.code));
     } catch (e) {
       return AuthResult.failure('An unexpected error occurred. Please try again.');
@@ -111,7 +111,7 @@ class AuthRepository {
     try {
       await _firebaseAuth.sendPasswordResetEmail(email: email.trim());
       return const AuthResult(success: true);
-    } on FirebaseAuthException catch (e) {
+    } on FirebaseException catch (e) {
       return AuthResult.failure(_mapFirebaseError(e.code));
     } catch (e) {
       return AuthResult.failure('Failed to send reset email. Please try again.');
@@ -127,6 +127,8 @@ class AuthRepository {
   Future<UserModel?> getCurrentUser() async {
     final firebaseUser = currentFirebaseUser;
     if (firebaseUser == null) return null;
+
+    if (_supabaseClient == null) return null;
 
     try {
       final response = await _supabaseClient
@@ -161,6 +163,10 @@ class AuthRepository {
       phoneNumber: phoneNumber ?? firebaseUser.phoneNumber,
       avatarUrl: firebaseUser.photoURL,
     );
+
+    if (_supabaseClient == null) {
+      return userData;
+    }
 
     try {
       final response = await _supabaseClient
