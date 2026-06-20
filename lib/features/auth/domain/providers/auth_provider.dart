@@ -38,6 +38,27 @@ class AuthNotifier extends StateNotifier<AuthState> {
     final firebaseUser = _repository.currentFirebaseUser;
     if (firebaseUser != null) {
       debugPrint('✅ Existing session: ${firebaseUser.email}');
+      // Set loading state while we fetch the full user profile from Supabase
+      state = const AuthState(status: AuthStatus.loading);
+      // Fetch full user data (including role) from Supabase before emitting authenticated
+      _fetchSupabaseUser(firebaseUser);
+    } else {
+      debugPrint('ℹ️ No session, unauthenticated');
+      state = const AuthState(status: AuthStatus.unauthenticated);
+    }
+  }
+
+  Future<void> _fetchSupabaseUser(User firebaseUser) async {
+    final supabaseUser = await _repository.fetchCurrentUserFromSupabase();
+    if (!mounted) return;
+    if (supabaseUser != null) {
+      state = AuthState(
+        status: AuthStatus.authenticated,
+        user: supabaseUser,
+      );
+      debugPrint('✅ Updated user from Supabase with role: ${supabaseUser.role}');
+    } else {
+      // Fallback to Firebase data if Supabase fetch fails
       state = AuthState(
         status: AuthStatus.authenticated,
         user: UserModel(
@@ -47,9 +68,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
           avatarUrl: firebaseUser.photoURL,
         ),
       );
-    } else {
-      debugPrint('ℹ️ No session, unauthenticated');
-      state = const AuthState(status: AuthStatus.unauthenticated);
+      debugPrint('⚠️ Could not fetch Supabase profile, using Firebase data');
     }
   }
 

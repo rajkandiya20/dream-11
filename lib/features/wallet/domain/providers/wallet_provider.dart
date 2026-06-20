@@ -12,6 +12,7 @@ class WalletState {
   final List<TransactionModel> transactions;
   final List<TransactionModel> recentTransactions;
   final List<PaymentMethodModel> paymentMethods;
+  final List<Map<String, dynamic>> adminPaymentMethods;
   final bool isLoading;
   final bool isTransacting;
   final String? errorMessage;
@@ -21,6 +22,7 @@ class WalletState {
     this.transactions = const [],
     this.recentTransactions = const [],
     this.paymentMethods = const [],
+    this.adminPaymentMethods = const [],
     this.isLoading = false,
     this.isTransacting = false,
     this.errorMessage,
@@ -31,6 +33,7 @@ class WalletState {
     List<TransactionModel>? transactions,
     List<TransactionModel>? recentTransactions,
     List<PaymentMethodModel>? paymentMethods,
+    List<Map<String, dynamic>>? adminPaymentMethods,
     bool? isLoading,
     bool? isTransacting,
     String? errorMessage,
@@ -40,6 +43,7 @@ class WalletState {
       transactions: transactions ?? this.transactions,
       recentTransactions: recentTransactions ?? this.recentTransactions,
       paymentMethods: paymentMethods ?? this.paymentMethods,
+      adminPaymentMethods: adminPaymentMethods ?? this.adminPaymentMethods,
       isLoading: isLoading ?? this.isLoading,
       isTransacting: isTransacting ?? this.isTransacting,
       errorMessage: errorMessage,
@@ -82,12 +86,14 @@ class WalletNotifier extends StateNotifier<WalletState> {
         _repository.getWallet(_userId!),
         _repository.getRecentTransactions(_userId!),
         _repository.getPaymentMethods(_userId!),
+        _repository.getAdminPaymentMethods(),
       ]);
 
       state = state.copyWith(
         wallet: results[0] as WalletModel?,
         recentTransactions: results[1] as List<TransactionModel>,
         paymentMethods: results[2] as List<PaymentMethodModel>,
+        adminPaymentMethods: results[3] as List<Map<String, dynamic>>,
         isLoading: false,
       );
     } catch (e) {

@@ -49,10 +49,13 @@ class MatchesScreen extends ConsumerWidget {
                     color: AppColors.primary,
                     borderRadius: AppSpacing.borderRadiusSm,
                   ),
+                  indicatorSize: TabBarIndicatorSize.tab,
+                  indicatorPadding: EdgeInsets.zero,
                   labelColor: Colors.white,
                   unselectedLabelColor: AppColors.textSecondary,
                   labelStyle: AppTypography.labelLarge,
                   unselectedLabelStyle: AppTypography.labelMedium,
+                  labelPadding: const EdgeInsets.symmetric(horizontal: 4),
                   dividerColor: Colors.transparent,
                   tabs: const [
                     Tab(text: 'Live'),

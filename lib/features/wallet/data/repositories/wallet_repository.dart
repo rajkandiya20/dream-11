@@ -204,6 +204,20 @@ class WalletRepository {
       return [];
     }
   }
+
+  /// Get admin-defined payment methods for deposit (where user deposits should go).
+  Future<List<Map<String, dynamic>>> getAdminPaymentMethods() async {
+    try {
+      final response = await _client
+          .from('admin_payment_methods')
+          .select('*')
+          .eq('is_active', true)
+          .order('created_at', ascending: false);
+      return List<Map<String, dynamic>>.from(response as List);
+    } catch (e) {
+      return [];
+    }
+  }
 }
 
 /// Provider for the wallet repository.

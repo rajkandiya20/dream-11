@@ -164,6 +164,16 @@ class AdminNavDrawer extends StatelessWidget {
                     },
                   ),
                   _NavItem(
+                    icon: Icons.payment_outlined,
+                    label: 'Payment Methods',
+                    route: '/admin/payment-methods',
+                    isSelected: currentRoute == '/admin/payment-methods',
+                    onTap: () {
+                      Navigator.pop(context);
+                      context.push('/admin/payment-methods');
+                    },
+                  ),
+                  _NavItem(
                     icon: Icons.bar_chart_outlined,
                     label: 'Reports',
                     route: '/admin/reports',

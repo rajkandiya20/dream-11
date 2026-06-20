@@ -14,6 +14,7 @@ class AdminState {
   final List<Map<String, dynamic>> pendingDeposits;
   final List<Map<String, dynamic>> pendingWithdrawals;
   final List<Map<String, dynamic>> scoreboard;
+  final List<Map<String, dynamic>> paymentMethods;
   final bool isLoading;
   final String? errorMessage;
 
@@ -28,6 +29,7 @@ class AdminState {
     this.pendingDeposits = const [],
     this.pendingWithdrawals = const [],
     this.scoreboard = const [],
+    this.paymentMethods = const [],
     this.isLoading = false,
     this.errorMessage,
   });
@@ -43,6 +45,7 @@ class AdminState {
     List<Map<String, dynamic>>? pendingDeposits,
     List<Map<String, dynamic>>? pendingWithdrawals,
     List<Map<String, dynamic>>? scoreboard,
+    List<Map<String, dynamic>>? paymentMethods,
     bool? isLoading,
     String? errorMessage,
   }) {
@@ -57,6 +60,7 @@ class AdminState {
       pendingDeposits: pendingDeposits ?? this.pendingDeposits,
       pendingWithdrawals: pendingWithdrawals ?? this.pendingWithdrawals,
       scoreboard: scoreboard ?? this.scoreboard,
+      paymentMethods: paymentMethods ?? this.paymentMethods,
       isLoading: isLoading ?? this.isLoading,
       errorMessage: errorMessage,
     );
@@ -282,6 +286,47 @@ class AdminNotifier extends StateNotifier<AdminState> {
       await loadPendingWithdrawals();
     }
     return success;
+  }
+
+  // ========== PAYMENT METHODS ==========
+
+  Future<void> loadPaymentMethods() async {
+    state = state.copyWith(isLoading: true, errorMessage: null);
+    final methods = await _repository.getAdminPaymentMethods();
+    state = state.copyWith(paymentMethods: methods, isLoading: false);
+  }
+
+  Future<bool> createPaymentMethod(Map<String, dynamic> data) async {
+    state = state.copyWith(errorMessage: null);
+    final result = await _repository.createAdminPaymentMethod(data);
+    if (result != null) {
+      await loadPaymentMethods();
+      return true;
+    }
+    state = state.copyWith(errorMessage: 'Failed to create payment method');
+    return false;
+  }
+
+  Future<bool> updatePaymentMethod(String id, Map<String, dynamic> data) async {
+    state = state.copyWith(errorMessage: null);
+    final success = await _repository.updateAdminPaymentMethod(id, data);
+    if (success) {
+      await loadPaymentMethods();
+      return true;
+    }
+    state = state.copyWith(errorMessage: 'Failed to update payment method');
+    return false;
+  }
+
+  Future<bool> deletePaymentMethod(String id) async {
+    state = state.copyWith(errorMessage: null);
+    final success = await _repository.deleteAdminPaymentMethod(id);
+    if (success) {
+      await loadPaymentMethods();
+      return true;
+    }
+    state = state.copyWith(errorMessage: 'Failed to delete payment method');
+    return false;
   }
 
   /// Refresh dashboard data.

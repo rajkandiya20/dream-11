@@ -270,6 +270,12 @@ class _QuickActionsGrid extends StatelessWidget {
           color: AppColors.primary,
           onTap: () => context.push('/admin/scoreboard'),
         ),
+        _QuickAction(
+          icon: Icons.payment_outlined,
+          label: 'Payment Methods',
+          color: AppColors.info,
+          onTap: () => context.push('/admin/payment-methods'),
+        ),
       ],
     );
   }
