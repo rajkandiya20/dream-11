@@ -1,7 +1,4 @@
 import { initializeApp } from "firebase/app";
-import { getFirestore, connectFirestoreEmulator } from "firebase/firestore";
-import { getStorage } from "firebase/storage";
-import { getDatabase } from "firebase/database";
 import { 
   getAuth, 
   createUserWithEmailAndPassword, 
@@ -24,11 +21,7 @@ const firebaseConfig = {
 
 // Initialize Firebase
 export const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
-export const storage = getStorage(app);
-export const realtimeDb = getDatabase(app);
 export const auth = getAuth(app);
-export default db;
 
 // Enable debug logging
 if (process.env.NODE_ENV === 'development') {

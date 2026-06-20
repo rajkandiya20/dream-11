@@ -338,13 +338,17 @@ CREATE POLICY "Public read group_members" ON group_members FOR SELECT USING (tru
 CREATE POLICY "Public read admins" ON admins FOR SELECT USING (true);
 CREATE POLICY "Public read fantasy_teams" ON fantasy_teams FOR SELECT USING (true);
 CREATE POLICY "Public read fantasy_team_players" ON fantasy_team_players FOR SELECT USING (true);
-CREATE POLICY "Public read wallets" ON wallets FOR SELECT USING (true);
-CREATE POLICY "Public read transactions" ON transactions FOR SELECT USING (true);
+-- Wallets: only the owner can read their own wallet
+CREATE POLICY "Owner read wallets" ON wallets FOR SELECT USING (auth.uid()::text = user_id);
+-- Transactions: only the owner can read their own transactions
+CREATE POLICY "Owner read transactions" ON transactions FOR SELECT USING (auth.uid()::text = user_id);
 CREATE POLICY "Public read notifications" ON notifications FOR SELECT USING (true);
 
 -- Allow inserts/updates for anon key (for app usage)
+-- Users: any authenticated user can create their profile
 CREATE POLICY "Allow insert users" ON users FOR INSERT WITH CHECK (true);
-CREATE POLICY "Allow update users" ON users FOR UPDATE USING (true);
+-- Users: only the owner can update their own profile
+CREATE POLICY "Allow update users" ON users FOR UPDATE USING (auth.uid()::text = uid);
 CREATE POLICY "Allow insert feed_posts" ON feed_posts FOR INSERT WITH CHECK (true);
 CREATE POLICY "Allow insert fantasy_teams" ON fantasy_teams FOR INSERT WITH CHECK (true);
 CREATE POLICY "Allow insert fantasy_team_players" ON fantasy_team_players FOR INSERT WITH CHECK (true);
@@ -352,9 +356,18 @@ CREATE POLICY "Allow insert groups" ON groups FOR INSERT WITH CHECK (true);
 CREATE POLICY "Allow insert group_members" ON group_members FOR INSERT WITH CHECK (true);
 CREATE POLICY "Allow update notifications" ON notifications FOR UPDATE USING (true);
 CREATE POLICY "Allow insert notifications" ON notifications FOR INSERT WITH CHECK (true);
-CREATE POLICY "Allow insert transactions" ON transactions FOR INSERT WITH CHECK (true);
-CREATE POLICY "Allow insert wallets" ON wallets FOR INSERT WITH CHECK (true);
-CREATE POLICY "Allow update wallets" ON wallets FOR UPDATE USING (true);
+-- Transactions: only the owner can insert their own transactions
+CREATE POLICY "Allow insert transactions" ON transactions FOR INSERT WITH CHECK (auth.uid()::text = user_id);
+-- Wallets: only the owner can create their own wallet
+CREATE POLICY "Allow insert wallets" ON wallets FOR INSERT WITH CHECK (auth.uid()::text = user_id);
+-- Wallets: only the owner can update their own wallet
+CREATE POLICY "Allow update wallets" ON wallets FOR UPDATE USING (auth.uid()::text = user_id);
+
+-- NOTE: Admin-managed tables (tournaments, matches, contests, players, teams, scoreboard,
+-- match_players) have no INSERT/UPDATE/DELETE policies for the anon key. This means write
+-- operations on these tables require the Supabase service-role key or edge functions.
+-- In production, admin operations should be routed through server-side code or Supabase
+-- edge functions that validate admin role before performing mutations.
 
 -- =====================================================
 -- TEST DATA - Real IPL 2024 Data (Valid UUIDs)

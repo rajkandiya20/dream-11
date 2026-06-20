@@ -1,12 +1,33 @@
 import styled from "@emotion/styled";
-import { Button, TextField, Typography, Card, CardContent, Select, MenuItem, FormControl, InputLabel, IconButton, Grid } from "@mui/material";
-import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
-import AddIcon from "@mui/icons-material/Add";
+import {
+  Button,
+  TextField,
+  Typography,
+  Card,
+  CardContent,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  IconButton,
+  Grid,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+} from "@mui/material";
+import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
-import axios from "axios";
 import { useState, useEffect } from "react";
 import { useAlert } from "react-alert";
-import { URL } from "../../constants/userConstants";
+import {
+  getMatchesForAdmin,
+  getContestsForAdmin,
+  createContest,
+  updateContest,
+  deleteContest,
+} from "../../services/supabaseService";
+import { subscribeToContests } from "../../services/realtimeService";
 
 const Container = styled.div`
   padding: 20px;
@@ -24,61 +45,124 @@ const SectionTitle = styled.h2`
   padding-bottom: 5px;
 `;
 
+const CONTEST_TYPES = ["paid", "free", "practice"];
+
 export default function ContestManager() {
   const alert = useAlert();
   const [matches, setMatches] = useState([]);
   const [selectedMatch, setSelectedMatch] = useState(null);
   const [contests, setContests] = useState([]);
   const [openDialog, setOpenDialog] = useState(false);
+  const [editingContest, setEditingContest] = useState(null);
   const [formData, setFormData] = useState({
-    entryFee: 0,
-    prizePool: 0,
-    maxTeams: 0,
-    contestType: "paid",
+    entry_fee: 0,
+    prize_pool: 0,
+    max_teams: 0,
+    contest_type: "paid",
+    status: "active",
   });
 
   useEffect(() => {
     fetchMatches();
   }, []);
 
+  useEffect(() => {
+    if (!selectedMatch) return;
+
+    fetchContests(selectedMatch.id);
+
+    const unsubscribe = subscribeToContests(selectedMatch.id, (payload) => {
+      const { eventType, new: newRecord, old: oldRecord } = payload;
+      setContests((prev) => {
+        if (eventType === "INSERT") {
+          return [newRecord, ...prev];
+        } else if (eventType === "UPDATE") {
+          return prev.map((c) => (c.id === newRecord.id ? newRecord : c));
+        } else if (eventType === "DELETE") {
+          return prev.filter((c) => c.id !== oldRecord.id);
+        }
+        return prev;
+      });
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [selectedMatch]);
+
   const fetchMatches = async () => {
-    try {
-      const { data } = await axios.get(`${URL}/admin/matches`);
-      setMatches(data.matches || []);
-    } catch (error) {
-      alert.error("Failed to fetch matches");
-    }
+    const data = await getMatchesForAdmin();
+    setMatches(data);
   };
 
   const fetchContests = async (matchId) => {
-    try {
-      const { data } = await axios.get(`${URL}/admin/contests/${matchId}`);
-      setContests(data.contests || []);
-    } catch (error) {
-      alert.error("Failed to fetch contests");
-    }
+    const data = await getContestsForAdmin(matchId);
+    setContests(data);
   };
 
-  const handleCreateContest = async () => {
+  const handleOpenCreate = () => {
+    setEditingContest(null);
+    setFormData({
+      entry_fee: 0,
+      prize_pool: 0,
+      max_teams: 0,
+      contest_type: "paid",
+      status: "active",
+    });
+    setOpenDialog(true);
+  };
+
+  const handleOpenEdit = (contest) => {
+    setEditingContest(contest);
+    setFormData({
+      entry_fee: contest.entry_fee || 0,
+      prize_pool: contest.prize_pool || 0,
+      max_teams: contest.max_teams || 0,
+      contest_type: contest.contest_type || "paid",
+      status: contest.status || "active",
+    });
+    setOpenDialog(true);
+  };
+
+  const handleSave = async () => {
+    if (!selectedMatch) {
+      alert.error("Please select a match first");
+      return;
+    }
+
     try {
-      await axios.post(`${URL}/admin/contests`, {
-        matchId: selectedMatch?._id,
+      const contestData = {
         ...formData,
-      });
-      alert.success("Contest created successfully");
+        match_id: selectedMatch.id,
+        entry_fee: Number(formData.entry_fee),
+        prize_pool: Number(formData.prize_pool),
+        max_teams: Number(formData.max_teams),
+      };
+
+      if (editingContest) {
+        await updateContest(editingContest.id, contestData);
+        alert.success("Contest updated successfully");
+      } else {
+        await createContest(contestData);
+        alert.success("Contest created successfully");
+      }
       setOpenDialog(false);
-      setFormData({ entryFee: 0, prizePool: 0, maxTeams: 0, contestType: "paid" });
-      fetchContests(selectedMatch?._id);
+      fetchContests(selectedMatch.id);
     } catch (error) {
-      alert.error("Failed to create contest");
+      alert.error(
+        editingContest ? "Failed to update contest" : "Failed to create contest"
+      );
     }
   };
 
-  const handleDeleteContest = async (contestId) => {
+  const handleDelete = async (contestId) => {
+    if (!window.confirm("Are you sure you want to delete this contest?")) {
+      return;
+    }
     try {
-      await axios.delete(`${URL}/admin/contests/${contestId}`);
+      await deleteContest(contestId);
       alert.success("Contest deleted successfully");
-      fetchContests(selectedMatch?._id);
+      fetchContests(selectedMatch.id);
     } catch (error) {
       alert.error("Failed to delete contest");
     }
@@ -91,16 +175,16 @@ export default function ContestManager() {
       <FormControl fullWidth style={{ marginBottom: "20px" }}>
         <InputLabel>Select Match</InputLabel>
         <Select
-          value={selectedMatch?._id || ""}
+          value={selectedMatch?.id || ""}
           onChange={(e) => {
-            const match = matches.find(m => m._id === e.target.value);
-            setSelectedMatch(match);
-            if (match) fetchContests(match._id);
+            const match = matches.find((m) => m.id === e.target.value);
+            setSelectedMatch(match || null);
           }}
+          label="Select Match"
         >
           {matches.map((match) => (
-            <MenuItem key={match._id} value={match._id}>
-              {match.teamA?.name} vs {match.teamB?.name}
+            <MenuItem key={match.id} value={match.id}>
+              {match.team_a_name} vs {match.team_b_name}
             </MenuItem>
           ))}
         </Select>
@@ -108,24 +192,38 @@ export default function ContestManager() {
 
       {selectedMatch && (
         <>
-          <Button variant="contained" onClick={() => setOpenDialog(true)} fullWidth>
+          <Button variant="contained" onClick={handleOpenCreate} fullWidth>
             Create New Contest
           </Button>
 
           <Grid container spacing={2} style={{ marginTop: "20px" }}>
             {contests.map((contest) => (
-              <Grid item xs={12} key={contest._id}>
+              <Grid item xs={12} key={contest.id}>
                 <CardWrapper>
                   <CardContent>
-                    <Typography variant="h6">
-                      Entry Fee: ₹{contest.entryFee} | Prize Pool: ₹{contest.prizePool}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Max Teams: {contest.maxTeams} | Type: {contest.contestType}
-                    </Typography>
-                    <IconButton onClick={() => handleDeleteContest(contest._id)}>
-                      <DeleteIcon />
-                    </IconButton>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                      <div>
+                        <Typography variant="h6">
+                          Entry Fee: {contest.entry_fee} | Prize Pool: {contest.prize_pool}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          Max Teams: {contest.max_teams} | Type: {contest.contest_type} | Status: {contest.status}
+                        </Typography>
+                        {contest.joined_teams !== undefined && (
+                          <Typography variant="caption" color="text.secondary">
+                            Joined: {contest.joined_teams}/{contest.max_teams}
+                          </Typography>
+                        )}
+                      </div>
+                      <div>
+                        <IconButton size="small" onClick={() => handleOpenEdit(contest)}>
+                          <EditIcon fontSize="small" />
+                        </IconButton>
+                        <IconButton size="small" onClick={() => handleDelete(contest.id)}>
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </div>
+                    </div>
                   </CardContent>
                 </CardWrapper>
               </Grid>
@@ -133,6 +231,58 @@ export default function ContestManager() {
           </Grid>
         </>
       )}
+
+      <Dialog open={openDialog} onClose={() => setOpenDialog(false)} fullWidth maxWidth="sm">
+        <DialogTitle>
+          {editingContest ? "Edit Contest" : "Create Contest"}
+        </DialogTitle>
+        <DialogContent>
+          <TextField
+            label="Entry Fee"
+            type="number"
+            value={formData.entry_fee}
+            onChange={(e) => setFormData({ ...formData, entry_fee: e.target.value })}
+            fullWidth
+            margin="normal"
+          />
+          <TextField
+            label="Prize Pool"
+            type="number"
+            value={formData.prize_pool}
+            onChange={(e) => setFormData({ ...formData, prize_pool: e.target.value })}
+            fullWidth
+            margin="normal"
+          />
+          <TextField
+            label="Max Teams"
+            type="number"
+            value={formData.max_teams}
+            onChange={(e) => setFormData({ ...formData, max_teams: e.target.value })}
+            fullWidth
+            margin="normal"
+          />
+          <FormControl fullWidth margin="normal">
+            <InputLabel>Contest Type</InputLabel>
+            <Select
+              value={formData.contest_type}
+              onChange={(e) => setFormData({ ...formData, contest_type: e.target.value })}
+              label="Contest Type"
+            >
+              {CONTEST_TYPES.map((type) => (
+                <MenuItem key={type} value={type}>
+                  {type.charAt(0).toUpperCase() + type.slice(1)}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
+          <Button onClick={handleSave} variant="contained">
+            {editingContest ? "Update" : "Create"}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   );
 }

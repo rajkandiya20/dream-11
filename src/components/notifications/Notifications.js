@@ -4,6 +4,7 @@ import { Button } from "@mui/material";
 import { useEffect, useRef, useState } from "react";
 import { useSelector } from "react-redux";
 import { getUserNotifications, markNotificationRead } from "../../services/supabaseService";
+import { subscribeToNotifications } from "../../services/realtimeService";
 import Bottomnav from "../navbar/bottomnavbar";
 import Loader from "../loader";
 import Navbar from "../navbar";
@@ -83,7 +84,33 @@ export function Notifications() {
   useEffect(() => {
     isMountedRef.current = true;
     fetchNotifications();
-    return () => { isMountedRef.current = false; };
+
+    const userId = user?._id || user?.uid;
+    let unsubscribe = null;
+
+    if (userId) {
+      unsubscribe = subscribeToNotifications(userId, (payload) => {
+        const { eventType, new: newRecord, old: oldRecord } = payload;
+        if (!isMountedRef.current) return;
+        setNotifications((prev) => {
+          if (eventType === "INSERT") {
+            return [newRecord, ...prev];
+          } else if (eventType === "UPDATE") {
+            return prev.map((n) => (n.id === newRecord.id ? newRecord : n));
+          } else if (eventType === "DELETE") {
+            return prev.filter((n) => n.id !== oldRecord.id);
+          }
+          return prev;
+        });
+      });
+    }
+
+    return () => {
+      isMountedRef.current = false;
+      if (unsubscribe) {
+        unsubscribe();
+      }
+    };
   }, [user]);
 
   const fetchNotifications = async () => {
@@ -139,6 +166,10 @@ export function Notifications() {
     }
   };
 
+  const handleRetry = () => {
+    fetchNotifications();
+  };
+
   if (error && !loading) {
     return (
       <>
@@ -155,10 +186,6 @@ export function Notifications() {
       </>
     );
   }
-
-  const handleRetry = () => {
-    fetchNotifications();
-  };
 
   return (
     <>

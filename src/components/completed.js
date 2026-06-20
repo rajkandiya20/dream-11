@@ -17,8 +17,6 @@ import SportsHockeyIcon from "@mui/icons-material/SportsHockey";
 import SportsSoccerIcon from "@mui/icons-material/SportsSoccer";
 import { Button, Drawer } from "@mui/material";
 import axios from "axios";
-import extractColors from "extract-colors";
-import moment from "moment";
 import { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";

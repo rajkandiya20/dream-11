@@ -22,13 +22,15 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useAlert } from "react-alert";
 import { URL } from "../../constants/userConstants";
 
-import { storage } from "../../firebase";
+import { app } from "../../firebase";
 import {
   ref,
   uploadBytesResumable,
   getDownloadURL,
   getStorage,
 } from "firebase/storage";
+
+const storage = getStorage(app);
 const Container = styled.div`
   padding: 15px 15px;
   background-color: #efefef;

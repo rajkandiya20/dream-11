@@ -16,20 +16,6 @@ import SportsSoccerIcon from "@mui/icons-material/SportsSoccer";
 import WestIcon from "@mui/icons-material/West";
 import { Grid } from "@mui/material";
 import Tab from "@mui/material/Tab";
-import axios from "axios";
-import { getDatabase, onValue, ref } from "firebase/database";
-import {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  onSnapshot,
-  orderBy,
-  query,
-  setDoc,
-  updateDoc,
-  where,
-} from "firebase/firestore";
 import { useEffect, useRef, useState } from "react";
 import ReactCanvasConfetti from "react-confetti";
 import { useDispatch, useSelector } from "react-redux";
@@ -42,8 +28,8 @@ import {
 
 import { getmatch } from "../actions/matchAction";
 import { addconfetti, removeconfetti } from "../actions/userAction";
-import { URL } from "../constants/userConstants";
-import db from "../firebase";
+import { getContestsByMatch } from "../services/supabaseService";
+import { subscribeToMatches, subscribeToScoreboard } from "../services/realtimeService";
 import { showBalls } from "../utils/lastballs";
 import { showName } from "../utils/name";
 import Bottomnav from "./navbar/bottomnavbar";
@@ -190,43 +176,9 @@ export function MatchDetails({ players }) {
   };
   useEffect(() => {
     isMountedRef.current = true;
-    async function getdata(m) {
-      if (match_details?.matchId) {
-        try {
-          const docRef = doc(db, "cities", match_details.matchId);
-          const docSnap = await getDoc(docRef);
-
-          if (!isMountedRef.current) return;
-
-          if (docSnap.exists()) {
-            const data = docSnap.data();
-            if (data.capital) setCommentary([...data.capital]);
-            if (data.miniscore) setLivescore({ ...data.miniscore });
-          }
-
-          const listener = onSnapshot(
-            doc(db, "cities", match_details?.matchId),
-            (doc) => {
-              if (!isMountedRef.current) return;
-              if (doc.data()) {
-                if (process.env.NODE_ENV === 'development') {
-                  console.log(doc.data(), "data");
-                }
-                if (doc.data().capital) setCommentary([...doc.data().capital]);
-                if (doc.data().miniscore) setLivescore({ ...doc.data().miniscore });
-              }
-            },
-            (error) => {
-              console.error("Firestore onSnapshot error:", error);
-            }
-          );
-          unsubRef.current = listener;
-        } catch (error) {
-          console.error("Error fetching match details from Firestore:", error);
-        }
-      }
-    }
-    getdata(match_details);
+    // TODO: Replace with Supabase realtime subscription for live match data
+    // The previous implementation used Firestore onSnapshot on a 'cities' collection.
+    // Commentary and livescore data should be fetched via Supabase once the backend is set up.
 
     return () => {
       isMountedRef.current = false;
@@ -252,12 +204,8 @@ export function MatchDetails({ players }) {
       if (id?.length > 3) {
         dispatch(getmatch(id));
         try {
-          const data = await axios.get(`${URL}/getcontests/${id}`, {
-            timeout: 10000,
-          });
-          if (data?.data?.contests) {
-            setContests(data.data.contests);
-          }
+          const contestData = await getContestsByMatch(id);
+          setContests(contestData || []);
         } catch (error) {
           console.error("Error fetching contests:", error);
           setContests([]);
@@ -265,6 +213,31 @@ export function MatchDetails({ players }) {
       }
     }
     getupcoming();
+
+    // Real-time subscription for this specific match
+    if (!id || id.length <= 3) return;
+
+    const unsubMatch = subscribeToMatches((payload) => {
+      if (payload.new && payload.new.id === id) {
+        // Re-fetch match details when it changes
+        dispatch(getmatch(id));
+      }
+    });
+
+    const unsubScoreboard = subscribeToScoreboard(id, (payload) => {
+      // Scoreboard changed for this match - update live score
+      if (payload.new) {
+        setLivescore((prev) => ({
+          ...prev,
+          ...payload.new,
+        }));
+      }
+    });
+
+    return () => {
+      unsubMatch();
+      unsubScoreboard();
+    };
   }, [id]);
   return (
     <Container>

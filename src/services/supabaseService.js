@@ -518,6 +518,277 @@ export const getScoreboard = async (matchId) => {
   }
 };
 
+// ============ ADMIN CRUD OPERATIONS ============
+
+// --- Matches Admin ---
+
+export const getMatchesForAdmin = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('matches')
+      .select('*, tournament:tournaments(name, logo)')
+      .order('date_time', { ascending: false });
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('DB Error [admin matches]:', error.message);
+    return [];
+  }
+};
+
+export const createMatch = async (matchData) => {
+  try {
+    const { data, error } = await supabase
+      .from('matches')
+      .insert(matchData)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('DB Error [create match]:', error.message);
+    throw error;
+  }
+};
+
+export const updateMatch = async (id, matchData) => {
+  try {
+    const { data, error } = await supabase
+      .from('matches')
+      .update(matchData)
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('DB Error [update match]:', error.message);
+    throw error;
+  }
+};
+
+export const deleteMatch = async (id) => {
+  try {
+    const { error } = await supabase
+      .from('matches')
+      .delete()
+      .eq('id', id);
+    if (error) throw error;
+    return true;
+  } catch (error) {
+    console.error('DB Error [delete match]:', error.message);
+    throw error;
+  }
+};
+
+// --- Tournaments Admin ---
+
+export const createTournament = async (tournamentData) => {
+  try {
+    const { data, error } = await supabase
+      .from('tournaments')
+      .insert(tournamentData)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('DB Error [create tournament]:', error.message);
+    throw error;
+  }
+};
+
+export const updateTournament = async (id, tournamentData) => {
+  try {
+    const { data, error } = await supabase
+      .from('tournaments')
+      .update(tournamentData)
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('DB Error [update tournament]:', error.message);
+    throw error;
+  }
+};
+
+export const deleteTournament = async (id) => {
+  try {
+    const { error } = await supabase
+      .from('tournaments')
+      .delete()
+      .eq('id', id);
+    if (error) throw error;
+    return true;
+  } catch (error) {
+    console.error('DB Error [delete tournament]:', error.message);
+    throw error;
+  }
+};
+
+// --- Contests Admin ---
+
+export const getContestsForAdmin = async (matchId) => {
+  try {
+    let query = supabase.from('contests').select('*');
+    if (matchId) {
+      query = query.eq('match_id', matchId);
+    }
+    query = query.order('prize_pool', { ascending: false });
+    const { data, error } = await query;
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('DB Error [admin contests]:', error.message);
+    return [];
+  }
+};
+
+export const createContest = async (contestData) => {
+  try {
+    const { data, error } = await supabase
+      .from('contests')
+      .insert(contestData)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('DB Error [create contest]:', error.message);
+    throw error;
+  }
+};
+
+export const updateContest = async (id, contestData) => {
+  try {
+    const { data, error } = await supabase
+      .from('contests')
+      .update(contestData)
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('DB Error [update contest]:', error.message);
+    throw error;
+  }
+};
+
+export const deleteContest = async (id) => {
+  try {
+    const { error } = await supabase
+      .from('contests')
+      .delete()
+      .eq('id', id);
+    if (error) throw error;
+    return true;
+  } catch (error) {
+    console.error('DB Error [delete contest]:', error.message);
+    throw error;
+  }
+};
+
+// --- Players Admin ---
+
+export const getPlayersForAdmin = async (teamId) => {
+  try {
+    let query = supabase.from('players').select('*, team:teams(name)');
+    if (teamId) {
+      query = query.eq('team_id', teamId);
+    }
+    query = query.order('name', { ascending: true });
+    const { data, error } = await query;
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('DB Error [admin players]:', error.message);
+    return [];
+  }
+};
+
+export const createPlayer = async (playerData) => {
+  try {
+    const { data, error } = await supabase
+      .from('players')
+      .insert(playerData)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('DB Error [create player]:', error.message);
+    throw error;
+  }
+};
+
+export const updatePlayer = async (id, playerData) => {
+  try {
+    const { data, error } = await supabase
+      .from('players')
+      .update(playerData)
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('DB Error [update player]:', error.message);
+    throw error;
+  }
+};
+
+export const deletePlayer = async (id) => {
+  try {
+    const { error } = await supabase
+      .from('players')
+      .delete()
+      .eq('id', id);
+    if (error) throw error;
+    return true;
+  } catch (error) {
+    console.error('DB Error [delete player]:', error.message);
+    throw error;
+  }
+};
+
+// --- Scoreboard Admin ---
+
+export const updateScoreboard = async (matchId, scoreData) => {
+  try {
+    const { data, error } = await supabase
+      .from('scoreboard')
+      .upsert(
+        { ...scoreData, match_id: matchId },
+        { onConflict: 'match_id,player_id' }
+      )
+      .select();
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('DB Error [update scoreboard]:', error.message);
+    throw error;
+  }
+};
+
+// --- Teams Admin (read) ---
+
+export const getTeamsForAdmin = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('teams')
+      .select('*')
+      .order('name', { ascending: true });
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('DB Error [admin teams]:', error.message);
+    return [];
+  }
+};
+
 export default {
   getMatches,
   getMatchById,
@@ -550,5 +821,23 @@ export default {
   checkIsAdmin,
   getAdminByEmail,
   getLeaderboard,
-  getScoreboard
+  getScoreboard,
+  // Admin CRUD
+  getMatchesForAdmin,
+  createMatch,
+  updateMatch,
+  deleteMatch,
+  createTournament,
+  updateTournament,
+  deleteTournament,
+  getContestsForAdmin,
+  createContest,
+  updateContest,
+  deleteContest,
+  getPlayersForAdmin,
+  createPlayer,
+  updatePlayer,
+  deletePlayer,
+  updateScoreboard,
+  getTeamsForAdmin,
 };

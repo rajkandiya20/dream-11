@@ -15,13 +15,15 @@ import * as Yup from "yup";
 import TextField from "@mui/material/TextField";
 import { useEffect, useState } from "react";
 
-import { storage } from "../../firebase";
+import { app } from "../../firebase";
 import {
   ref,
   uploadBytesResumable,
   getDownloadURL,
   getStorage,
 } from "firebase/storage";
+
+const storage = getStorage(app);
 
 const Container = styled.div`
   padding: 15px 15px;
