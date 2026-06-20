@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -82,14 +83,25 @@ const _publicRoutes = [
   AppRoutes.forgotPassword,
 ];
 
-/// GoRouter provider for navigation with auth guards.
+/// Notifier that triggers GoRouter refresh when auth state changes.
+class AuthChangeNotifier extends ChangeNotifier {
+  AuthChangeNotifier(Ref ref) {
+    ref.listen(authProvider, (_, __) {
+      notifyListeners();
+    });
+  }
+}
+
+/// GoRouter provider — router is created ONCE, refreshes on auth changes.
 final appRouterProvider = Provider<GoRouter>((ref) {
-  final authState = ref.watch(authProvider);
+  final authChangeNotifier = AuthChangeNotifier(ref);
 
   return GoRouter(
     initialLocation: AppRoutes.splash,
-    debugLogDiagnostics: true,
+    debugLogDiagnostics: false,
+    refreshListenable: authChangeNotifier,
     redirect: (context, state) {
+      final authState = ref.read(authProvider);
       final status = authState.status;
       final isAuthenticated = authState.isAuthenticated;
       final currentPath = state.uri.path;
@@ -110,7 +122,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       }
 
       // If authenticated and trying to access auth routes, redirect to home
-      if (isAuthenticated && isPublicRoute && !isSplash) {
+      if (isAuthenticated && isPublicRoute) {
         return AppRoutes.home;
       }
 
