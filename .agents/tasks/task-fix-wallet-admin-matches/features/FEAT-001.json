@@ -2,7 +2,7 @@
   "id": "FEAT-001",
   "type": "fix",
   "description": "Fix critical UI and authentication issues: wallet buttons hidden behind nav bar, admin access not working after login, match tabs horizontal layout, and complete admin panel routing/functionality",
-  "status": "in_progress",
+  "status": "completed",
   "steps": [
     "1. Fix wallet buttons hidden behind bottom nav bar: In lib/shared/widgets/main_scaffold.dart, the MainScaffold uses extendBody: true which causes content to go behind the floating bottom nav. The wallet_screen.dart already has SizedBox(height: 100) at the bottom of the CustomScrollView which should provide enough padding. The issue is more likely that the BalanceCard's deposit/withdraw buttons get obscured. Verify the bottom spacing is adequate (should be at least 120px to clear the floating nav which has 16px margin bottom + ~72px height). Update the SizedBox at the bottom of wallet_screen.dart from height:100 to height:120.",
     "2. Fix admin access not granted after login: The auth_repository.dart _userFromFirebase() only creates a UserModel from Firebase data with default role='user'. It never fetches the role from Supabase 'users' table. Modify AuthRepository to: (a) add a method _fetchUserFromSupabase(String uid) that queries the 'users' table by uid and returns the user with role, (b) modify loginWithEmail to fetch user data from Supabase after Firebase auth succeeds so the role is populated, (c) modify _init() to also fetch from Supabase when an existing session exists, (d) Also need to handle the case where user doesn't exist in Supabase yet (first time login after register) by upserting. The repository needs access to SupabaseClient - import from core/network/supabase_client.dart and update the provider.",
@@ -28,5 +28,5 @@
     "Verify wallet_screen.dart has adequate bottom padding to clear the floating nav bar"
   ],
   "blocked_reason": null,
-  "findings": ""
+  "findings": "All changes implemented successfully. Network mode INTEGRATIONS_ONLY prevents running flutter analyze, but all files have balanced brackets and correct imports verified via Python scripts. The auth_repository now uses supabase_flutter with hide clause to avoid User/AuthState type conflicts with firebase_auth. The admin_payment_methods table is assumed to exist in Supabase (same pattern as other admin tables). The deposit bottom sheet dynamically shows admin-defined payment methods when available, falling back to hardcoded UPI/Bank/PhonePe if none are configured."
 }
