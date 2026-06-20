@@ -1,26 +1,37 @@
 {
   "project_info": {
-    "project_number": "000000000000",
-    "project_id": "dream11-fantasy",
-    "storage_bucket": "dream11-fantasy.appspot.com"
+    "project_number": "325007849691",
+    "firebase_url": "https://dream11local-default-rtdb.asia-southeast1.firebasedatabase.app",
+    "project_id": "dream11local",
+    "storage_bucket": "dream11local.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:000000000000:android:0000000000000000",
+        "mobilesdk_app_id": "1:325007849691:android:1e80296e19d308fc5234fe",
         "android_client_info": {
-          "package_name": "com.dreamteam.fantasy"
+          "package_name": "com.dream11.com"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "325007849691-tpd2oojket9vgmt1p4fit6pvfencrsn6.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
-          "current_key": "AIzaSyPlaceholderKeyForBuildOnly"
+          "current_key": "AIzaSyBlQ7Xg4MZPFWKONrPJE_piXg2B6VHiWHk"
         }
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "325007849691-tpd2oojket9vgmt1p4fit6pvfencrsn6.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }
