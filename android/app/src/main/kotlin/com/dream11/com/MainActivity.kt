@@ -1,4 +1,4 @@
-package com.dreamteam.fantasy
+package com.dream11.com
 
 import io.flutter.embedding.android.FlutterActivity
 
