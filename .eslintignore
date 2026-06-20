@@ -1,2 +1,0 @@
-eslint "**/*.js" --ignore-pattern node_modules/
-eslint .eslintrc.js

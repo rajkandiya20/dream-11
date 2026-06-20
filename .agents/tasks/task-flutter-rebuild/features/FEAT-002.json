@@ -1,0 +1,47 @@
+{
+  "id": "FEAT-002",
+  "type": "feat",
+  "description": "Implement shared widgets/components, the custom notification system, and the authentication feature with login/register/forgot-password screens using Firebase Auth + Supabase user storage",
+  "status": "pending",
+  "steps": [
+    "Create lib/shared/widgets/app_button.dart - premium button widget with loading state, haptic feedback, gradient variants",
+    "Create lib/shared/widgets/app_text_field.dart - custom text input with validation, animated labels, error states",
+    "Create lib/shared/widgets/app_card.dart - premium card with elevation, shadows matching design system",
+    "Create lib/shared/widgets/shimmer_loading.dart - skeleton loading widget for lists, cards, profiles",
+    "Create lib/shared/widgets/empty_state.dart - empty state widget with illustration, message, retry action",
+    "Create lib/shared/widgets/cached_image.dart - network image with placeholder, error state, caching",
+    "Create lib/shared/widgets/bottom_nav_bar.dart - floating bottom navigation with animated icons, 5 tabs (Home, Matches, My Games, Wallet, More)",
+    "Create lib/shared/components/top_notification.dart - custom notification overlay system: top safe area, animated entry/exit, blur background, swipe dismiss, success/error/info/warning states, iOS-style appearance",
+    "Create lib/shared/components/notification_controller.dart - Riverpod provider to trigger notifications app-wide",
+    "Create lib/features/auth/data/models/user_model.dart - Freezed model matching users table schema",
+    "Create lib/features/auth/data/repositories/auth_repository.dart - Firebase Auth + Supabase user upsert, login, register, forgot password, logout, check auth state",
+    "Create lib/features/auth/domain/providers/auth_provider.dart - Riverpod providers for auth state, current user, isAuthenticated, isAdmin",
+    "Create lib/features/auth/presentation/screens/splash_screen.dart - animated brand intro with logo animation, auto-redirect to home or login",
+    "Create lib/features/auth/presentation/screens/login_screen.dart - premium login UI with email/password, Google sign-in, GitHub sign-in, animated transitions",
+    "Create lib/features/auth/presentation/screens/register_screen.dart - registration with email, password, username, phone validation",
+    "Create lib/features/auth/presentation/screens/forgot_password_screen.dart - email-based password reset",
+    "Create lib/features/auth/presentation/widgets/social_login_button.dart - styled social login buttons",
+    "Create lib/features/auth/presentation/widgets/auth_header.dart - branded header for auth screens",
+    "Update lib/core/router/app_router.dart with auth guards - redirect to login if not authenticated, redirect to home if already authenticated"
+  ],
+  "acceptance_criteria": [
+    "Custom top notification system with animated entry/exit, blur background, swipe dismiss",
+    "Notification supports success, error, info, warning states",
+    "Login screen with email/password and social auth buttons",
+    "Register screen with full validation",
+    "Forgot password screen with email input",
+    "Splash screen with animated brand intro",
+    "Auth repository connects to Firebase Auth and Supabase users table",
+    "Riverpod auth state provider tracks login/logout/loading",
+    "Router guards redirect unauthenticated users to login",
+    "Bottom navigation bar with floating design and animated icons"
+  ],
+  "verification": [
+    "Verify lib/shared/components/top_notification.dart has animated entry, blur background, swipe dismiss",
+    "Verify lib/features/auth/data/repositories/auth_repository.dart has login, register, forgotPassword, logout methods using Firebase Auth",
+    "Verify lib/features/auth/presentation/screens/login_screen.dart renders email/password fields and social login buttons",
+    "Verify lib/core/router/app_router.dart has redirect logic for auth guard"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}

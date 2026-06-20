@@ -1,110 +1,177 @@
-This project is a clone of DREAM 11 It has various features like
+# Dream Team Fantasy
 
-<p>1)email otp authentication</p>
-<p>2)forgot password</p>
-<p>3)showing list of matches upcoming</p>
-<p>3)create teams,edit teams,remove teams</p>
-<p>4)join specific contests</p>
-<p>5)live commentary using firebase realtime database</p>
-<p>6)live scores</p>
-<p>7)leaderboard</p>
-<p>8)winning the prize money of the joined contest based on the position in leaderboard</p>
-<p>9)constant updating of the players points</p>
-<p>10)secure backend to prevent various bot attacks</p>
-<p>
-<img src="https://github.com/rajeshmn47/dream-11-clone-mern-stack/assets/24763499/2a8a4ee1-3fc3-4105-b3b4-f3c02ce50f7f" width="328"  height="600"  style="margin-right: 90px"/>
- <span><img src="./aligner.png" height=50 width=150 /></span> 
-<img src="https://user-images.githubusercontent.com/24763499/231622101-c53fa343-ddcd-4485-8e46-3ca6b1032f8d.png" width="328"   height="600"  style="margin-right: 30px"/>
-</p>
+A Fantasy Cricket Platform built with Flutter, using Clean Architecture principles with Riverpod state management.
 
-<p>
-<img src="https://user-images.githubusercontent.com/24763499/231621706-ea780be6-bc6f-4dc6-9dd8-577d7c49f9c7.png" width="328"   height="600" style="margin-right: 90px"/>
- <span><img src="./aligner.png" height=50 width=150 /></span> 
-<img src="https://user-images.githubusercontent.com/24763499/212312487-4f49ee29-d0ec-422b-9dc2-8bb918dc6614.png" width="328"  height="500"/>
-</p>
+## Architecture
 
-<p>
-<img src="https://user-images.githubusercontent.com/24763499/231621529-85eda44e-cdf7-428d-a565-741ce34d9425.png" width="328"   height="500"/>
- <span><img src="./aligner.png" height=50 width=150 /></span> 
-<img src="https://user-images.githubusercontent.com/24763499/212457726-7fe157ba-01b6-4669-acca-8413c2194cc0.png" width="328"   height="500"/>
-</p>
+This project follows **Clean Architecture** with the following structure:
 
-<p>
-<img src="https://user-images.githubusercontent.com/24763499/212457733-cd239d1a-fd45-4189-aac4-bc8d28e73a62.png"  width="328"  height="500"/>
- <span><img src="./aligner.png" height=50 width=150 /></span> 
-<img src="https://user-images.githubusercontent.com/24763499/210806922-a0b21cdc-c444-4e27-ab84-e1e7ebbfc3ca.png"  width="328"  height="500"/>
-</p>
+```
+lib/
+├── core/                    # Core utilities and configurations
+│   ├── constants/           # App-wide constants and environment config
+│   ├── network/             # Dio HTTP client and Supabase client
+│   ├── router/              # GoRouter navigation configuration
+│   ├── storage/             # Hive local storage management
+│   ├── theme/               # Design system (colors, typography, spacing)
+│   └── utils/               # Date utils, validators, extensions
+├── features/                # Feature modules (Clean Architecture)
+│   ├── auth/                # Authentication (login, register, forgot password)
+│   ├── home/                # Home screen with match feed
+│   ├── matches/             # Match listing and details
+│   ├── contests/            # Contest listing and details
+│   ├── fantasy/             # Fantasy team creation and management
+│   ├── wallet/              # Wallet, deposits, withdrawals
+│   ├── groups/              # Social groups
+│   ├── profile/             # User profile management
+│   ├── notifications/       # Push and in-app notifications
+│   └── admin/               # Admin dashboard and management
+└── shared/                  # Shared widgets and components
+    ├── widgets/             # Reusable UI widgets
+    └── components/          # Higher-level composed components
+```
 
-<img src="https://user-images.githubusercontent.com/24763499/210806961-5d84176a-8738-46f4-ae70-f80d771f6401.png"  width="328"  height="500"/>
-</>
+Each feature follows the layered architecture pattern:
+```
+feature/
+├── data/
+│   ├── datasources/         # Remote and local data sources
+│   ├── models/              # Data models (JSON serialization)
+│   └── repositories/        # Repository implementations
+├── domain/
+│   ├── entities/            # Business entities
+│   ├── repositories/        # Repository interfaces
+│   └── usecases/            # Business logic use cases
+└── presentation/
+    ├── providers/           # Riverpod providers
+    ├── screens/             # Screen widgets
+    └── widgets/             # Feature-specific widgets
+```
 
-# Getting Started with Create React App
+## Tech Stack
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+- **Framework:** Flutter 3.16+
+- **State Management:** Riverpod (flutter_riverpod + riverpod_annotation)
+- **Navigation:** GoRouter
+- **Networking:** Dio + Supabase Flutter
+- **Local Storage:** Hive
+- **Authentication:** Firebase Auth
+- **Backend:** Supabase (PostgreSQL with real-time)
+- **Code Generation:** Freezed, JSON Serializable, Riverpod Generator
+- **Charts:** FL Chart
+- **Animations:** Flutter Animate
 
-## Available Scripts
+## Design System
 
-In the project directory, you can run:
+| Token       | Value     |
+|-------------|-----------|
+| Primary     | `#E11D48`  |
+| Secondary   | `#0F172A`  |
+| Success     | `#22C55E`  |
+| Warning     | `#F59E0B`  |
+| Info        | `#3B82F6`  |
+| Background  | `#F8FAFC`  |
+| Card        | `#FFFFFF`  |
 
-### `npm start`
+- **Body Font:** Inter
+- **Heading Font:** Poppins
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+## Getting Started
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+### Prerequisites
 
-### `npm test`
+- Flutter SDK >= 3.16.0
+- Dart SDK >= 3.2.0
+- Android Studio / VS Code with Flutter plugin
+- A Supabase project (see `sql/` for database setup)
+- A Firebase project for authentication
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+### Setup
 
-### `npm run build`
+1. Clone the repository:
+   ```bash
+   git clone <repository-url>
+   cd dream-11
+   ```
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+2. Copy the environment file and fill in your credentials:
+   ```bash
+   cp .env.example .env
+   ```
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+3. Install dependencies:
+   ```bash
+   flutter pub get
+   ```
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+4. Run code generation (for Freezed models, JSON serialization, Riverpod):
+   ```bash
+   dart run build_runner build --delete-conflicting-outputs
+   ```
 
-### `npm run eject`
+5. Set up the database by running the SQL files in order:
+   ```
+   sql/part1-drop-and-create-tables.sql
+   sql/part2-indexes-rls-realtime.sql
+   sql/part3-test-data.sql
+   ```
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+6. Run the app:
+   ```bash
+   flutter run
+   ```
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+### Build with Environment Variables
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+Pass environment variables at build time:
+```bash
+flutter run \
+  --dart-define=SUPABASE_URL=your_url \
+  --dart-define=SUPABASE_ANON_KEY=your_key \
+  --dart-define=FIREBASE_API_KEY=your_key \
+  --dart-define=FIREBASE_AUTH_DOMAIN=your_domain \
+  --dart-define=FIREBASE_PROJECT_ID=your_project_id
+```
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+### Build APK
 
-## Learn More
+```bash
+flutter build apk --release
+```
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+### Build iOS
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+```bash
+flutter build ios --release
+```
 
-### Code Splitting
+## Database
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+The application uses Supabase (PostgreSQL) with the following tables:
 
-### Analyzing the Bundle Size
+- `users` - User accounts and profiles
+- `admins` - Admin accounts with permissions
+- `tournaments` - Cricket tournaments
+- `teams` - Cricket teams
+- `players` - Cricket players with roles and stats
+- `matches` - Match schedule and results
+- `match_players` - Players assigned to specific matches
+- `contests` - Fantasy contests (paid/free)
+- `fantasy_teams` - User-created fantasy teams
+- `fantasy_team_players` - Players in fantasy teams
+- `feed_posts` - Social feed posts
+- `groups` - User groups
+- `group_members` - Group membership
+- `wallets` - User wallet balances
+- `transactions` - Financial transactions
+- `notifications` - User notifications
+- `leaderboard` - Contest leaderboards
+- `scoreboard` - Live match scoreboard
+- `commentary` - Ball-by-ball commentary
+- `payment_methods` - User payment methods
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+Real-time subscriptions are enabled for: matches, tournaments, contests, players, scoreboard, notifications, teams, commentary.
 
-### Making a Progressive Web App
+## License
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+This project is proprietary. All rights reserved.

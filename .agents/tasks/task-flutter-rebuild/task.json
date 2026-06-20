@@ -1,0 +1,7 @@
+{
+  "task_id": "task-flutter-rebuild",
+  "task_description": "Complete rebuild of Dream11 Fantasy Cricket Platform from React/Redux to Flutter with Clean Architecture, Riverpod state management, GoRouter navigation, and premium UI/UX. Replace entire existing codebase. Push to main branch.",
+  "status": "in_progress",
+  "feature_order": ["FEAT-001", "FEAT-002", "FEAT-003", "FEAT-004"],
+  "blocked_reason": null
+}

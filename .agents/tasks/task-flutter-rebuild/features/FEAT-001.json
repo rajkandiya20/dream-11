@@ -1,0 +1,49 @@
+{
+  "id": "FEAT-001",
+  "type": "chore",
+  "description": "Remove existing React codebase and create Flutter project scaffold with Clean Architecture, including pubspec.yaml, analysis_options.yaml, project configuration files, Android/iOS configs, and the complete directory structure under lib/",
+  "status": "in_progress",
+  "steps": [
+    "Remove all existing React/JS files: src/, public/, package.json, package-lock.json, .eslintrc.js, .eslintignore, .npmrc, prettierrc.json, capacitor.config.json, node_modules/ (if exists). Keep: .git/, .github/, sql/, .env.example, README.md",
+    "Create pubspec.yaml with dependencies: flutter_riverpod, riverpod_annotation, go_router, dio, hive, hive_flutter, supabase_flutter, firebase_core, firebase_auth, freezed_annotation, json_annotation, google_fonts, flutter_animate, shimmer, cached_network_image, intl, uuid, fl_chart, image_picker. Dev dependencies: freezed, json_serializable, build_runner, riverpod_generator, hive_generator, flutter_lints",
+    "Create analysis_options.yaml with strict linting rules",
+    "Create lib/main.dart entry point with ProviderScope, Hive initialization, Supabase initialization, GoRouter setup",
+    "Create lib/core/theme/app_theme.dart with complete design system: colors (#E11D48 primary, #0F172A secondary, #22C55E success, #F59E0B warning, #3B82F6 info, #F8FAFC background), typography (Inter, Poppins), spacing (8,12,16,20,24,32), radius (12,16,20,24), shadows, card themes",
+    "Create lib/core/theme/app_colors.dart, lib/core/theme/app_typography.dart, lib/core/theme/app_spacing.dart",
+    "Create lib/core/constants/api_constants.dart with Supabase URL/key placeholders, Firebase config constants",
+    "Create lib/core/constants/app_constants.dart with app-wide constants",
+    "Create lib/core/network/dio_client.dart with Dio configuration, interceptors, error handling",
+    "Create lib/core/network/supabase_client.dart with Supabase initialization and helper methods",
+    "Create lib/core/storage/hive_storage.dart with Hive box management for local caching",
+    "Create lib/core/utils/date_utils.dart, lib/core/utils/validators.dart, lib/core/utils/extensions.dart",
+    "Create lib/core/router/app_router.dart with GoRouter configuration for all app routes",
+    "Create directory structure: lib/features/auth/, lib/features/home/, lib/features/matches/, lib/features/contests/, lib/features/fantasy/, lib/features/wallet/, lib/features/groups/, lib/features/profile/, lib/features/notifications/, lib/features/admin/",
+    "Create lib/shared/widgets/ and lib/shared/components/ directories with placeholder barrel files",
+    "Create android/app/build.gradle, android/build.gradle, android/settings.gradle with minimum SDK 21, target SDK 34",
+    "Create android/app/src/main/AndroidManifest.xml with internet permission and app configuration",
+    "Create ios/Runner/Info.plist with basic iOS configuration",
+    "Create .env file template and lib/core/constants/env.dart for environment variable handling",
+    "Create a new README.md documenting the Flutter project setup, architecture, and how to run"
+  ],
+  "acceptance_criteria": [
+    "All React/JS files removed except .git/, .github/, sql/, .env.example",
+    "pubspec.yaml exists with all required dependencies listed",
+    "lib/main.dart exists with proper app initialization",
+    "Complete design system defined in lib/core/theme/",
+    "GoRouter configuration in lib/core/router/ with routes for all screens",
+    "Dio client configured in lib/core/network/",
+    "Supabase client configured with real-time support",
+    "Hive storage configured for local caching",
+    "Android manifest and build.gradle configured properly",
+    "Directory structure matches the specified Clean Architecture layout"
+  ],
+  "verification": [
+    "Check that no .js, .jsx, .css files remain in lib/ or src/",
+    "Verify pubspec.yaml contains all required dependencies",
+    "Verify lib/main.dart has valid Dart syntax with ProviderScope wrapper",
+    "Verify lib/core/theme/app_theme.dart defines the complete color system",
+    "Verify lib/core/router/app_router.dart has routes for auth, home, matches, contests, fantasy, wallet, groups, profile, notifications, admin"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}
