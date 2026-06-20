@@ -29,10 +29,6 @@ class SupabaseClientHelper {
 
   /// Initialize Supabase with environment configuration.
   static Future<void> initialize() async {
-    if (Env.supabaseUrl.isEmpty || Env.supabaseAnonKey.isEmpty) {
-      debugPrint('⚠️ Supabase credentials not configured, skipping initialization');
-      return;
-    }
     await Supabase.initialize(
       url: Env.supabaseUrl,
       anonKey: Env.supabaseAnonKey,
