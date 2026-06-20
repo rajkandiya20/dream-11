@@ -51,9 +51,9 @@ class FloatingBottomNavBar extends StatelessWidget {
       label: 'Wallet',
     ),
     NavItem(
-      icon: Icons.more_horiz_outlined,
-      activeIcon: Icons.more_horiz,
-      label: 'More',
+      icon: Icons.person_outlined,
+      activeIcon: Icons.person,
+      label: 'Profile',
     ),
   ];
 
