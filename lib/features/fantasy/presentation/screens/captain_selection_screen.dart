@@ -317,10 +317,10 @@ class CaptainPlayerRow extends StatelessWidget {
           // Player info
           if (player.image != null && player.image!.isNotEmpty)
             CachedImage(
-              url: player.image!,
+              imageUrl: player.image!,
               width: 36,
               height: 36,
-              borderRadius: 18,
+              borderRadius: BorderRadius.circular(18),
             )
           else
             Container(

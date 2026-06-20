@@ -205,10 +205,10 @@ class _TeamScore extends StatelessWidget {
       children: [
         if (teamFlag != null && teamFlag!.isNotEmpty)
           CachedImage(
-            url: teamFlag!,
+            imageUrl: teamFlag!,
             width: 32,
             height: 32,
-            borderRadius: 16,
+            borderRadius: BorderRadius.circular(16),
           )
         else
           Container(

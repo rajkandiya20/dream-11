@@ -89,7 +89,6 @@ class SupabaseClientHelper {
       event: PostgresChangeEvent.insert,
       schema: 'public',
       table: table,
-      filter: filter != null ? PostgresChangeFilter.fromString(filter) : null,
       callback: (payload) {
         onInsert(PostgrestResponse(
           data: payload.newRecord,
@@ -103,7 +102,6 @@ class SupabaseClientHelper {
         event: PostgresChangeEvent.update,
         schema: 'public',
         table: table,
-        filter: filter != null ? PostgresChangeFilter.fromString(filter) : null,
         callback: (payload) {
           onUpdate(PostgrestResponse(
             data: payload.newRecord,
@@ -118,7 +116,6 @@ class SupabaseClientHelper {
         event: PostgresChangeEvent.delete,
         schema: 'public',
         table: table,
-        filter: filter != null ? PostgresChangeFilter.fromString(filter) : null,
         callback: (payload) {
           onDelete(PostgrestResponse(
             data: payload.oldRecord,

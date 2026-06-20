@@ -70,10 +70,10 @@ class PlayerSelectionCard extends StatelessWidget {
             // Player image
             if (player.image != null && player.image!.isNotEmpty)
               CachedImage(
-                url: player.image!,
+                imageUrl: player.image!,
                 width: 44,
                 height: 44,
-                borderRadius: 22,
+                borderRadius: BorderRadius.circular(22),
               )
             else
               Container(

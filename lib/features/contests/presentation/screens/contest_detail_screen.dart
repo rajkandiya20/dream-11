@@ -357,10 +357,10 @@ class _LeaderboardRow extends StatelessWidget {
           // Avatar
           if (entry.avatarUrl != null)
             CachedImage(
-              url: entry.avatarUrl!,
+              imageUrl: entry.avatarUrl!,
               width: 32,
               height: 32,
-              borderRadius: 16,
+              borderRadius: BorderRadius.circular(16),
             )
           else
             Container(

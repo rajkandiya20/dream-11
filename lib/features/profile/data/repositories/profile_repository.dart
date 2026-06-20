@@ -143,7 +143,7 @@ class ProfileRepository {
       final int matchesPlayed = (fantasyTeams as List).length;
       final int contestsJoined = (leaderboard as List).length;
       final int contestsWon = (leaderboard)
-          .where((e) => (e['prize_won'] as num?)?.toDouble() ?? 0 > 0)
+          .where((e) => ((e['prize_won'] as num?)?.toDouble() ?? 0) > 0)
           .length;
       final double totalWinnings = (leaderboard).fold<double>(
         0,

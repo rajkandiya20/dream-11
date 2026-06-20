@@ -248,10 +248,10 @@ class _TeamWidget extends StatelessWidget {
       children: [
         if (flag != null && flag!.isNotEmpty)
           CachedImage(
-            url: flag!,
+            imageUrl: flag!,
             width: 48,
             height: 48,
-            borderRadius: 24,
+            borderRadius: BorderRadius.circular(24),
           )
         else
           Container(
