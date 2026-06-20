@@ -142,6 +142,14 @@ export const login = (formData) => async (dispatch) => {
       // Continue with basic user data even if Firestore fails
     }
     
+    // Check if user is admin and set isAdmin flag
+    const ADMIN_EMAIL = 'rexoagency.in@gmail.com';
+    if (userData.email === ADMIN_EMAIL) {
+      userData.isAdmin = true;
+      userData.role = 'super_admin';
+      console.log('✅ Admin user detected');
+    }
+    
     // Store token in localStorage
     const token = await user.getIdToken();
     localStorage.setItem("token", token);
@@ -202,6 +210,16 @@ export const loadUser = () => async (dispatch) => {
     
     if (storedUser && token) {
       const userData = JSON.parse(storedUser);
+      
+      // Ensure admin flag is set for admin email
+      const ADMIN_EMAIL = 'rexoagency.in@gmail.com';
+      if (userData.email === ADMIN_EMAIL) {
+        userData.isAdmin = true;
+        userData.role = 'super_admin';
+        // Update localStorage with admin flag
+        localStorage.setItem("user", JSON.stringify(userData));
+      }
+      
       console.log('✅ User loaded from localStorage:', userData.uid);
       dispatch({ type: LOAD_USER_SUCCESS, payload: userData });
     } else {

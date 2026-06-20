@@ -31,6 +31,11 @@ import Admin from "./components/admin/Admin";
 
 import ContestManager from "./components/admin/ContestManager";
 import PlayerManager from "./components/admin/PlayerManager";
+import MatchManager from "./components/admin/MatchManager";
+import TournamentManager from "./components/admin/TournamentManager";
+import ScoreboardManager from "./components/admin/ScoreboardManager";
+import ADeposit from "./components/admin/ADeposit";
+import AWithdrawal from "./components/admin/Awithdrawal";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Feed from "./components/feed/Feed";
 import Groups from "./components/groups/Groups";
@@ -106,9 +111,13 @@ function App() {
           <Route path="/my-info" element={<MyInfo />} />
           <Route path="/transaction" element={<TransactionTabs />} />
           <Route path="/admin" element={<Admin/>} />
-
           <Route path="/admin/contests" element={<ContestManager/>} />
           <Route path="/admin/players" element={<PlayerManager/>} />
+          <Route path="/admin/matches" element={<MatchManager/>} />
+          <Route path="/admin/tournaments" element={<TournamentManager/>} />
+          <Route path="/admin/scoreboard" element={<ScoreboardManager/>} />
+          <Route path="/admin/deposits" element={<ADeposit/>} />
+          <Route path="/admin/withdrawals" element={<AWithdrawal/>} />
           <Route path="/feed" element={<ProtectedRoute><Feed/></ProtectedRoute>} />
           <Route path="/groups" element={<ProtectedRoute><Groups/></ProtectedRoute>} />
           <Route path="/more" element={<ProtectedRoute><More/></ProtectedRoute>} />
