@@ -1,8 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart' hide User;
 
-import '../../../../core/network/supabase_client.dart';
 import '../models/user_model.dart';
 
 /// Auth result wrapping success/error outcomes.
@@ -24,52 +23,44 @@ class AuthResult {
       AuthResult(success: false, errorMessage: message);
 }
 
-/// Repository handling Firebase Auth and Supabase user upsert.
+/// Repository handling Firebase Auth ONLY.
 class AuthRepository {
   final FirebaseAuth _firebaseAuth;
-  final SupabaseClient? _supabaseClient;
 
-  AuthRepository({
-    FirebaseAuth? firebaseAuth,
-    SupabaseClient? supabaseClient,
-  })  : _firebaseAuth = firebaseAuth ?? FirebaseAuth.instance,
-        _supabaseClient = supabaseClient;
+  AuthRepository({FirebaseAuth? firebaseAuth})
+      : _firebaseAuth = firebaseAuth ?? FirebaseAuth.instance;
 
-  /// Get the current Firebase user.
   User? get currentFirebaseUser => _firebaseAuth.currentUser;
-
-  /// Get auth state stream.
   Stream<User?> get authStateChanges => _firebaseAuth.authStateChanges();
-
-  /// Check if user is authenticated.
   bool get isAuthenticated => currentFirebaseUser != null;
 
-  /// Login with email and password.
   Future<AuthResult> loginWithEmail({
     required String email,
     required String password,
   }) async {
     try {
+      debugPrint('🔐 Attempting login for: $email');
       final credential = await _firebaseAuth.signInWithEmailAndPassword(
         email: email.trim(),
         password: password,
       );
-
       if (credential.user == null) {
         return AuthResult.failure('Login failed. Please try again.');
       }
-
-      // Fetch or create user in Supabase
-      final user = await _upsertSupabaseUser(credential.user!);
-      return AuthResult.success(user);
+      debugPrint('✅ Login successful: ${credential.user!.uid}');
+      return AuthResult.success(_userFromFirebase(credential.user!));
+    } on FirebaseAuthException catch (e) {
+      debugPrint('❌ FirebaseAuthException: ${e.code} - ${e.message}');
+      return AuthResult.failure(_mapFirebaseError(e.code));
     } on FirebaseException catch (e) {
+      debugPrint('❌ FirebaseException: ${e.code} - ${e.message}');
       return AuthResult.failure(_mapFirebaseError(e.code));
     } catch (e) {
-      return AuthResult.failure('An unexpected error occurred. Please try again.');
+      debugPrint('❌ Unexpected error: $e');
+      return AuthResult.failure('An unexpected error occurred: ${e.toString()}');
     }
   }
 
-  /// Register with email, password, username, and phone.
   Future<AuthResult> registerWithEmail({
     required String email,
     required String password,
@@ -77,149 +68,89 @@ class AuthRepository {
     String? phoneNumber,
   }) async {
     try {
+      debugPrint('📝 Attempting registration for: $email');
       final credential = await _firebaseAuth.createUserWithEmailAndPassword(
         email: email.trim(),
         password: password,
       );
-
       if (credential.user == null) {
         return AuthResult.failure('Registration failed. Please try again.');
       }
-
-      // Update display name in Firebase
       if (username != null && username.isNotEmpty) {
         await credential.user!.updateDisplayName(username);
+        await credential.user!.reload();
       }
-
-      // Upsert user in Supabase with additional info
-      final user = await _upsertSupabaseUser(
-        credential.user!,
-        username: username,
-        phoneNumber: phoneNumber,
-      );
-
-      return AuthResult.success(user);
+      debugPrint('✅ Registration successful: ${credential.user!.uid}');
+      return AuthResult.success(_userFromFirebase(
+        _firebaseAuth.currentUser ?? credential.user!,
+        overrideUsername: username,
+      ));
+    } on FirebaseAuthException catch (e) {
+      debugPrint('❌ FirebaseAuthException: ${e.code} - ${e.message}');
+      return AuthResult.failure(_mapFirebaseError(e.code));
     } on FirebaseException catch (e) {
+      debugPrint('❌ FirebaseException: ${e.code} - ${e.message}');
       return AuthResult.failure(_mapFirebaseError(e.code));
     } catch (e) {
-      return AuthResult.failure('An unexpected error occurred. Please try again.');
+      debugPrint('❌ Unexpected error: $e');
+      return AuthResult.failure('An unexpected error occurred: ${e.toString()}');
     }
   }
 
-  /// Send password reset email.
   Future<AuthResult> forgotPassword({required String email}) async {
     try {
       await _firebaseAuth.sendPasswordResetEmail(email: email.trim());
       return const AuthResult(success: true);
-    } on FirebaseException catch (e) {
+    } on FirebaseAuthException catch (e) {
       return AuthResult.failure(_mapFirebaseError(e.code));
     } catch (e) {
-      return AuthResult.failure('Failed to send reset email. Please try again.');
+      return AuthResult.failure('Failed to send reset email.');
     }
   }
 
-  /// Logout from Firebase.
   Future<void> logout() async {
     await _firebaseAuth.signOut();
   }
 
-  /// Get current user data from Supabase.
-  Future<UserModel?> getCurrentUser() async {
-    final firebaseUser = currentFirebaseUser;
-    if (firebaseUser == null) return null;
-
-    if (_supabaseClient == null) return null;
-
-    try {
-      final response = await _supabaseClient
-          .from('users')
-          .select()
-          .eq('uid', firebaseUser.uid)
-          .maybeSingle();
-
-      if (response == null) return null;
-      return UserModel.fromJson(response);
-    } catch (e) {
-      return null;
-    }
-  }
-
-  /// Check if current user is admin.
-  Future<bool> isAdmin() async {
-    final user = await getCurrentUser();
-    return user?.isAdmin ?? false;
-  }
-
-  /// Upsert user data in Supabase after Firebase Auth.
-  Future<UserModel> _upsertSupabaseUser(
-    User firebaseUser, {
-    String? username,
-    String? phoneNumber,
-  }) async {
-    final userData = UserModel(
+  UserModel _userFromFirebase(User firebaseUser, {String? overrideUsername}) {
+    return UserModel(
       uid: firebaseUser.uid,
       email: firebaseUser.email ?? '',
-      username: username ?? firebaseUser.displayName,
-      phoneNumber: phoneNumber ?? firebaseUser.phoneNumber,
+      username: overrideUsername ?? firebaseUser.displayName,
       avatarUrl: firebaseUser.photoURL,
     );
-
-    if (_supabaseClient == null) {
-      return userData;
-    }
-
-    try {
-      final response = await _supabaseClient
-          .from('users')
-          .upsert(
-            userData.toJson(),
-            onConflict: 'uid',
-          )
-          .select()
-          .single();
-
-      return UserModel.fromJson(response);
-    } catch (e) {
-      // If upsert fails, return the basic user model
-      return userData;
-    }
   }
 
-  /// Map Firebase Auth error codes to user-friendly messages.
   String _mapFirebaseError(String code) {
     switch (code) {
       case 'user-not-found':
-        return 'No account found with this email address.';
+        return 'No account found with this email.';
       case 'wrong-password':
-        return 'Incorrect password. Please try again.';
+        return 'Incorrect password.';
       case 'email-already-in-use':
-        return 'An account already exists with this email.';
+        return 'Email already registered.';
       case 'invalid-email':
-        return 'Please enter a valid email address.';
+        return 'Invalid email address.';
       case 'user-disabled':
-        return 'This account has been disabled.';
+        return 'Account disabled.';
       case 'too-many-requests':
-        return 'Too many attempts. Please try again later.';
+        return 'Too many attempts. Try later.';
       case 'network-request-failed':
-        return 'Network error. Please check your connection.';
+        return 'Network error. Check connection.';
       case 'weak-password':
-        return 'Password is too weak. Use at least 6 characters.';
+        return 'Password too weak (min 6 chars).';
       case 'operation-not-allowed':
-        return 'This sign-in method is not enabled.';
+        return 'Email/Password sign-in not enabled in Firebase.';
       case 'invalid-credential':
-        return 'Invalid credentials. Please try again.';
+      case 'INVALID_LOGIN_CREDENTIALS':
+        return 'Invalid email or password.';
       default:
-        return 'Authentication failed. Please try again.';
+        return 'Authentication failed ($code).';
     }
   }
 }
 
-/// Provider for the auth repository.
+/// Provider — NO Supabase dependency.
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
-  try {
-    final supabaseClient = ref.watch(supabaseClientProvider);
-    return AuthRepository(supabaseClient: supabaseClient);
-  } catch (e) {
-    return AuthRepository();
-  }
+  return AuthRepository();
 });
