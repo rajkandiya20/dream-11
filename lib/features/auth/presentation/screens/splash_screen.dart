@@ -59,42 +59,20 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     if (!mounted) return;
     _logoController.forward();
 
-    await Future.delayed(const Duration(milliseconds: 400));
+    await Future.delayed(const Duration(milliseconds: 300));
     if (!mounted) return;
     _textController.forward();
 
-    // Navigate after 1200ms total
-    await Future.delayed(const Duration(milliseconds: 800));
+    await Future.delayed(const Duration(milliseconds: 500));
     if (!mounted) return;
     _tryNavigate();
   }
 
   void _tryNavigate() {
     if (_hasNavigated) return;
-
-    final authState = ref.read(authProvider);
-
-    // If auth is still loading or initial, wait max 2 seconds then default to login
-    if (authState.status == AuthStatus.loading ||
-        authState.status == AuthStatus.initial) {
-      _waitForAuthOrTimeout();
-      return;
-    }
-
-    _navigate(authState);
-  }
-
-  void _waitForAuthOrTimeout() {
-    // Set a max 2 second timeout, then default to login
-    Future.delayed(const Duration(seconds: 2), () {
-      if (!mounted || _hasNavigated) return;
-      _hasNavigated = true;
-      context.go(AppRoutes.login);
-    });
-  }
-
-  void _navigate(AuthState authState) {
     _hasNavigated = true;
+    
+    final authState = ref.read(authProvider);
     if (authState.isAuthenticated) {
       context.go(AppRoutes.home);
     } else {
@@ -111,14 +89,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
   @override
   Widget build(BuildContext context) {
-    // Listen to auth state changes so we navigate once resolved
-    ref.listen<AuthState>(authProvider, (previous, next) {
-      if (!_hasNavigated &&
-          next.status != AuthStatus.loading &&
-          next.status != AuthStatus.initial) {
-        _navigate(next);
-      }
-    });
+    // Listen to auth state changes (no-op since _init is now synchronous)
+    ref.watch(authProvider);
 
     return Scaffold(
       backgroundColor: AppColors.surface,
