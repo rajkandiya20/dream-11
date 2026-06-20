@@ -31,6 +31,10 @@ import Admin from "./components/admin/Admin";
 
 import ContestManager from "./components/admin/ContestManager";
 import PlayerManager from "./components/admin/PlayerManager";
+import Feed from "./components/feed/Feed";
+import Groups from "./components/groups/Groups";
+import More from "./components/more/More";
+import Notifications from "./components/notifications/Notifications";
 
 function App() {
   const dispatch = useDispatch();
@@ -104,6 +108,10 @@ function App() {
 
           <Route path="/admin/contests" element={<ContestManager/>} />
           <Route path="/admin/players" element={<PlayerManager/>} />
+          <Route path="/feed" element={<Feed/>} />
+          <Route path="/groups" element={<Groups/>} />
+          <Route path="/more" element={<More/>} />
+          <Route path="/notifications" element={<Notifications/>} />
         </Routes>
       </BrowserRouter>
       {confetti && (
