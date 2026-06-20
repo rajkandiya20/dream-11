@@ -17,19 +17,6 @@ import WestIcon from "@mui/icons-material/West";
 import { Grid } from "@mui/material";
 import Tab from "@mui/material/Tab";
 import axios from "axios";
-import { getDatabase, onValue, ref } from "firebase/database";
-import {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  onSnapshot,
-  orderBy,
-  query,
-  setDoc,
-  updateDoc,
-  where,
-} from "firebase/firestore";
 import { useEffect, useRef, useState } from "react";
 import ReactCanvasConfetti from "react-confetti";
 import { useDispatch, useSelector } from "react-redux";
@@ -43,7 +30,6 @@ import {
 import { getmatch } from "../actions/matchAction";
 import { addconfetti, removeconfetti } from "../actions/userAction";
 import { URL } from "../constants/userConstants";
-import db from "../firebase";
 import { showBalls } from "../utils/lastballs";
 import { showName } from "../utils/name";
 import Bottomnav from "./navbar/bottomnavbar";
@@ -190,43 +176,9 @@ export function MatchDetails({ players }) {
   };
   useEffect(() => {
     isMountedRef.current = true;
-    async function getdata(m) {
-      if (match_details?.matchId) {
-        try {
-          const docRef = doc(db, "cities", match_details.matchId);
-          const docSnap = await getDoc(docRef);
-
-          if (!isMountedRef.current) return;
-
-          if (docSnap.exists()) {
-            const data = docSnap.data();
-            if (data.capital) setCommentary([...data.capital]);
-            if (data.miniscore) setLivescore({ ...data.miniscore });
-          }
-
-          const listener = onSnapshot(
-            doc(db, "cities", match_details?.matchId),
-            (doc) => {
-              if (!isMountedRef.current) return;
-              if (doc.data()) {
-                if (process.env.NODE_ENV === 'development') {
-                  console.log(doc.data(), "data");
-                }
-                if (doc.data().capital) setCommentary([...doc.data().capital]);
-                if (doc.data().miniscore) setLivescore({ ...doc.data().miniscore });
-              }
-            },
-            (error) => {
-              console.error("Firestore onSnapshot error:", error);
-            }
-          );
-          unsubRef.current = listener;
-        } catch (error) {
-          console.error("Error fetching match details from Firestore:", error);
-        }
-      }
-    }
-    getdata(match_details);
+    // TODO: Replace with Supabase realtime subscription for live match data
+    // The previous implementation used Firestore onSnapshot on a 'cities' collection.
+    // Commentary and livescore data should be fetched via Supabase once the backend is set up.
 
     return () => {
       isMountedRef.current = false;

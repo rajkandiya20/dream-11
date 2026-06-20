@@ -5,25 +5,10 @@ import FeedOutlinedIcon from "@mui/icons-material/FeedOutlined";
 import GroupsOutlinedIcon from "@mui/icons-material/GroupsOutlined";
 import HomeOutlinedIcon from "@mui/icons-material/HomeOutlined";
 import MoreHorizOutlinedIcon from "@mui/icons-material/MoreHorizOutlined";
-import { getDatabase, onValue, ref } from "firebase/database";
-import {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  onSnapshot,
-  orderBy,
-  query,
-  setDoc,
-  updateDoc,
-  where,
-} from "firebase/firestore";
 import { useEffect, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import io from "socket.io-client";
 
 import { addconfetti, removeconfetti } from "../actions/userAction";
-import db from "../firebase";
 import Animate from "./animate";
 import Cracker from "./Cracker";
 
@@ -118,33 +103,10 @@ export function Commentary({ matchdata }) {
   const [lastPong, setLastPong] = useState(null);
   const [confetti, setConfetti] = useState(false);
   useEffect(() => {
-    async function getdata(m) {
-      if (matchdata.matchId) {
-        const docRef = doc(db, "cities", matchdata.matchId);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          console.log("Document data:");
-        } else {
-          // docSnap.data() will be undefined in this case
-          console.log("No such document!");
-        }
-        const unsub = onSnapshot(
-          doc(db, "cities", matchdata?.matchId),
-          (doc) => {
-            console.log("Current data: ");
-            if (doc.data()) {
-              setCommentary([...doc.data().capital.reverse()]);
-              console.log("0");
-            }
-          }
-        );
-      }
-    }
-    getdata(matchdata);
-    // onSnapshot((docRef, "cities"), (snapshot) => {
-    // let array = []; // Get users all recent talks and render that in leftColumn content
-    // console.log(snapshot, "snaps");
-    // });
+    // TODO: Replace with Supabase realtime subscription for commentary data
+    // The previous implementation used Firestore onSnapshot on a 'cities' collection
+    // which does not exist in Supabase. Commentary data should be fetched via
+    // Supabase realtime channels once the backend is set up.
   }, [matchdata]);
   console.log(commentary, "com");
   useEffect(() => {

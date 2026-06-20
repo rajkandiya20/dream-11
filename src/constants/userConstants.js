@@ -70,6 +70,3 @@ function getfrontendurl() {
 
 export const URL = geturl();
 export const FURL = getfrontendurl();
-
-// Feature flags
-export const FIRESTORE_ENABLED = true;

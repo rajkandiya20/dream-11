@@ -8,7 +8,7 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { loadUser } from "./actions/userAction";
 import Completed from "./components/completed";
 import ContestDetail from "./components/contestdetail";
-import Counter from "./components/counter";
+
 import CreateTeam from "./components/createteam/createteam";
 import { ForgotPassword } from "./components/forget-password";
 
@@ -22,7 +22,7 @@ import Register from "./components/register";
 import SavedTeam from "./components/savedteam";
 import NewUsers from "./components/newUsers";
 import FindPeople from "./components/findPeople/FindPeople";
-import Test from "./components/test";
+
 import { WhatsAppWidget } from "react-whatsapp-widget";
 import "react-whatsapp-widget/dist/index.css";
 import MyInfo from "./components/myinfo/MyInfo";
@@ -111,8 +111,7 @@ function App() {
           <Route path="/savedteam/:id" element={<ProtectedRoute><SavedTeam /></ProtectedRoute>} />
           <Route path="/contestdetail/:id" element={<ProtectedRoute><ContestDetail /></ProtectedRoute>} />
           <Route path="/joined" element={<ProtectedRoute><JoinedContests /></ProtectedRoute>} />
-          <Route path="/test" element={<Test />} />
-          <Route path="/counter" element={<Counter />} />
+
           <Route path="/payment" element={<ProtectedRoute><Payment /></ProtectedRoute>} />
 
           <Route path="/newusers" element={<ProtectedRoute><NewUsers /></ProtectedRoute>} />
