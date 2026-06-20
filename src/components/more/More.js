@@ -101,11 +101,12 @@ export function More() {
   ];
 
   // Add admin link if user is admin
-  const isAdmin = user?.isAdmin || user?.role === "admin";
+  const ADMIN_EMAIL = 'rexoagency.in@gmail.com';
+  const isAdmin = user?.isAdmin || user?.role === "admin" || user?.role === "super_admin" || user?.email === ADMIN_EMAIL;
   if (isAdmin) {
     menuItems.splice(2, 0, {
       icon: <AdminPanelSettingsOutlinedIcon />,
-      label: "Admin",
+      label: "Admin Panel",
       path: "/admin",
     });
   }

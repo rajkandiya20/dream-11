@@ -164,6 +164,9 @@ export default function LeftDrawer({ leftOpen, setLeftOpen, open, setOpen }) {
   };
 
   function ListA(anchor) {
+    const ADMIN_EMAIL = 'rexoagency.in@gmail.com';
+    const isAdmin = user?.isAdmin || user?.role === "super_admin" || user?.email === ADMIN_EMAIL;
+    
     return (
       <Box
         sx={{ width: 250, cursor: "pointer" }}
@@ -198,9 +201,12 @@ export default function LeftDrawer({ leftOpen, setLeftOpen, open, setOpen }) {
             <AccountBalanceWalletOutlinedIcon style={{ width: "60px" }} /> My
             Balance
           </ListI>
-          <ListI onClick={() => handleLogout()}>
-            <LogoutIcon style={{ width: "60px" }} /> Logout
-          </ListI>
+          {isAdmin && (
+            <ListI onClick={() => navigate("/admin")} style={{ background: "#fff3f3" }}>
+              <SettingsOutlinedIcon style={{ width: "60px", color: "var(--red)" }} /> 
+              <span style={{ color: "var(--red)", fontWeight: "600" }}>Admin Panel</span>
+            </ListI>
+          )}
           <ListI onClick={() => navigate("/findpeople")}>
             <BoyOutlined style={{ width: "60px" }} /> Find People
           </ListI>
@@ -214,13 +220,16 @@ export default function LeftDrawer({ leftOpen, setLeftOpen, open, setOpen }) {
             <SettingsOutlinedIcon style={{ width: "60px" }} />
             My Info & Settings
           </ListI>
-          <ListI>
+          <ListI onClick={() => navigate("/more")}>
             <MoreHorizOutlinedIcon style={{ width: "60px" }} />
             more
           </ListI>
           <ListI>
             <HelpOutlineOutlinedIcon style={{ width: "60px" }} />
             Help & Support
+          </ListI>
+          <ListI onClick={() => handleLogout()}>
+            <LogoutIcon style={{ width: "60px" }} /> Logout
           </ListI>
         </Container>
       </Box>

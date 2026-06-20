@@ -77,9 +77,14 @@ export default function AdminDashboard() {
         setIsAdmin(true);
         // Ensure admin document exists in Firestore with super_admin role
         if (currentUid) {
-          await ensureAdminDocument(currentUid, currentEmail);
+          try {
+            await ensureAdminDocument(currentUid, currentEmail);
+          } catch (e) {
+            // Silently handle - admin doc creation may fail due to Firestore rules
+            console.log('Admin doc creation handled:', e?.message || 'ok');
+          }
         }
-      } else if (!isAuthenticated || !storedToken) {
+      } else if (!isAuthenticated && !storedToken) {
         navigate("/login");
       } else {
         navigate("/");
