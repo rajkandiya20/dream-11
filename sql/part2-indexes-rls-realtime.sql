@@ -1,0 +1,102 @@
+-- =====================================================
+-- PART 2: INDEXES + RLS + POLICIES + REALTIME
+-- Run this SECOND in Supabase SQL Editor
+-- =====================================================
+
+CREATE INDEX idx_users_uid ON users(uid);
+CREATE INDEX idx_users_email ON users(email);
+CREATE INDEX idx_matches_status ON matches(status);
+CREATE INDEX idx_matches_date ON matches(date_time);
+CREATE INDEX idx_players_team ON players(team_id);
+CREATE INDEX idx_contests_match ON contests(match_id);
+CREATE INDEX idx_fantasy_teams_user ON fantasy_teams(user_id);
+CREATE INDEX idx_notifications_user ON notifications(user_id);
+CREATE INDEX idx_transactions_user ON transactions(user_id);
+CREATE INDEX idx_scoreboard_match ON scoreboard(match_id);
+CREATE INDEX idx_admins_email ON admins(email);
+
+ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE admins ENABLE ROW LEVEL SECURITY;
+ALTER TABLE tournaments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE teams ENABLE ROW LEVEL SECURITY;
+ALTER TABLE players ENABLE ROW LEVEL SECURITY;
+ALTER TABLE matches ENABLE ROW LEVEL SECURITY;
+ALTER TABLE match_players ENABLE ROW LEVEL SECURITY;
+ALTER TABLE contests ENABLE ROW LEVEL SECURITY;
+ALTER TABLE fantasy_teams ENABLE ROW LEVEL SECURITY;
+ALTER TABLE fantasy_team_players ENABLE ROW LEVEL SECURITY;
+ALTER TABLE feed_posts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE groups ENABLE ROW LEVEL SECURITY;
+ALTER TABLE group_members ENABLE ROW LEVEL SECURITY;
+ALTER TABLE wallets ENABLE ROW LEVEL SECURITY;
+ALTER TABLE transactions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE leaderboard ENABLE ROW LEVEL SECURITY;
+ALTER TABLE scoreboard ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "read_all" ON users FOR SELECT USING (true);
+CREATE POLICY "read_all" ON admins FOR SELECT USING (true);
+CREATE POLICY "read_all" ON tournaments FOR SELECT USING (true);
+CREATE POLICY "read_all" ON teams FOR SELECT USING (true);
+CREATE POLICY "read_all" ON players FOR SELECT USING (true);
+CREATE POLICY "read_all" ON matches FOR SELECT USING (true);
+CREATE POLICY "read_all" ON match_players FOR SELECT USING (true);
+CREATE POLICY "read_all" ON contests FOR SELECT USING (true);
+CREATE POLICY "read_all" ON fantasy_teams FOR SELECT USING (true);
+CREATE POLICY "read_all" ON fantasy_team_players FOR SELECT USING (true);
+CREATE POLICY "read_all" ON feed_posts FOR SELECT USING (true);
+CREATE POLICY "read_all" ON groups FOR SELECT USING (true);
+CREATE POLICY "read_all" ON group_members FOR SELECT USING (true);
+CREATE POLICY "read_all" ON wallets FOR SELECT USING (true);
+CREATE POLICY "read_all" ON transactions FOR SELECT USING (true);
+CREATE POLICY "read_all" ON notifications FOR SELECT USING (true);
+CREATE POLICY "read_all" ON leaderboard FOR SELECT USING (true);
+CREATE POLICY "read_all" ON scoreboard FOR SELECT USING (true);
+
+CREATE POLICY "write_all" ON users FOR INSERT WITH CHECK (true);
+CREATE POLICY "update_all" ON users FOR UPDATE USING (true);
+CREATE POLICY "write_all" ON admins FOR INSERT WITH CHECK (true);
+CREATE POLICY "write_all" ON tournaments FOR INSERT WITH CHECK (true);
+CREATE POLICY "update_all" ON tournaments FOR UPDATE USING (true);
+CREATE POLICY "delete_all" ON tournaments FOR DELETE USING (true);
+CREATE POLICY "write_all" ON teams FOR INSERT WITH CHECK (true);
+CREATE POLICY "update_all" ON teams FOR UPDATE USING (true);
+CREATE POLICY "delete_all" ON teams FOR DELETE USING (true);
+CREATE POLICY "write_all" ON players FOR INSERT WITH CHECK (true);
+CREATE POLICY "update_all" ON players FOR UPDATE USING (true);
+CREATE POLICY "delete_all" ON players FOR DELETE USING (true);
+CREATE POLICY "write_all" ON matches FOR INSERT WITH CHECK (true);
+CREATE POLICY "update_all" ON matches FOR UPDATE USING (true);
+CREATE POLICY "delete_all" ON matches FOR DELETE USING (true);
+CREATE POLICY "write_all" ON match_players FOR INSERT WITH CHECK (true);
+CREATE POLICY "update_all" ON match_players FOR UPDATE USING (true);
+CREATE POLICY "delete_all" ON match_players FOR DELETE USING (true);
+CREATE POLICY "write_all" ON contests FOR INSERT WITH CHECK (true);
+CREATE POLICY "update_all" ON contests FOR UPDATE USING (true);
+CREATE POLICY "delete_all" ON contests FOR DELETE USING (true);
+CREATE POLICY "write_all" ON fantasy_teams FOR INSERT WITH CHECK (true);
+CREATE POLICY "update_all" ON fantasy_teams FOR UPDATE USING (true);
+CREATE POLICY "write_all" ON fantasy_team_players FOR INSERT WITH CHECK (true);
+CREATE POLICY "write_all" ON feed_posts FOR INSERT WITH CHECK (true);
+CREATE POLICY "write_all" ON groups FOR INSERT WITH CHECK (true);
+CREATE POLICY "update_all" ON groups FOR UPDATE USING (true);
+CREATE POLICY "write_all" ON group_members FOR INSERT WITH CHECK (true);
+CREATE POLICY "delete_all" ON group_members FOR DELETE USING (true);
+CREATE POLICY "write_all" ON wallets FOR INSERT WITH CHECK (true);
+CREATE POLICY "update_all" ON wallets FOR UPDATE USING (true);
+CREATE POLICY "write_all" ON transactions FOR INSERT WITH CHECK (true);
+CREATE POLICY "write_all" ON notifications FOR INSERT WITH CHECK (true);
+CREATE POLICY "update_all" ON notifications FOR UPDATE USING (true);
+CREATE POLICY "write_all" ON leaderboard FOR INSERT WITH CHECK (true);
+CREATE POLICY "update_all" ON leaderboard FOR UPDATE USING (true);
+CREATE POLICY "write_all" ON scoreboard FOR INSERT WITH CHECK (true);
+CREATE POLICY "update_all" ON scoreboard FOR UPDATE USING (true);
+CREATE POLICY "delete_all" ON scoreboard FOR DELETE USING (true);
+
+ALTER PUBLICATION supabase_realtime ADD TABLE matches;
+ALTER PUBLICATION supabase_realtime ADD TABLE tournaments;
+ALTER PUBLICATION supabase_realtime ADD TABLE contests;
+ALTER PUBLICATION supabase_realtime ADD TABLE players;
+ALTER PUBLICATION supabase_realtime ADD TABLE scoreboard;
+ALTER PUBLICATION supabase_realtime ADD TABLE notifications;
+ALTER PUBLICATION supabase_realtime ADD TABLE teams;
