@@ -56,10 +56,26 @@ export const getAdminPermissions = async (email) => {
   }
 };
 
+/**
+ * Ensure admin document exists in Supabase.
+ * Admin is pre-seeded via SQL, so this just verifies.
+ */
+export const ensureAdminDocument = async (uid, email) => {
+  if (!checkIsAdmin(email)) return null;
+  try {
+    const admin = await getAdminByEmail(email);
+    return admin;
+  } catch (error) {
+    console.error('ensureAdminDocument error:', error);
+    return null;
+  }
+};
+
 export default {
   checkIsAdmin,
   verifyAdminFromDB,
   getAdminPermissions,
+  ensureAdminDocument,
   ADMIN_EMAIL,
   SUPER_ADMIN_PERMISSIONS
 };
