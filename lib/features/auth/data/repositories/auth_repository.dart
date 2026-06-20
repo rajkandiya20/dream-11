@@ -216,6 +216,10 @@ class AuthRepository {
 
 /// Provider for the auth repository.
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
-  final supabaseClient = ref.watch(supabaseClientProvider);
-  return AuthRepository(supabaseClient: supabaseClient);
+  try {
+    final supabaseClient = ref.watch(supabaseClientProvider);
+    return AuthRepository(supabaseClient: supabaseClient);
+  } catch (e) {
+    return AuthRepository();
+  }
 });

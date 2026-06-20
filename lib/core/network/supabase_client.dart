@@ -5,12 +5,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../constants/env.dart';
 
 /// Provider for the Supabase client instance.
-final supabaseClientProvider = Provider<SupabaseClient?>((ref) {
-  try {
-    return Supabase.instance.client;
-  } catch (e) {
-    return null;
-  }
+final supabaseClientProvider = Provider<SupabaseClient>((ref) {
+  return Supabase.instance.client;
 });
 
 /// Helper class for Supabase operations including real-time subscriptions.
