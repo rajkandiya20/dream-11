@@ -402,11 +402,11 @@ export function Home() {
                               }}
                             >
                               <span style={{ marginRight: "5px" }}>
-                                {u?.away?.code}
+                                {u?.team_a_code || u?.away?.code || 'TBA'}
                               </span>{" "}
                               vs
                               <span style={{ marginLeft: "5px" }}>
-                                {u?.home?.code}
+                                {u?.team_b_code || u?.home?.code || 'TBA'}
                               </span>
                             </h5>
                             <NotificationAddOutlinedIcon
@@ -417,18 +417,18 @@ export function Home() {
                             <div className="matchcenter">
                               <div className="matchlefts">
                                 <img
-                                  src={u?.teamAwayFlagUrl || u?.away?.flag}
+                                  src={u?.team_a_flag || u?.teamAwayFlagUrl || u?.away?.flag || ''}
                                   alt=""
                                   width="40"
                                 />
-                                <h5>{u?.away?.code}</h5>
+                                <h5>{u?.team_a_code || u?.away?.code || 'TBA'}</h5>
                               </div>
                               <div
                                 className={
-                                  u?.result == "Yes" ? "completed" : "time"
+                                  (u?.status === "completed" || u?.result === "Yes") ? "completed" : "time"
                                 }
                               >
-                                {u?.result === "Yes" && (
+                                {(u?.status === "completed" || u?.result === "Yes") && (
                                   <div
                                     style={{
                                       display: "flex",
@@ -465,9 +465,9 @@ export function Home() {
                                 )}
                               </div>
                               <div className="matchrights">
-                                <h5> {u?.home?.code}</h5>
+                                <h5> {u?.team_b_code || u?.home?.code || 'TBA'}</h5>
                                 <img
-                                  src={u?.teamHomeFlagUrl || u?.home?.flag}
+                                  src={u?.team_b_flag || u?.teamHomeFlagUrl || u?.home?.flag || ''}
                                   alt=""
                                   width="40"
                                 />
