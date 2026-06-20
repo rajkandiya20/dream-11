@@ -104,7 +104,7 @@ CREATE TABLE IF NOT EXISTS matches (
 );
 
 -- =====================================================
--- TABLE: match_players (players selected for a match)
+-- TABLE: match_players
 -- =====================================================
 CREATE TABLE IF NOT EXISTS match_players (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
@@ -357,10 +357,10 @@ CREATE POLICY "Allow insert wallets" ON wallets FOR INSERT WITH CHECK (true);
 CREATE POLICY "Allow update wallets" ON wallets FOR UPDATE USING (true);
 
 -- =====================================================
--- TEST DATA - Real IPL 2024 Data
+-- TEST DATA - Real IPL 2024 Data (Valid UUIDs)
 -- =====================================================
 
--- Admin entry
+-- Admin entry (replace FIREBASE_UID_HERE with your actual Firebase Auth UID)
 INSERT INTO admins (uid, email, role, permissions) VALUES
 ('FIREBASE_UID_HERE', 'rexoagency.in@gmail.com', 'super_admin', 
   ARRAY['full_access', 'user_management', 'tournament_management', 'match_management', 'player_management', 'contest_management', 'wallet_management', 'transaction_management', 'notification_management', 'database_management']
@@ -372,54 +372,54 @@ INSERT INTO users (uid, email, username, phone_number, role, balance) VALUES
 
 -- Tournament
 INSERT INTO tournaments (id, name, logo, description, status, start_date, end_date) VALUES
-('a1b2c3d4-e5f6-7890-abcd-ef1234567890', 'IPL 2024', 'https://www.iplt20.com/assets/images/ipl-logo-new.svg', 'Indian Premier League 2024 Season', 'live', '2024-03-22T00:00:00Z', '2024-05-26T00:00:00Z');
+('550e8400-e29b-41d4-a716-446655440001', 'IPL 2024', 'https://www.iplt20.com/assets/images/ipl-logo-new.svg', 'Indian Premier League 2024 Season', 'live', '2024-03-22T00:00:00Z', '2024-05-26T00:00:00Z');
 
--- Teams
+-- Teams (MI, CSK, RCB, KKR)
 INSERT INTO teams (id, name, code, logo, flag, tournament_id) VALUES
-('t001-0000-0000-0000-000000000001', 'Mumbai Indians', 'MI', 'https://bcciplayerimages.s3.ap-south-1.amazonaws.com/ipl/MI/Logos/Roundbig/MIroundbig.png', 'https://bcciplayerimages.s3.ap-south-1.amazonaws.com/ipl/MI/Logos/Roundbig/MIroundbig.png', 'a1b2c3d4-e5f6-7890-abcd-ef1234567890'),
-('t001-0000-0000-0000-000000000002', 'Chennai Super Kings', 'CSK', 'https://bcciplayerimages.s3.ap-south-1.amazonaws.com/ipl/CSK/logos/Roundbig/CSKroundbig.png', 'https://bcciplayerimages.s3.ap-south-1.amazonaws.com/ipl/CSK/logos/Roundbig/CSKroundbig.png', 'a1b2c3d4-e5f6-7890-abcd-ef1234567890'),
-('t001-0000-0000-0000-000000000003', 'Royal Challengers Bengaluru', 'RCB', 'https://bcciplayerimages.s3.ap-south-1.amazonaws.com/ipl/RCB/Logos/Roundbig/RCBroundbig.png', 'https://bcciplayerimages.s3.ap-south-1.amazonaws.com/ipl/RCB/Logos/Roundbig/RCBroundbig.png', 'a1b2c3d4-e5f6-7890-abcd-ef1234567890'),
-('t001-0000-0000-0000-000000000004', 'Kolkata Knight Riders', 'KKR', 'https://bcciplayerimages.s3.ap-south-1.amazonaws.com/ipl/KKR/Logos/Roundbig/KKRroundbig.png', 'https://bcciplayerimages.s3.ap-south-1.amazonaws.com/ipl/KKR/Logos/Roundbig/KKRroundbig.png', 'a1b2c3d4-e5f6-7890-abcd-ef1234567890');
+('660e8400-e29b-41d4-a716-446655440001', 'Mumbai Indians', 'MI', 'https://bcciplayerimages.s3.ap-south-1.amazonaws.com/ipl/MI/Logos/Roundbig/MIroundbig.png', 'https://bcciplayerimages.s3.ap-south-1.amazonaws.com/ipl/MI/Logos/Roundbig/MIroundbig.png', '550e8400-e29b-41d4-a716-446655440001'),
+('660e8400-e29b-41d4-a716-446655440002', 'Chennai Super Kings', 'CSK', 'https://bcciplayerimages.s3.ap-south-1.amazonaws.com/ipl/CSK/logos/Roundbig/CSKroundbig.png', 'https://bcciplayerimages.s3.ap-south-1.amazonaws.com/ipl/CSK/logos/Roundbig/CSKroundbig.png', '550e8400-e29b-41d4-a716-446655440001'),
+('660e8400-e29b-41d4-a716-446655440003', 'Royal Challengers Bengaluru', 'RCB', 'https://bcciplayerimages.s3.ap-south-1.amazonaws.com/ipl/RCB/Logos/Roundbig/RCBroundbig.png', 'https://bcciplayerimages.s3.ap-south-1.amazonaws.com/ipl/RCB/Logos/Roundbig/RCBroundbig.png', '550e8400-e29b-41d4-a716-446655440001'),
+('660e8400-e29b-41d4-a716-446655440004', 'Kolkata Knight Riders', 'KKR', 'https://bcciplayerimages.s3.ap-south-1.amazonaws.com/ipl/KKR/Logos/Roundbig/KKRroundbig.png', 'https://bcciplayerimages.s3.ap-south-1.amazonaws.com/ipl/KKR/Logos/Roundbig/KKRroundbig.png', '550e8400-e29b-41d4-a716-446655440001');
 
 -- Players (MI)
 INSERT INTO players (id, name, role, team_id, credits, is_playing) VALUES
-('p001-0000-0000-0000-000000000001', 'Rohit Sharma', 'Batsman', 't001-0000-0000-0000-000000000001', 10.0, true),
-('p001-0000-0000-0000-000000000002', 'Jasprit Bumrah', 'Bowler', 't001-0000-0000-0000-000000000001', 9.5, true),
-('p001-0000-0000-0000-000000000003', 'Suryakumar Yadav', 'Batsman', 't001-0000-0000-0000-000000000001', 9.5, true),
-('p001-0000-0000-0000-000000000004', 'Ishan Kishan', 'WK', 't001-0000-0000-0000-000000000001', 8.5, true),
-('p001-0000-0000-0000-000000000005', 'Hardik Pandya', 'All-rounder', 't001-0000-0000-0000-000000000001', 9.0, true);
+('770e8400-e29b-41d4-a716-446655440001', 'Rohit Sharma', 'Batsman', '660e8400-e29b-41d4-a716-446655440001', 10.0, true),
+('770e8400-e29b-41d4-a716-446655440002', 'Jasprit Bumrah', 'Bowler', '660e8400-e29b-41d4-a716-446655440001', 9.5, true),
+('770e8400-e29b-41d4-a716-446655440003', 'Suryakumar Yadav', 'Batsman', '660e8400-e29b-41d4-a716-446655440001', 9.5, true),
+('770e8400-e29b-41d4-a716-446655440004', 'Ishan Kishan', 'WK', '660e8400-e29b-41d4-a716-446655440001', 8.5, true),
+('770e8400-e29b-41d4-a716-446655440005', 'Hardik Pandya', 'All-rounder', '660e8400-e29b-41d4-a716-446655440001', 9.0, true);
 
 -- Players (CSK)
 INSERT INTO players (id, name, role, team_id, credits, is_playing) VALUES
-('p002-0000-0000-0000-000000000001', 'MS Dhoni', 'WK', 't001-0000-0000-0000-000000000002', 8.5, true),
-('p002-0000-0000-0000-000000000002', 'Ruturaj Gaikwad', 'Batsman', 't001-0000-0000-0000-000000000002', 9.5, true),
-('p002-0000-0000-0000-000000000003', 'Ravindra Jadeja', 'All-rounder', 't001-0000-0000-0000-000000000002', 9.0, true),
-('p002-0000-0000-0000-000000000004', 'Devon Conway', 'Batsman', 't001-0000-0000-0000-000000000002', 9.0, true),
-('p002-0000-0000-0000-000000000005', 'Matheesha Pathirana', 'Bowler', 't001-0000-0000-0000-000000000002', 8.5, true);
+('770e8400-e29b-41d4-a716-446655440006', 'MS Dhoni', 'WK', '660e8400-e29b-41d4-a716-446655440002', 8.5, true),
+('770e8400-e29b-41d4-a716-446655440007', 'Ruturaj Gaikwad', 'Batsman', '660e8400-e29b-41d4-a716-446655440002', 9.5, true),
+('770e8400-e29b-41d4-a716-446655440008', 'Ravindra Jadeja', 'All-rounder', '660e8400-e29b-41d4-a716-446655440002', 9.0, true),
+('770e8400-e29b-41d4-a716-446655440009', 'Devon Conway', 'Batsman', '660e8400-e29b-41d4-a716-446655440002', 9.0, true),
+('770e8400-e29b-41d4-a716-44665544000a', 'Matheesha Pathirana', 'Bowler', '660e8400-e29b-41d4-a716-446655440002', 8.5, true);
 
 -- Players (RCB)
 INSERT INTO players (id, name, role, team_id, credits, is_playing) VALUES
-('p003-0000-0000-0000-000000000001', 'Virat Kohli', 'Batsman', 't001-0000-0000-0000-000000000003', 10.5, true),
-('p003-0000-0000-0000-000000000002', 'Faf du Plessis', 'Batsman', 't001-0000-0000-0000-000000000003', 9.0, true),
-('p003-0000-0000-0000-000000000003', 'Glenn Maxwell', 'All-rounder', 't001-0000-0000-0000-000000000003', 9.0, true);
+('770e8400-e29b-41d4-a716-44665544000b', 'Virat Kohli', 'Batsman', '660e8400-e29b-41d4-a716-446655440003', 10.5, true),
+('770e8400-e29b-41d4-a716-44665544000c', 'Faf du Plessis', 'Batsman', '660e8400-e29b-41d4-a716-446655440003', 9.0, true),
+('770e8400-e29b-41d4-a716-44665544000d', 'Glenn Maxwell', 'All-rounder', '660e8400-e29b-41d4-a716-446655440003', 9.0, true);
 
 -- Players (KKR)
 INSERT INTO players (id, name, role, team_id, credits, is_playing) VALUES
-('p004-0000-0000-0000-000000000001', 'Shreyas Iyer', 'Batsman', 't001-0000-0000-0000-000000000004', 9.5, true),
-('p004-0000-0000-0000-000000000002', 'Andre Russell', 'All-rounder', 't001-0000-0000-0000-000000000004', 9.5, true),
-('p004-0000-0000-0000-000000000003', 'Sunil Narine', 'All-rounder', 't001-0000-0000-0000-000000000004', 9.0, true);
+('770e8400-e29b-41d4-a716-44665544000e', 'Shreyas Iyer', 'Batsman', '660e8400-e29b-41d4-a716-446655440004', 9.5, true),
+('770e8400-e29b-41d4-a716-44665544000f', 'Andre Russell', 'All-rounder', '660e8400-e29b-41d4-a716-446655440004', 9.5, true),
+('770e8400-e29b-41d4-a716-446655440010', 'Sunil Narine', 'All-rounder', '660e8400-e29b-41d4-a716-446655440004', 9.0, true);
 
 -- Matches
 INSERT INTO matches (id, tournament_id, team_a_id, team_b_id, team_a_name, team_b_name, team_a_code, team_b_code, team_a_flag, team_b_flag, date_time, venue, status, live) VALUES
-('m001-0000-0000-0000-000000000001', 'a1b2c3d4-e5f6-7890-abcd-ef1234567890', 't001-0000-0000-0000-000000000001', 't001-0000-0000-0000-000000000002', 'Mumbai Indians', 'Chennai Super Kings', 'MI', 'CSK', 'https://bcciplayerimages.s3.ap-south-1.amazonaws.com/ipl/MI/Logos/Roundbig/MIroundbig.png', 'https://bcciplayerimages.s3.ap-south-1.amazonaws.com/ipl/CSK/logos/Roundbig/CSKroundbig.png', '2024-07-15T19:30:00Z', 'Wankhede Stadium, Mumbai', 'upcoming', false),
-('m001-0000-0000-0000-000000000002', 'a1b2c3d4-e5f6-7890-abcd-ef1234567890', 't001-0000-0000-0000-000000000003', 't001-0000-0000-0000-000000000004', 'Royal Challengers Bengaluru', 'Kolkata Knight Riders', 'RCB', 'KKR', 'https://bcciplayerimages.s3.ap-south-1.amazonaws.com/ipl/RCB/Logos/Roundbig/RCBroundbig.png', 'https://bcciplayerimages.s3.ap-south-1.amazonaws.com/ipl/KKR/Logos/Roundbig/KKRroundbig.png', '2024-07-16T15:30:00Z', 'M. Chinnaswamy Stadium, Bengaluru', 'upcoming', false),
-('m001-0000-0000-0000-000000000003', 'a1b2c3d4-e5f6-7890-abcd-ef1234567890', 't001-0000-0000-0000-000000000001', 't001-0000-0000-0000-000000000004', 'Mumbai Indians', 'Kolkata Knight Riders', 'MI', 'KKR', 'https://bcciplayerimages.s3.ap-south-1.amazonaws.com/ipl/MI/Logos/Roundbig/MIroundbig.png', 'https://bcciplayerimages.s3.ap-south-1.amazonaws.com/ipl/KKR/Logos/Roundbig/KKRroundbig.png', '2024-04-10T19:30:00Z', 'Wankhede Stadium, Mumbai', 'completed', false);
+('880e8400-e29b-41d4-a716-446655440001', '550e8400-e29b-41d4-a716-446655440001', '660e8400-e29b-41d4-a716-446655440001', '660e8400-e29b-41d4-a716-446655440002', 'Mumbai Indians', 'Chennai Super Kings', 'MI', 'CSK', 'https://bcciplayerimages.s3.ap-south-1.amazonaws.com/ipl/MI/Logos/Roundbig/MIroundbig.png', 'https://bcciplayerimages.s3.ap-south-1.amazonaws.com/ipl/CSK/logos/Roundbig/CSKroundbig.png', '2025-07-15T19:30:00Z', 'Wankhede Stadium, Mumbai', 'upcoming', false),
+('880e8400-e29b-41d4-a716-446655440002', '550e8400-e29b-41d4-a716-446655440001', '660e8400-e29b-41d4-a716-446655440003', '660e8400-e29b-41d4-a716-446655440004', 'Royal Challengers Bengaluru', 'Kolkata Knight Riders', 'RCB', 'KKR', 'https://bcciplayerimages.s3.ap-south-1.amazonaws.com/ipl/RCB/Logos/Roundbig/RCBroundbig.png', 'https://bcciplayerimages.s3.ap-south-1.amazonaws.com/ipl/KKR/Logos/Roundbig/KKRroundbig.png', '2025-07-16T15:30:00Z', 'M. Chinnaswamy Stadium, Bengaluru', 'upcoming', false),
+('880e8400-e29b-41d4-a716-446655440003', '550e8400-e29b-41d4-a716-446655440001', '660e8400-e29b-41d4-a716-446655440001', '660e8400-e29b-41d4-a716-446655440004', 'Mumbai Indians', 'Kolkata Knight Riders', 'MI', 'KKR', 'https://bcciplayerimages.s3.ap-south-1.amazonaws.com/ipl/MI/Logos/Roundbig/MIroundbig.png', 'https://bcciplayerimages.s3.ap-south-1.amazonaws.com/ipl/KKR/Logos/Roundbig/KKRroundbig.png', '2025-04-10T19:30:00Z', 'Wankhede Stadium, Mumbai', 'completed', false);
 
 -- Contests
 INSERT INTO contests (id, match_id, name, entry_fee, prize_pool, max_teams, joined_teams, contest_type, status) VALUES
-('c001-0000-0000-0000-000000000001', 'm001-0000-0000-0000-000000000001', 'Mega Contest', 49.00, 10000.00, 500, 234, 'paid', 'open'),
-('c001-0000-0000-0000-000000000002', 'm001-0000-0000-0000-000000000001', 'Head to Head', 25.00, 45.00, 2, 1, 'paid', 'open'),
-('c001-0000-0000-0000-000000000003', 'm001-0000-0000-0000-000000000002', 'Winner Takes All', 99.00, 25000.00, 300, 156, 'paid', 'open');
+('990e8400-e29b-41d4-a716-446655440001', '880e8400-e29b-41d4-a716-446655440001', 'Mega Contest', 49.00, 10000.00, 500, 234, 'paid', 'open'),
+('990e8400-e29b-41d4-a716-446655440002', '880e8400-e29b-41d4-a716-446655440001', 'Head to Head', 25.00, 45.00, 2, 1, 'paid', 'open'),
+('990e8400-e29b-41d4-a716-446655440003', '880e8400-e29b-41d4-a716-446655440002', 'Winner Takes All', 99.00, 25000.00, 300, 156, 'paid', 'open');
 
 -- Feed Posts
 INSERT INTO feed_posts (user_id, author_name, content, likes, created_at) VALUES
@@ -429,14 +429,14 @@ INSERT INTO feed_posts (user_id, author_name, content, likes, created_at) VALUES
 
 -- Groups
 INSERT INTO groups (id, name, description, created_by, member_count) VALUES
-('g001-0000-0000-0000-000000000001', 'IPL Fantasy League', 'A group for IPL fantasy cricket enthusiasts. Share tips, discuss strategies!', 'test_user_001', 3),
-('g001-0000-0000-0000-000000000002', 'Mumbai Indians Fans', 'Official MI supporters group. Paltan!', 'test_user_001', 2);
+('aa0e8400-e29b-41d4-a716-446655440001', 'IPL Fantasy League', 'A group for IPL fantasy cricket enthusiasts. Share tips, discuss strategies!', 'test_user_001', 3),
+('aa0e8400-e29b-41d4-a716-446655440002', 'Mumbai Indians Fans', 'Official MI supporters group. Paltan!', 'test_user_001', 2);
 
 -- Group Members
 INSERT INTO group_members (group_id, user_id, role) VALUES
-('g001-0000-0000-0000-000000000001', 'test_user_001', 'admin'),
-('g001-0000-0000-0000-000000000001', 'FIREBASE_UID_HERE', 'member'),
-('g001-0000-0000-0000-000000000002', 'test_user_001', 'admin');
+('aa0e8400-e29b-41d4-a716-446655440001', 'test_user_001', 'admin'),
+('aa0e8400-e29b-41d4-a716-446655440001', 'FIREBASE_UID_HERE', 'member'),
+('aa0e8400-e29b-41d4-a716-446655440002', 'test_user_001', 'admin');
 
 -- Wallet
 INSERT INTO wallets (user_id, balance, bonus, winnings) VALUES
@@ -456,8 +456,8 @@ INSERT INTO notifications (user_id, title, message, type, is_read, created_at) V
 
 -- Scoreboard (for completed match)
 INSERT INTO scoreboard (match_id, player_id, runs, wickets, catches, fours, sixes, balls_faced, points) VALUES
-('m001-0000-0000-0000-000000000003', 'p001-0000-0000-0000-000000000001', 78, 0, 1, 8, 4, 52, 85.5),
-('m001-0000-0000-0000-000000000003', 'p001-0000-0000-0000-000000000003', 45, 0, 0, 5, 2, 30, 52.0),
-('m001-0000-0000-0000-000000000003', 'p001-0000-0000-0000-000000000002', 2, 3, 0, 0, 0, 6, 78.0),
-('m001-0000-0000-0000-000000000003', 'p004-0000-0000-0000-000000000001', 62, 0, 2, 6, 3, 44, 71.0),
-('m001-0000-0000-0000-000000000003', 'p004-0000-0000-0000-000000000002', 35, 1, 1, 2, 3, 18, 65.0);
+('880e8400-e29b-41d4-a716-446655440003', '770e8400-e29b-41d4-a716-446655440001', 78, 0, 1, 8, 4, 52, 85.5),
+('880e8400-e29b-41d4-a716-446655440003', '770e8400-e29b-41d4-a716-446655440003', 45, 0, 0, 5, 2, 30, 52.0),
+('880e8400-e29b-41d4-a716-446655440003', '770e8400-e29b-41d4-a716-446655440002', 2, 3, 0, 0, 0, 6, 78.0),
+('880e8400-e29b-41d4-a716-446655440003', '770e8400-e29b-41d4-a716-44665544000e', 62, 0, 2, 6, 3, 44, 71.0),
+('880e8400-e29b-41d4-a716-446655440003', '770e8400-e29b-41d4-a716-44665544000f', 35, 1, 1, 2, 3, 18, 65.0);
