@@ -166,6 +166,10 @@ export function Notifications() {
     }
   };
 
+  const handleRetry = () => {
+    fetchNotifications();
+  };
+
   if (error && !loading) {
     return (
       <>
@@ -182,10 +186,6 @@ export function Notifications() {
       </>
     );
   }
-
-  const handleRetry = () => {
-    fetchNotifications();
-  };
 
   return (
     <>

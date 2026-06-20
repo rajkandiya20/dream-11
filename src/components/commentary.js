@@ -99,24 +99,26 @@ export function Commentary({ matchdata }) {
 
     const unsubscribe = subscribeToScoreboard(matchId, (payload) => {
       const newData = payload.new;
-      if (newData && newData.commentary) {
-        // Transform scoreboard commentary data to the expected format
-        const commentaryData = Array.isArray(newData.commentary)
-          ? newData.commentary
-          : [];
-        setCommentary(commentaryData);
-      } else if (newData) {
-        // If the payload contains ball-by-ball data directly
-        setCommentary((prev) => {
-          const entry = {
-            event: newData.event || '',
-            overNumber: newData.over_number || newData.overNumber || '',
-            commText: newData.comm_text || newData.commText || '',
-            overSeparator: newData.over_separator || newData.overSeparator || null,
-          };
-          return [entry, ...prev];
-        });
-      }
+      if (!newData) return;
+
+      // Build a commentary entry from actual scoreboard table fields:
+      // runs, wickets, catches, fours, sixes, balls_faced, overs_bowled, economy, strike_rate, points, player_id, match_id
+      setCommentary((prev) => {
+        const event = newData.wickets > 0
+          ? 'WICKET'
+          : newData.sixes > 0
+            ? 'SIX'
+            : newData.fours > 0
+              ? 'FOUR'
+              : '';
+        const entry = {
+          event,
+          overNumber: newData.overs_bowled ? String(newData.overs_bowled) : '',
+          commText: `${newData.runs || 0} runs` + (newData.wickets > 0 ? `, ${newData.wickets} wicket(s)` : ''),
+          overSeparator: null,
+        };
+        return [entry, ...prev];
+      });
     });
 
     return () => {
