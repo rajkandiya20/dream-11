@@ -13,6 +13,7 @@ import { useNavigate } from "react-router-dom";
 import Match from "./match";
 import { URL } from "../../constants/userConstants";
 import { getUpcomingMatches, getLiveMatches, getCompletedMatches } from "../../services/supabaseService";
+import { subscribeToMatches } from "../../services/realtimeService";
 import {
   getDisplayDate,
   hoursRemaining,
@@ -309,6 +310,30 @@ export function Home() {
       setPast([]);
     }
   }, [user, fetchData]);
+
+  // Real-time subscription for match changes
+  useEffect(() => {
+    const unsubscribe = subscribeToMatches((payload) => {
+      const { eventType, new: newRecord } = payload;
+      // Re-fetch all match categories when any match changes
+      // This ensures correct filtering by status
+      if (eventType === "INSERT" || eventType === "UPDATE" || eventType === "DELETE") {
+        fetchMatchesFromSupabase().then((supabaseData) => {
+          if (supabaseData) {
+            setUpcoming(supabaseData.upcoming || []);
+            setLive(supabaseData.live || []);
+            if (supabaseData.past?.length > 0) {
+              setPast([supabaseData.past[0]]);
+            }
+          }
+        });
+      }
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, []);
 
   // Authentication is now handled by ProtectedRoute wrapper in App.js
 

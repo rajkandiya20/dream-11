@@ -16,7 +16,6 @@ import SportsSoccerIcon from "@mui/icons-material/SportsSoccer";
 import WestIcon from "@mui/icons-material/West";
 import { Grid } from "@mui/material";
 import Tab from "@mui/material/Tab";
-import axios from "axios";
 import { useEffect, useRef, useState } from "react";
 import ReactCanvasConfetti from "react-confetti";
 import { useDispatch, useSelector } from "react-redux";
@@ -29,7 +28,8 @@ import {
 
 import { getmatch } from "../actions/matchAction";
 import { addconfetti, removeconfetti } from "../actions/userAction";
-import { URL } from "../constants/userConstants";
+import { getContestsByMatch } from "../services/supabaseService";
+import { subscribeToMatches, subscribeToScoreboard } from "../services/realtimeService";
 import { showBalls } from "../utils/lastballs";
 import { showName } from "../utils/name";
 import Bottomnav from "./navbar/bottomnavbar";
@@ -204,12 +204,8 @@ export function MatchDetails({ players }) {
       if (id?.length > 3) {
         dispatch(getmatch(id));
         try {
-          const data = await axios.get(`${URL}/getcontests/${id}`, {
-            timeout: 10000,
-          });
-          if (data?.data?.contests) {
-            setContests(data.data.contests);
-          }
+          const contestData = await getContestsByMatch(id);
+          setContests(contestData || []);
         } catch (error) {
           console.error("Error fetching contests:", error);
           setContests([]);
@@ -217,6 +213,31 @@ export function MatchDetails({ players }) {
       }
     }
     getupcoming();
+
+    // Real-time subscription for this specific match
+    if (!id || id.length <= 3) return;
+
+    const unsubMatch = subscribeToMatches((payload) => {
+      if (payload.new && payload.new.id === id) {
+        // Re-fetch match details when it changes
+        dispatch(getmatch(id));
+      }
+    });
+
+    const unsubScoreboard = subscribeToScoreboard(id, (payload) => {
+      // Scoreboard changed for this match - update live score
+      if (payload.new) {
+        setLivescore((prev) => ({
+          ...prev,
+          ...payload.new,
+        }));
+      }
+    });
+
+    return () => {
+      unsubMatch();
+      unsubScoreboard();
+    };
   }, [id]);
   return (
     <Container>
