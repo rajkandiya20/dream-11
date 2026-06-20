@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../features/auth/domain/providers/auth_provider.dart';
 import '../../features/auth/presentation/screens/forgot_password_screen.dart';
 import '../../features/auth/presentation/screens/login_screen.dart';
 import '../../features/auth/presentation/screens/register_screen.dart';
@@ -73,11 +74,42 @@ class AppRoutes {
   static const String adminPlayers = '/admin/players';
 }
 
-/// GoRouter provider for navigation.
+/// Routes that don't require authentication.
+const _publicRoutes = [
+  AppRoutes.splash,
+  AppRoutes.login,
+  AppRoutes.register,
+  AppRoutes.forgotPassword,
+];
+
+/// GoRouter provider for navigation with auth guards.
 final appRouterProvider = Provider<GoRouter>((ref) {
+  final authState = ref.watch(authProvider);
+
   return GoRouter(
     initialLocation: AppRoutes.splash,
     debugLogDiagnostics: true,
+    redirect: (context, state) {
+      final isAuthenticated = authState.isAuthenticated;
+      final currentPath = state.uri.path;
+      final isPublicRoute = _publicRoutes.contains(currentPath);
+      final isSplash = currentPath == AppRoutes.splash;
+
+      // Don't redirect on splash (it handles its own navigation)
+      if (isSplash) return null;
+
+      // If not authenticated and trying to access protected route, redirect to login
+      if (!isAuthenticated && !isPublicRoute) {
+        return AppRoutes.login;
+      }
+
+      // If authenticated and trying to access auth routes, redirect to home
+      if (isAuthenticated && isPublicRoute && !isSplash) {
+        return AppRoutes.home;
+      }
+
+      return null;
+    },
     routes: [
       // Splash Screen
       GoRoute(

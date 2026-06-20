@@ -2,7 +2,7 @@
   "id": "FEAT-002",
   "type": "feat",
   "description": "Implement shared widgets/components, the custom notification system, and the authentication feature with login/register/forgot-password screens using Firebase Auth + Supabase user storage",
-  "status": "pending",
+  "status": "in_progress",
   "steps": [
     "Create lib/shared/widgets/app_button.dart - premium button widget with loading state, haptic feedback, gradient variants",
     "Create lib/shared/widgets/app_text_field.dart - custom text input with validation, animated labels, error states",

@@ -1,115 +1,185 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../../core/constants/app_constants.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/theme/app_typography.dart';
+import '../../domain/providers/auth_provider.dart';
 
-/// Splash screen shown on app launch.
-class SplashScreen extends StatefulWidget {
+/// Animated brand intro splash screen with auto-redirect.
+class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
 
   @override
-  State<SplashScreen> createState() => _SplashScreenState();
+  ConsumerState<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _fadeAnimation;
-  late Animation<double> _scaleAnimation;
+class _SplashScreenState extends ConsumerState<SplashScreen>
+    with TickerProviderStateMixin {
+  late AnimationController _logoController;
+  late AnimationController _textController;
+  late Animation<double> _logoScaleAnimation;
+  late Animation<double> _logoRotateAnimation;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
+
+    _logoController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1500),
+      duration: const Duration(milliseconds: 1200),
     );
 
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeIn),
+    _textController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
     );
 
-    _scaleAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeOutBack),
+    _logoScaleAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _logoController,
+        curve: Curves.elasticOut,
+      ),
     );
 
-    _controller.forward();
+    _logoRotateAnimation = Tween<double>(begin: -0.5, end: 0.0).animate(
+      CurvedAnimation(
+        parent: _logoController,
+        curve: Curves.easeOutBack,
+      ),
+    );
+
+    _startAnimation();
+  }
+
+  Future<void> _startAnimation() async {
+    await Future.delayed(const Duration(milliseconds: 300));
+    if (!mounted) return;
+    _logoController.forward();
+
+    await Future.delayed(const Duration(milliseconds: 600));
+    if (!mounted) return;
+    _textController.forward();
+
+    // Wait for animation to complete then navigate
+    await Future.delayed(const Duration(milliseconds: 1500));
+    if (!mounted) return;
     _navigateToNext();
   }
 
-  Future<void> _navigateToNext() async {
-    await Future.delayed(AppConstants.splashDuration);
-    if (mounted) {
-      // TODO: Check auth state and navigate accordingly
+  void _navigateToNext() {
+    final authState = ref.read(authProvider);
+    if (authState.isAuthenticated) {
+      context.go(AppRoutes.home);
+    } else {
       context.go(AppRoutes.login);
     }
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _logoController.dispose();
+    _textController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.primary,
+      backgroundColor: AppColors.surface,
       body: Center(
-        child: AnimatedBuilder(
-          animation: _controller,
-          builder: (context, child) {
-            return Opacity(
-              opacity: _fadeAnimation.value,
-              child: Transform.scale(
-                scale: _scaleAnimation.value,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // Animated Logo
+            AnimatedBuilder(
+              animation: _logoController,
+              builder: (context, child) {
+                return Transform.scale(
+                  scale: _logoScaleAnimation.value,
+                  child: Transform.rotate(
+                    angle: _logoRotateAnimation.value,
+                    child: child,
+                  ),
+                );
+              },
+              child: Container(
+                width: 100,
+                height: 100,
+                decoration: BoxDecoration(
+                  gradient: AppColors.primaryGradient,
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primary.withOpacity(0.4),
+                      blurRadius: 24,
+                      offset: const Offset(0, 12),
+                    ),
+                  ],
+                ),
+                child: const Center(
+                  child: Text(
+                    'D11',
+                    style: TextStyle(
+                      fontSize: 36,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
+                      letterSpacing: -1,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 32),
+            // Animated App Name
+            FadeTransition(
+              opacity: _textController,
+              child: SlideTransition(
+                position: Tween<Offset>(
+                  begin: const Offset(0, 0.3),
+                  end: Offset.zero,
+                ).animate(CurvedAnimation(
+                  parent: _textController,
+                  curve: Curves.easeOut,
+                )),
                 child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Container(
-                      width: 120,
-                      height: 120,
-                      decoration: BoxDecoration(
-                        color: AppColors.surface,
-                        borderRadius: AppSpacing.borderRadiusXxl,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.2),
-                            blurRadius: 20,
-                            offset: const Offset(0, 10),
-                          ),
-                        ],
-                      ),
-                      child: const Icon(
-                        Icons.sports_cricket,
-                        size: 64,
-                        color: AppColors.primary,
+                    Text(
+                      'Dream Team',
+                      style: AppTypography.displayMedium.copyWith(
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textPrimary,
+                        letterSpacing: -0.5,
                       ),
                     ),
-                    AppSpacing.gapH24,
+                    const SizedBox(height: 8),
                     Text(
-                      AppConstants.appName,
-                      style:
-                          Theme.of(context).textTheme.headlineLarge?.copyWith(
-                                color: AppColors.textOnPrimary,
-                                fontWeight: FontWeight.w700,
-                              ),
-                    ),
-                    AppSpacing.gapH8,
-                    Text(
-                      'Create your dream team',
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                            color: AppColors.textOnPrimary.withOpacity(0.8),
-                          ),
+                      'Fantasy Cricket',
+                      style: AppTypography.bodyLarge.copyWith(
+                        color: AppColors.textSecondary,
+                        letterSpacing: 2,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ],
                 ),
               ),
-            );
-          },
+            ),
+            const SizedBox(height: 80),
+            // Loading indicator
+            SizedBox(
+              width: 32,
+              height: 32,
+              child: const CircularProgressIndicator(
+                strokeWidth: 2.5,
+                valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+              ),
+            )
+                .animate(delay: 1200.ms)
+                .fadeIn(duration: 400.ms),
+          ],
         ),
       ),
     );

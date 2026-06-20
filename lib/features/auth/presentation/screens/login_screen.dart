@@ -1,14 +1,265 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
-/// Login screen placeholder - full implementation in FEAT-002.
-class LoginScreen extends StatelessWidget {
+import '../../../../core/router/app_router.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/theme/app_typography.dart';
+import '../../../../core/utils/validators.dart';
+import '../../../../shared/components/notification_controller.dart';
+import '../../../../shared/components/top_notification.dart';
+import '../../../../shared/widgets/app_button.dart';
+import '../../../../shared/widgets/app_text_field.dart';
+import '../../domain/providers/auth_provider.dart';
+import '../widgets/auth_header.dart';
+import '../widgets/social_login_button.dart';
+
+/// Premium login screen with email/password and social auth.
+class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
   @override
+  ConsumerState<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends ConsumerState<LoginScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  bool _isGoogleLoading = false;
+  bool _isGitHubLoading = false;
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _handleLogin() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    final success = await ref.read(authProvider.notifier).login(
+          email: _emailController.text.trim(),
+          password: _passwordController.text,
+        );
+
+    if (success && mounted) {
+      context.go(AppRoutes.home);
+    } else if (mounted) {
+      final error = ref.read(authProvider).errorMessage;
+      if (error != null) {
+        ref.read(notificationControllerProvider.notifier).showError(
+              title: 'Login Failed',
+              message: error,
+            );
+      }
+    }
+  }
+
+  Future<void> _handleGoogleSignIn() async {
+    setState(() => _isGoogleLoading = true);
+
+    final success = await ref.read(authProvider.notifier).signInWithGoogle();
+
+    if (mounted) {
+      setState(() => _isGoogleLoading = false);
+      if (success) {
+        context.go(AppRoutes.home);
+      } else {
+        final error = ref.read(authProvider).errorMessage;
+        if (error != null) {
+          ref.read(notificationControllerProvider.notifier).showError(
+                title: 'Sign In Failed',
+                message: error,
+              );
+        }
+      }
+    }
+  }
+
+  Future<void> _handleGitHubSignIn() async {
+    setState(() => _isGitHubLoading = true);
+
+    final success = await ref.read(authProvider.notifier).signInWithGitHub();
+
+    if (mounted) {
+      setState(() => _isGitHubLoading = false);
+      if (success) {
+        context.go(AppRoutes.home);
+      } else {
+        final error = ref.read(authProvider).errorMessage;
+        if (error != null) {
+          ref.read(notificationControllerProvider.notifier).showError(
+                title: 'Sign In Failed',
+                message: error,
+              );
+        }
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(
-        child: Text('Login Screen'),
+    final authState = ref.watch(authProvider);
+    final isLoading = authState.isLoading;
+
+    return Scaffold(
+      backgroundColor: AppColors.surface,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 24),
+                // Header
+                const AuthHeader(
+                  title: 'Welcome Back',
+                  subtitle: 'Sign in to continue building your dream team',
+                ),
+                const SizedBox(height: 40),
+
+                // Email field
+                AppTextField(
+                  label: 'Email',
+                  hint: 'Enter your email',
+                  controller: _emailController,
+                  keyboardType: TextInputType.emailAddress,
+                  textInputAction: TextInputAction.next,
+                  prefixIcon: Icons.mail_outlined,
+                  validator: Validators.email,
+                )
+                    .animate()
+                    .fadeIn(delay: 400.ms, duration: 400.ms)
+                    .slideY(begin: 0.1, end: 0),
+                AppSpacing.gapH16,
+
+                // Password field
+                AppTextField(
+                  label: 'Password',
+                  hint: 'Enter your password',
+                  controller: _passwordController,
+                  obscureText: true,
+                  textInputAction: TextInputAction.done,
+                  prefixIcon: Icons.lock_outlined,
+                  validator: Validators.password,
+                  onSubmitted: (_) => _handleLogin(),
+                )
+                    .animate()
+                    .fadeIn(delay: 500.ms, duration: 400.ms)
+                    .slideY(begin: 0.1, end: 0),
+                AppSpacing.gapH12,
+
+                // Forgot password link
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: () => context.push(AppRoutes.forgotPassword),
+                    child: Text(
+                      'Forgot Password?',
+                      style: AppTypography.labelMedium.copyWith(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                )
+                    .animate()
+                    .fadeIn(delay: 600.ms, duration: 300.ms),
+                AppSpacing.gapH24,
+
+                // Login button
+                AppButton(
+                  text: 'Sign In',
+                  onPressed: isLoading ? null : _handleLogin,
+                  isLoading: isLoading,
+                  variant: AppButtonVariant.gradient,
+                  size: AppButtonSize.large,
+                )
+                    .animate()
+                    .fadeIn(delay: 650.ms, duration: 400.ms)
+                    .slideY(begin: 0.1, end: 0),
+                AppSpacing.gapH32,
+
+                // Divider
+                Row(
+                  children: [
+                    Expanded(
+                      child: Container(height: 1, color: AppColors.border),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Text(
+                        'or continue with',
+                        style: AppTypography.bodySmall.copyWith(
+                          color: AppColors.textTertiary,
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: Container(height: 1, color: AppColors.border),
+                    ),
+                  ],
+                )
+                    .animate()
+                    .fadeIn(delay: 750.ms, duration: 300.ms),
+                AppSpacing.gapH24,
+
+                // Social buttons
+                SocialLoginButton(
+                  provider: SocialProvider.google,
+                  onPressed: _handleGoogleSignIn,
+                  isLoading: _isGoogleLoading,
+                )
+                    .animate()
+                    .fadeIn(delay: 800.ms, duration: 400.ms)
+                    .slideY(begin: 0.1, end: 0),
+                AppSpacing.gapH12,
+                SocialLoginButton(
+                  provider: SocialProvider.github,
+                  onPressed: _handleGitHubSignIn,
+                  isLoading: _isGitHubLoading,
+                )
+                    .animate()
+                    .fadeIn(delay: 900.ms, duration: 400.ms)
+                    .slideY(begin: 0.1, end: 0),
+                AppSpacing.gapH32,
+
+                // Register link
+                Center(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        "Don't have an account? ",
+                        style: AppTypography.bodyMedium.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () => context.push(AppRoutes.register),
+                        child: Text(
+                          'Sign Up',
+                          style: AppTypography.labelLarge.copyWith(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+                    .animate()
+                    .fadeIn(delay: 1000.ms, duration: 400.ms),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
