@@ -67,10 +67,27 @@ dev_dependencies:
   # Linting
   flutter_lints: ^3.0.1
 
+  # App Icons & Splash
+  flutter_launcher_icons: ^0.14.3
+  flutter_native_splash: ^2.4.3
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icon/app_icon.png"
+  adaptive_icon_background: "#E11D48"
+  adaptive_icon_foreground: "assets/icon/app_icon.png"
+
+flutter_native_splash:
+  color: "#E11D48"
+  android: true
+  ios: true
+
 flutter:
   uses-material-design: true
 
   assets:
     - assets/images/
     - assets/icons/
+    - assets/icon/
     - assets/sounds/
