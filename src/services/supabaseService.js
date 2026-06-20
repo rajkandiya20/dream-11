@@ -789,6 +789,148 @@ export const getTeamsForAdmin = async () => {
   }
 };
 
+// --- Teams Admin (CRUD) ---
+
+export const createTeam = async (teamData) => {
+  try {
+    const { data, error } = await supabase
+      .from('teams')
+      .insert(teamData)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('DB Error [create team]:', error.message);
+    throw error;
+  }
+};
+
+export const updateTeam = async (id, teamData) => {
+  try {
+    const { data, error } = await supabase
+      .from('teams')
+      .update(teamData)
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('DB Error [update team]:', error.message);
+    throw error;
+  }
+};
+
+export const deleteTeam = async (id) => {
+  try {
+    const { error } = await supabase
+      .from('teams')
+      .delete()
+      .eq('id', id);
+    if (error) throw error;
+    return true;
+  } catch (error) {
+    console.error('DB Error [delete team]:', error.message);
+    throw error;
+  }
+};
+
+// --- Commentary ---
+
+export const getCommentary = async (matchId) => {
+  try {
+    const { data, error } = await supabase
+      .from('commentary')
+      .select('*')
+      .eq('match_id', matchId)
+      .order('over_number', { ascending: false })
+      .order('ball_number', { ascending: false });
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('DB Error [commentary]:', error.message);
+    return [];
+  }
+};
+
+export const addCommentary = async (data) => {
+  try {
+    const { data: result, error } = await supabase
+      .from('commentary')
+      .insert(data)
+      .select()
+      .single();
+    if (error) throw error;
+    return result;
+  } catch (error) {
+    console.error('DB Error [add commentary]:', error.message);
+    throw error;
+  }
+};
+
+// --- Payment Methods ---
+
+export const getPaymentMethods = async (userId) => {
+  try {
+    const { data, error } = await supabase
+      .from('payment_methods')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('DB Error [payment methods]:', error.message);
+    return [];
+  }
+};
+
+export const addPaymentMethod = async (data) => {
+  try {
+    const { data: result, error } = await supabase
+      .from('payment_methods')
+      .insert(data)
+      .select()
+      .single();
+    if (error) throw error;
+    return result;
+  } catch (error) {
+    console.error('DB Error [add payment method]:', error.message);
+    throw error;
+  }
+};
+
+export const deletePaymentMethod = async (id) => {
+  try {
+    const { error } = await supabase
+      .from('payment_methods')
+      .delete()
+      .eq('id', id);
+    if (error) throw error;
+    return true;
+  } catch (error) {
+    console.error('DB Error [delete payment method]:', error.message);
+    throw error;
+  }
+};
+
+export const updatePaymentMethod = async (id, data) => {
+  try {
+    const { data: result, error } = await supabase
+      .from('payment_methods')
+      .update(data)
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) throw error;
+    return result;
+  } catch (error) {
+    console.error('DB Error [update payment method]:', error.message);
+    throw error;
+  }
+};
+
 export default {
   getMatches,
   getMatchById,
@@ -840,4 +982,13 @@ export default {
   deletePlayer,
   updateScoreboard,
   getTeamsForAdmin,
+  createTeam,
+  updateTeam,
+  deleteTeam,
+  getCommentary,
+  addCommentary,
+  getPaymentMethods,
+  addPaymentMethod,
+  deletePaymentMethod,
+  updatePaymentMethod,
 };

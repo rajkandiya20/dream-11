@@ -16,6 +16,7 @@ import MatchManager from "./MatchManager";
 import ScoreboardManager from "./ScoreboardManager";
 import PlayerManager from "./PlayerManager";
 import ContestManager from "./ContestManager";
+import TeamManager from "./TeamManager";
 import Navbar from "../navbar";
 import Bottomnav from "../navbar/bottomnavbar";
 import { checkIsAdmin, ensureAdminDocument } from "../../services/adminService";
@@ -106,6 +107,7 @@ export default function AdminDashboard() {
     { label: "Players", icon: <PeopleIcon /> },
     { label: "Contests", icon: <LeaderboardIcon /> },
     { label: "Scoreboard", icon: <GroupAddIcon /> },
+    { label: "Teams", icon: <GroupAddIcon /> },
   ];
 
   if (!isAdmin) {
@@ -151,6 +153,9 @@ export default function AdminDashboard() {
         </TabPanel>
         <TabPanel value={value} index={6}>
           <ScoreboardManager />
+        </TabPanel>
+        <TabPanel value={value} index={7}>
+          <TeamManager />
         </TabPanel>
       </Container>
       <Bottomnav />

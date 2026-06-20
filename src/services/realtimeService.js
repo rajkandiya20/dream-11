@@ -172,6 +172,56 @@ export const subscribeToNotifications = (userId, callback) => {
   };
 };
 
+/**
+ * Subscribe to changes on the commentary table filtered by match_id.
+ * @param {string} matchId - Match ID to filter by
+ * @param {Function} callback - Called with payload on any change
+ * @returns {Function} unsubscribe function
+ */
+export const subscribeToCommentary = (matchId, callback) => {
+  const channel = supabase
+    .channel(`realtime-commentary-${matchId}`)
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'commentary',
+        filter: `match_id=eq.${matchId}`,
+      },
+      (payload) => {
+        callback(payload);
+      }
+    )
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
+};
+
+/**
+ * Subscribe to all changes on the teams table.
+ * @param {Function} callback - Called with payload on any change
+ * @returns {Function} unsubscribe function
+ */
+export const subscribeToTeams = (callback) => {
+  const channel = supabase
+    .channel('realtime-teams')
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'teams' },
+      (payload) => {
+        callback(payload);
+      }
+    )
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
+};
+
 export default {
   subscribeToMatches,
   subscribeToTournaments,
@@ -179,4 +229,6 @@ export default {
   subscribeToPlayers,
   subscribeToScoreboard,
   subscribeToNotifications,
+  subscribeToCommentary,
+  subscribeToTeams,
 };

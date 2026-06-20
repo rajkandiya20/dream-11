@@ -28,6 +28,7 @@ import {
   deletePlayer,
 } from "../../services/supabaseService";
 import { subscribeToPlayers } from "../../services/realtimeService";
+import uploadImage from "../../utils/imageUpload";
 
 const Container = styled.div`
   padding: 20px;
@@ -58,6 +59,7 @@ export default function PlayerManager() {
     name: "",
     role: "Batsman",
     credits: 8.0,
+    image: "",
   });
 
   useEffect(() => {
@@ -106,6 +108,7 @@ export default function PlayerManager() {
       name: "",
       role: "Batsman",
       credits: 8.0,
+      image: "",
     });
     setOpenDialog(true);
   };
@@ -116,6 +119,7 @@ export default function PlayerManager() {
       name: player.name || "",
       role: player.role || "Batsman",
       credits: player.credits || 8.0,
+      image: player.image || "",
     });
     setOpenDialog(true);
   };
@@ -200,11 +204,20 @@ export default function PlayerManager() {
                 <CardWrapper>
                   <CardContent>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <div>
-                        <Typography variant="h6">{player.name}</Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          Role: {player.role} | Credits: {player.credits}
-                        </Typography>
+                      <div style={{ display: "flex", alignItems: "center" }}>
+                        {player.image && (
+                          <img
+                            src={player.image}
+                            alt={player.name}
+                            style={{ width: 36, height: 36, borderRadius: "50%", objectFit: "cover", marginRight: 10 }}
+                          />
+                        )}
+                        <div>
+                          <Typography variant="h6">{player.name}</Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            Role: {player.role} | Credits: {player.credits}
+                          </Typography>
+                        </div>
                       </div>
                       <div>
                         <IconButton size="small" onClick={() => handleOpenEdit(player)}>
@@ -257,6 +270,36 @@ export default function PlayerManager() {
             fullWidth
             margin="normal"
             inputProps={{ step: 0.5, min: 1, max: 20 }}
+          />
+          <Typography variant="body2" sx={{ mt: 2, mb: 1 }}>
+            Player Image
+          </Typography>
+          <input
+            type="file"
+            accept="image/*"
+            onChange={async (e) => {
+              const file = e.target.files[0];
+              if (!file) return;
+              const url = await uploadImage(file, "players");
+              if (url) {
+                setFormData((prev) => ({ ...prev, image: url }));
+              }
+            }}
+          />
+          {formData.image && (
+            <img
+              src={formData.image}
+              alt="Player preview"
+              style={{ width: 50, height: 50, objectFit: "cover", marginTop: 8, borderRadius: "50%", border: "1px solid #eee" }}
+            />
+          )}
+          <TextField
+            label="Or enter Image URL"
+            value={formData.image}
+            onChange={(e) => setFormData({ ...formData, image: e.target.value })}
+            fullWidth
+            margin="normal"
+            size="small"
           />
         </DialogContent>
         <DialogActions>

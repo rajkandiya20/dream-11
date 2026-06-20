@@ -242,8 +242,15 @@ export default function MatchManager() {
               <CardContent>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                   <div>
-                    <Typography variant="h6">
-                      {match.team_a_name} vs {match.team_b_name}
+                    <Typography variant="h6" style={{ display: "flex", alignItems: "center" }}>
+                      {match.team_a_flag && (
+                        <img src={match.team_a_flag} alt={match.team_a_name} style={{ width: 24, height: 24, objectFit: "contain", marginRight: 6 }} />
+                      )}
+                      {match.team_a_name} vs{" "}
+                      {match.team_b_flag && (
+                        <img src={match.team_b_flag} alt={match.team_b_name} style={{ width: 24, height: 24, objectFit: "contain", marginLeft: 6, marginRight: 6 }} />
+                      )}
+                      {match.team_b_name}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
                       {match.venue} |{" "}

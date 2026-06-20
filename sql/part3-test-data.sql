@@ -79,3 +79,16 @@ INSERT INTO scoreboard (match_id, player_id, runs, wickets, catches, fours, sixe
 ('880e8400-e29b-41d4-a716-446655440003', '770e8400-e29b-41d4-a716-446655440002', 2, 3, 0, 0, 0, 6, 78.0),
 ('880e8400-e29b-41d4-a716-446655440003', '770e8400-e29b-41d4-a716-44665544000e', 62, 0, 2, 6, 3, 44, 71.0),
 ('880e8400-e29b-41d4-a716-446655440003', '770e8400-e29b-41d4-a716-44665544000f', 35, 1, 1, 2, 3, 18, 65.0);
+
+INSERT INTO commentary (match_id, over_number, ball_number, runs, event_type, description, batsman, bowler) VALUES
+('880e8400-e29b-41d4-a716-446655440003', 1.1, 1, 0, 'normal', 'Good length delivery, defended back to the bowler', 'Rohit Sharma', 'Sunil Narine'),
+('880e8400-e29b-41d4-a716-446655440003', 1.2, 2, 4, 'four', 'Short and wide, cut away through point for FOUR!', 'Rohit Sharma', 'Sunil Narine'),
+('880e8400-e29b-41d4-a716-446655440003', 1.3, 3, 1, 'normal', 'Pushed to mid-on for a single', 'Rohit Sharma', 'Sunil Narine'),
+('880e8400-e29b-41d4-a716-446655440003', 1.4, 4, 6, 'six', 'Flighted delivery, smashed over long-on for a massive SIX!', 'Suryakumar Yadav', 'Sunil Narine'),
+('880e8400-e29b-41d4-a716-446655440003', 1.5, 5, 0, 'wicket', 'BOWLED! Clean bowled through the gate!', 'Suryakumar Yadav', 'Sunil Narine'),
+('880e8400-e29b-41d4-a716-446655440003', 1.6, 6, 1, 'normal', 'Tapped to short fine leg for a single', 'Ishan Kishan', 'Sunil Narine');
+
+INSERT INTO payment_methods (user_id, method_type, details, is_default) VALUES
+('test_user_001', 'upi', '{"upi_id": "cricketfan99@paytm", "name": "CricketFan99"}', true),
+('test_user_001', 'bank_account', '{"account_number": "XXXX1234", "ifsc": "SBIN0001234", "name": "Test User", "bank_name": "SBI"}', false),
+('test_user_001', 'phonepe', '{"phone": "+919876543210", "name": "CricketFan99"}', false);

@@ -27,6 +27,7 @@ import {
   deleteTournament,
 } from "../../services/supabaseService";
 import { subscribeToTournaments } from "../../services/realtimeService";
+import uploadImage from "../../utils/imageUpload";
 
 const Container = styled.div`
   padding: 20px;
@@ -247,12 +248,35 @@ export default function TournamentManager() {
             fullWidth
             margin="normal"
           />
+          <Typography variant="body2" sx={{ mt: 2, mb: 1 }}>
+            Tournament Logo
+          </Typography>
+          <input
+            type="file"
+            accept="image/*"
+            onChange={async (e) => {
+              const file = e.target.files[0];
+              if (!file) return;
+              const url = await uploadImage(file, "tournaments");
+              if (url) {
+                setFormData((prev) => ({ ...prev, logo: url }));
+              }
+            }}
+          />
+          {formData.logo && (
+            <img
+              src={formData.logo}
+              alt="Logo preview"
+              style={{ width: 60, height: 60, objectFit: "contain", marginTop: 8, borderRadius: 8, border: "1px solid #eee" }}
+            />
+          )}
           <TextField
-            label="Logo URL"
+            label="Or enter Logo URL"
             value={formData.logo}
             onChange={(e) => setFormData({ ...formData, logo: e.target.value })}
             fullWidth
             margin="normal"
+            size="small"
           />
           <TextField
             label="Description"
