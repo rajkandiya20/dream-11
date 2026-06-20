@@ -11,10 +11,7 @@ import {
   InputLabel,
   Grid,
   IconButton,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
+  Drawer,
 } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -55,6 +52,7 @@ export default function PlayerManager() {
   const [players, setPlayers] = useState([]);
   const [openDialog, setOpenDialog] = useState(false);
   const [editingPlayer, setEditingPlayer] = useState(null);
+  const [confirmingDelete, setConfirmingDelete] = useState(null);
   const [formData, setFormData] = useState({
     name: "",
     role: "Batsman",
@@ -158,12 +156,10 @@ export default function PlayerManager() {
   };
 
   const handleDelete = async (playerId) => {
-    if (!window.confirm("Are you sure you want to delete this player?")) {
-      return;
-    }
     try {
       await deletePlayer(playerId);
       alert.success("Player deleted successfully");
+      setConfirmingDelete(null);
       fetchPlayers(selectedTeam.id);
     } catch (error) {
       alert.error("Failed to delete player");
@@ -223,9 +219,17 @@ export default function PlayerManager() {
                         <IconButton size="small" onClick={() => handleOpenEdit(player)}>
                           <EditIcon fontSize="small" />
                         </IconButton>
-                        <IconButton size="small" onClick={() => handleDelete(player.id)}>
-                          <DeleteIcon fontSize="small" />
-                        </IconButton>
+                        {confirmingDelete === player.id ? (
+                          <span style={{ fontSize: "12px" }}>
+                            Sure?{" "}
+                            <Button size="small" color="error" onClick={() => handleDelete(player.id)}>Yes</Button>
+                            <Button size="small" onClick={() => setConfirmingDelete(null)}>No</Button>
+                          </span>
+                        ) : (
+                          <IconButton size="small" onClick={() => setConfirmingDelete(player.id)}>
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        )}
                       </div>
                     </div>
                   </CardContent>
@@ -236,11 +240,17 @@ export default function PlayerManager() {
         </>
       )}
 
-      <Dialog open={openDialog} onClose={() => setOpenDialog(false)} fullWidth maxWidth="sm">
-        <DialogTitle>
-          {editingPlayer ? "Edit Player" : "Add Player"}
-        </DialogTitle>
-        <DialogContent>
+      <Drawer anchor="bottom" open={openDialog} onClose={() => setOpenDialog(false)}>
+        <div style={{ borderRadius: "16px 16px 0 0", maxHeight: "85vh", overflowY: "auto" }}>
+          <div style={{ display: "flex", justifyContent: "center", padding: "10px 0 0" }}>
+            <div style={{ width: "40px", height: "4px", borderRadius: "2px", backgroundColor: "#ccc" }} />
+          </div>
+          <div style={{ padding: "16px 20px 8px", borderBottom: "1px solid #eee" }}>
+            <Typography variant="h6">
+              {editingPlayer ? "Edit Player" : "Add Player"}
+            </Typography>
+          </div>
+          <div style={{ padding: "10px 20px 20px" }}>
           <TextField
             label="Name"
             value={formData.name}
@@ -301,14 +311,15 @@ export default function PlayerManager() {
             margin="normal"
             size="small"
           />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
-          <Button onClick={handleSave} variant="contained">
-            {editingPlayer ? "Update" : "Add"}
-          </Button>
-        </DialogActions>
-      </Dialog>
+          </div>
+          <div style={{ position: "sticky", bottom: 0, backgroundColor: "#fff", padding: "12px 20px", borderTop: "1px solid #eee", display: "flex", justifyContent: "space-between" }}>
+            <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
+            <Button onClick={handleSave} variant="contained">
+              {editingPlayer ? "Update" : "Add"}
+            </Button>
+          </div>
+        </div>
+      </Drawer>
     </Container>
   );
 }

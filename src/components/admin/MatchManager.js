@@ -10,10 +10,7 @@ import {
   MenuItem,
   FormControl,
   InputLabel,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
+  Drawer,
   IconButton,
 } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
@@ -94,6 +91,7 @@ export default function MatchManager() {
   const [teams, setTeams] = useState([]);
   const [openDialog, setOpenDialog] = useState(false);
   const [editingMatch, setEditingMatch] = useState(null);
+  const [confirmingDelete, setConfirmingDelete] = useState(null);
   const [formData, setFormData] = useState({
     tournament_id: "",
     team_a_id: "",
@@ -216,12 +214,10 @@ export default function MatchManager() {
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this match?")) {
-      return;
-    }
     try {
       await deleteMatch(id);
       alert.success("Match deleted successfully");
+      setConfirmingDelete(null);
       fetchMatches();
     } catch (error) {
       alert.error("Failed to delete match");
@@ -273,9 +269,17 @@ export default function MatchManager() {
                     <IconButton size="small" onClick={() => handleOpenEdit(match)}>
                       <EditIcon fontSize="small" />
                     </IconButton>
-                    <IconButton size="small" onClick={() => handleDelete(match.id)}>
-                      <DeleteIcon fontSize="small" />
-                    </IconButton>
+                    {confirmingDelete === match.id ? (
+                      <span style={{ fontSize: "12px" }}>
+                        Sure?{" "}
+                        <Button size="small" color="error" onClick={() => handleDelete(match.id)}>Yes</Button>
+                        <Button size="small" onClick={() => setConfirmingDelete(null)}>No</Button>
+                      </span>
+                    ) : (
+                      <IconButton size="small" onClick={() => setConfirmingDelete(match.id)}>
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    )}
                   </div>
                 </div>
               </CardContent>
@@ -284,11 +288,17 @@ export default function MatchManager() {
         ))}
       </Grid>
 
-      <Dialog open={openDialog} onClose={() => setOpenDialog(false)} fullWidth maxWidth="sm">
-        <DialogTitle>
-          {editingMatch ? "Edit Match" : "Create Match"}
-        </DialogTitle>
-        <DialogContent>
+      <Drawer anchor="bottom" open={openDialog} onClose={() => setOpenDialog(false)}>
+        <div style={{ borderRadius: "16px 16px 0 0", maxHeight: "85vh", overflowY: "auto" }}>
+          <div style={{ display: "flex", justifyContent: "center", padding: "10px 0 0" }}>
+            <div style={{ width: "40px", height: "4px", borderRadius: "2px", backgroundColor: "#ccc" }} />
+          </div>
+          <div style={{ padding: "16px 20px 8px", borderBottom: "1px solid #eee" }}>
+            <Typography variant="h6">
+              {editingMatch ? "Edit Match" : "Create Match"}
+            </Typography>
+          </div>
+          <div style={{ padding: "10px 20px 20px" }}>
           <FormControl fullWidth margin="normal">
             <InputLabel>Tournament</InputLabel>
             <Select
@@ -377,14 +387,15 @@ export default function MatchManager() {
               ))}
             </Select>
           </FormControl>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
-          <Button onClick={handleSave} variant="contained">
-            {editingMatch ? "Update" : "Create"}
-          </Button>
-        </DialogActions>
-      </Dialog>
+          </div>
+          <div style={{ position: "sticky", bottom: 0, backgroundColor: "#fff", padding: "12px 20px", borderTop: "1px solid #eee", display: "flex", justifyContent: "space-between" }}>
+            <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
+            <Button onClick={handleSave} variant="contained">
+              {editingMatch ? "Update" : "Create"}
+            </Button>
+          </div>
+        </div>
+      </Drawer>
     </Container>
   );
 }

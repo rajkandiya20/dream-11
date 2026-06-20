@@ -7,10 +7,7 @@ import {
   Card,
   CardContent,
   IconButton,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
+  Drawer,
   Select,
   MenuItem,
   FormControl,
@@ -73,6 +70,7 @@ export default function TeamManager() {
   const [tournaments, setTournaments] = useState([]);
   const [openDialog, setOpenDialog] = useState(false);
   const [editingTeam, setEditingTeam] = useState(null);
+  const [confirmingDelete, setConfirmingDelete] = useState(null);
   const [formData, setFormData] = useState({
     name: "",
     code: "",
@@ -202,12 +200,10 @@ export default function TeamManager() {
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this team?")) {
-      return;
-    }
     try {
       await deleteTeam(id);
       alert.success("Team deleted successfully");
+      setConfirmingDelete(null);
       fetchTeams();
     } catch (error) {
       alert.error("Failed to delete team");
@@ -249,9 +245,17 @@ export default function TeamManager() {
                     <IconButton size="small" onClick={() => handleOpenEdit(team)}>
                       <EditIcon fontSize="small" />
                     </IconButton>
-                    <IconButton size="small" onClick={() => handleDelete(team.id)}>
-                      <DeleteIcon fontSize="small" />
-                    </IconButton>
+                    {confirmingDelete === team.id ? (
+                      <span style={{ fontSize: "12px" }}>
+                        Sure?{" "}
+                        <Button size="small" color="error" onClick={() => handleDelete(team.id)}>Yes</Button>
+                        <Button size="small" onClick={() => setConfirmingDelete(null)}>No</Button>
+                      </span>
+                    ) : (
+                      <IconButton size="small" onClick={() => setConfirmingDelete(team.id)}>
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    )}
                   </div>
                 </div>
               </CardContent>
@@ -260,11 +264,17 @@ export default function TeamManager() {
         ))}
       </Grid>
 
-      <Dialog open={openDialog} onClose={() => setOpenDialog(false)} fullWidth maxWidth="sm">
-        <DialogTitle>
-          {editingTeam ? "Edit Team" : "Create Team"}
-        </DialogTitle>
-        <DialogContent>
+      <Drawer anchor="bottom" open={openDialog} onClose={() => setOpenDialog(false)}>
+        <div style={{ borderRadius: "16px 16px 0 0", maxHeight: "85vh", overflowY: "auto" }}>
+          <div style={{ display: "flex", justifyContent: "center", padding: "10px 0 0" }}>
+            <div style={{ width: "40px", height: "4px", borderRadius: "2px", backgroundColor: "#ccc" }} />
+          </div>
+          <div style={{ padding: "16px 20px 8px", borderBottom: "1px solid #eee" }}>
+            <Typography variant="h6">
+              {editingTeam ? "Edit Team" : "Create Team"}
+            </Typography>
+          </div>
+          <div style={{ padding: "10px 20px 20px" }}>
           <TextField
             label="Team Name"
             value={formData.name}
@@ -336,14 +346,15 @@ export default function TeamManager() {
               ))}
             </Select>
           </FormControl>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
-          <Button onClick={handleSave} variant="contained" disabled={uploading}>
-            {editingTeam ? "Update" : "Create"}
-          </Button>
-        </DialogActions>
-      </Dialog>
+          </div>
+          <div style={{ position: "sticky", bottom: 0, backgroundColor: "#fff", padding: "12px 20px", borderTop: "1px solid #eee", display: "flex", justifyContent: "space-between" }}>
+            <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
+            <Button onClick={handleSave} variant="contained" disabled={uploading}>
+              {editingTeam ? "Update" : "Create"}
+            </Button>
+          </div>
+        </div>
+      </Drawer>
     </Container>
   );
 }

@@ -11,10 +11,7 @@ import {
   InputLabel,
   IconButton,
   Grid,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
+  Drawer,
 } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -54,6 +51,7 @@ export default function ContestManager() {
   const [contests, setContests] = useState([]);
   const [openDialog, setOpenDialog] = useState(false);
   const [editingContest, setEditingContest] = useState(null);
+  const [confirmingDelete, setConfirmingDelete] = useState(null);
   const [formData, setFormData] = useState({
     entry_fee: 0,
     prize_pool: 0,
@@ -156,12 +154,10 @@ export default function ContestManager() {
   };
 
   const handleDelete = async (contestId) => {
-    if (!window.confirm("Are you sure you want to delete this contest?")) {
-      return;
-    }
     try {
       await deleteContest(contestId);
       alert.success("Contest deleted successfully");
+      setConfirmingDelete(null);
       fetchContests(selectedMatch.id);
     } catch (error) {
       alert.error("Failed to delete contest");
@@ -219,9 +215,17 @@ export default function ContestManager() {
                         <IconButton size="small" onClick={() => handleOpenEdit(contest)}>
                           <EditIcon fontSize="small" />
                         </IconButton>
-                        <IconButton size="small" onClick={() => handleDelete(contest.id)}>
-                          <DeleteIcon fontSize="small" />
-                        </IconButton>
+                        {confirmingDelete === contest.id ? (
+                          <span style={{ fontSize: "12px" }}>
+                            Sure?{" "}
+                            <Button size="small" color="error" onClick={() => handleDelete(contest.id)}>Yes</Button>
+                            <Button size="small" onClick={() => setConfirmingDelete(null)}>No</Button>
+                          </span>
+                        ) : (
+                          <IconButton size="small" onClick={() => setConfirmingDelete(contest.id)}>
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        )}
                       </div>
                     </div>
                   </CardContent>
@@ -232,11 +236,17 @@ export default function ContestManager() {
         </>
       )}
 
-      <Dialog open={openDialog} onClose={() => setOpenDialog(false)} fullWidth maxWidth="sm">
-        <DialogTitle>
-          {editingContest ? "Edit Contest" : "Create Contest"}
-        </DialogTitle>
-        <DialogContent>
+      <Drawer anchor="bottom" open={openDialog} onClose={() => setOpenDialog(false)}>
+        <div style={{ borderRadius: "16px 16px 0 0", maxHeight: "85vh", overflowY: "auto" }}>
+          <div style={{ display: "flex", justifyContent: "center", padding: "10px 0 0" }}>
+            <div style={{ width: "40px", height: "4px", borderRadius: "2px", backgroundColor: "#ccc" }} />
+          </div>
+          <div style={{ padding: "16px 20px 8px", borderBottom: "1px solid #eee" }}>
+            <Typography variant="h6">
+              {editingContest ? "Edit Contest" : "Create Contest"}
+            </Typography>
+          </div>
+          <div style={{ padding: "10px 20px 20px" }}>
           <TextField
             label="Entry Fee"
             type="number"
@@ -275,14 +285,15 @@ export default function ContestManager() {
               ))}
             </Select>
           </FormControl>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
-          <Button onClick={handleSave} variant="contained">
-            {editingContest ? "Update" : "Create"}
-          </Button>
-        </DialogActions>
-      </Dialog>
+          </div>
+          <div style={{ position: "sticky", bottom: 0, backgroundColor: "#fff", padding: "12px 20px", borderTop: "1px solid #eee", display: "flex", justifyContent: "space-between" }}>
+            <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
+            <Button onClick={handleSave} variant="contained">
+              {editingContest ? "Update" : "Create"}
+            </Button>
+          </div>
+        </div>
+      </Drawer>
     </Container>
   );
 }

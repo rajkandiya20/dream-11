@@ -7,10 +7,7 @@ import {
   Card,
   CardContent,
   IconButton,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
+  Drawer,
   Select,
   MenuItem,
   FormControl,
@@ -89,6 +86,7 @@ export default function TournamentManager() {
   const [tournaments, setTournaments] = useState([]);
   const [openDialog, setOpenDialog] = useState(false);
   const [editingTournament, setEditingTournament] = useState(null);
+  const [confirmingDelete, setConfirmingDelete] = useState(null);
   const [formData, setFormData] = useState({
     name: "",
     logo: "",
@@ -177,12 +175,10 @@ export default function TournamentManager() {
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this tournament?")) {
-      return;
-    }
     try {
       await deleteTournament(id);
       alert.success("Tournament deleted successfully");
+      setConfirmingDelete(null);
       fetchTournaments();
     } catch (error) {
       alert.error("Failed to delete tournament");
@@ -225,9 +221,17 @@ export default function TournamentManager() {
                     <IconButton size="small" onClick={() => handleOpenEdit(tournament)}>
                       <EditIcon fontSize="small" />
                     </IconButton>
-                    <IconButton size="small" onClick={() => handleDelete(tournament.id)}>
-                      <DeleteIcon fontSize="small" />
-                    </IconButton>
+                    {confirmingDelete === tournament.id ? (
+                      <span style={{ fontSize: "12px" }}>
+                        Sure?{" "}
+                        <Button size="small" color="error" onClick={() => handleDelete(tournament.id)}>Yes</Button>
+                        <Button size="small" onClick={() => setConfirmingDelete(null)}>No</Button>
+                      </span>
+                    ) : (
+                      <IconButton size="small" onClick={() => setConfirmingDelete(tournament.id)}>
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    )}
                   </div>
                 </div>
               </CardContent>
@@ -236,11 +240,17 @@ export default function TournamentManager() {
         ))}
       </Grid>
 
-      <Dialog open={openDialog} onClose={() => setOpenDialog(false)} fullWidth maxWidth="sm">
-        <DialogTitle>
-          {editingTournament ? "Edit Tournament" : "Create Tournament"}
-        </DialogTitle>
-        <DialogContent>
+      <Drawer anchor="bottom" open={openDialog} onClose={() => setOpenDialog(false)}>
+        <div style={{ borderRadius: "16px 16px 0 0", maxHeight: "85vh", overflowY: "auto", padding: "0" }}>
+          <div style={{ display: "flex", justifyContent: "center", padding: "10px 0 0" }}>
+            <div style={{ width: "40px", height: "4px", borderRadius: "2px", backgroundColor: "#ccc" }} />
+          </div>
+          <div style={{ padding: "16px 20px 8px", borderBottom: "1px solid #eee" }}>
+            <Typography variant="h6">
+              {editingTournament ? "Edit Tournament" : "Create Tournament"}
+            </Typography>
+          </div>
+          <div style={{ padding: "10px 20px 20px" }}>
           <TextField
             label="Name"
             value={formData.name}
@@ -319,14 +329,15 @@ export default function TournamentManager() {
               ))}
             </Select>
           </FormControl>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
-          <Button onClick={handleSave} variant="contained">
-            {editingTournament ? "Update" : "Create"}
-          </Button>
-        </DialogActions>
-      </Dialog>
+          </div>
+          <div style={{ position: "sticky", bottom: 0, backgroundColor: "#fff", padding: "12px 20px", borderTop: "1px solid #eee", display: "flex", justifyContent: "space-between" }}>
+            <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
+            <Button onClick={handleSave} variant="contained">
+              {editingTournament ? "Update" : "Create"}
+            </Button>
+          </div>
+        </div>
+      </Drawer>
     </Container>
   );
 }

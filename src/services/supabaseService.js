@@ -373,6 +373,69 @@ export const getTransactions = async (userId) => {
   }
 };
 
+export const getPendingDeposits = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('transactions')
+      .select('*, user:users(username, email)')
+      .eq('type', 'deposit')
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('DB Error [pending deposits]:', error.message);
+    return [];
+  }
+};
+
+export const approveDeposit = async (transactionId, userId, amount) => {
+  try {
+    // Update transaction status
+    const { error: txError } = await supabase
+      .from('transactions')
+      .update({ status: 'completed' })
+      .eq('id', transactionId);
+    if (txError) throw txError;
+
+    // Credit user wallet
+    const { data: wallet } = await supabase
+      .from('wallets')
+      .select('*')
+      .eq('user_id', userId)
+      .single();
+
+    if (wallet) {
+      await supabase
+        .from('wallets')
+        .update({ balance: (wallet.balance || 0) + amount })
+        .eq('user_id', userId);
+    } else {
+      await supabase
+        .from('wallets')
+        .insert({ user_id: userId, balance: amount });
+    }
+    return true;
+  } catch (error) {
+    console.error('DB Error [approve deposit]:', error.message);
+    throw error;
+  }
+};
+
+export const rejectDeposit = async (transactionId) => {
+  try {
+    const { error } = await supabase
+      .from('transactions')
+      .update({ status: 'rejected' })
+      .eq('id', transactionId);
+    if (error) throw error;
+    return true;
+  } catch (error) {
+    console.error('DB Error [reject deposit]:', error.message);
+    throw error;
+  }
+};
+
 // ============ NOTIFICATIONS ============
 
 export const getUserNotifications = async (userId) => {
@@ -955,6 +1018,9 @@ export default {
   createGroup,
   getWallet,
   getTransactions,
+  getPendingDeposits,
+  approveDeposit,
+  rejectDeposit,
   getUserNotifications,
   markNotificationRead,
   getUserProfile,
