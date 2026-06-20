@@ -11,6 +11,7 @@
   bottom: 90px !important;
   right: 15px !important;
   z-index: 999 !important;
+  pointer-events: auto;
 }
 
 /* WhatsApp button styling */
@@ -19,6 +20,17 @@
   right: 0 !important;
   width: 58px !important;
   height: 58px !important;
+}
+
+/* WhatsApp popup container - ensure it does not get cut off */
+.whatsappwidget .wa-chat-box,
+.whatsappwidget [class*="chat-box"],
+.whatsappwidget [class*="popup"] {
+  bottom: 65px !important;
+  right: 0 !important;
+  max-height: calc(100vh - 180px) !important;
+  overflow-y: auto !important;
+  z-index: 999 !important;
 }
 
 /* Safe area for iOS devices */
@@ -41,4 +53,10 @@
 .whatsappwidget button,
 .whatsappwidget a {
   z-index: 999 !important;
+  pointer-events: auto;
+}
+
+/* Page content container - prevents bottom nav overlap */
+.page-content {
+  padding-bottom: 90px;
 }

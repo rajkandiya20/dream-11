@@ -138,17 +138,35 @@ export function Completed() {
   }, []);
   useEffect(() => {
     async function getupcoming() {
-      if (user?._id) {
+      const userId = user?._id || user?.uid;
+      if (userId) {
         setLoading(true);
-        const data = await axios.get(`${URL}/completed/${user._id}`);
-        const cm = data.data.completed.results.sort(
-          (b, a) => new Date(a.date) - new Date(b.date)
-        );
-        setPast(cm);
+        try {
+          const data = await axios.get(`${URL}/completed/${userId}`, {
+            timeout: 10000,
+          });
+          const cm = data.data.completed.results.sort(
+            (b, a) => new Date(a.date) - new Date(b.date)
+          );
+          setPast(cm);
+        } catch (error) {
+          console.error('Error fetching completed matches:', error);
+          setPast([]);
+        } finally {
+          setLoading(false);
+        }
+      } else {
         setLoading(false);
       }
     }
     getupcoming();
+
+    // Timeout fallback to stop loading after 10s
+    const timeout = setTimeout(() => {
+      setLoading(false);
+    }, 10000);
+
+    return () => clearTimeout(timeout);
   }, [user]);
   useEffect(() => {
     const servertoken =
@@ -166,12 +184,13 @@ export function Completed() {
       {!loading ? (
         <div className="homecontainer">
           <div className="matches">
-            {past?.length > 0 ? (
+            {past && past.length > 0 ? (
               <>
                 {past.map((u) => (
                   <div
+                    key={u.id || u._id}
                     className="matchcontainer"
-                    onClick={() => navigate(`/contests/${u.id}`)}
+                    onClick={() => navigate(`/contests/${u.id || u._id}`)}
                     style={{
                       postion: "absolute !important",
                       backgroundColor: "#000",
@@ -298,7 +317,15 @@ export function Completed() {
                   </div>
                 ))}
               </>
-            ) : null}
+            ) : (
+              <div style={{ textAlign: 'center', padding: '60px 20px' }}>
+                <SportsCricketOutlined style={{ fontSize: 60, color: '#ccc' }} />
+                <h4 style={{ color: '#666', marginTop: 20 }}>No Completed Matches Yet</h4>
+                <p style={{ color: '#999', fontSize: 14, marginTop: 10 }}>
+                  Your completed matches will appear here
+                </p>
+              </div>
+            )}
           </div>
         </div>
       ) : (

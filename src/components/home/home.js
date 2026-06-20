@@ -7,11 +7,13 @@ import PersonOutlineOutlinedIcon from "@mui/icons-material/PersonOutlineOutlined
 import { Button, Alert, Snackbar } from "@mui/material";
 import LinearProgress from "@mui/material/LinearProgress";
 import axios from "axios";
+import { collection, getDocs, query, orderBy } from "firebase/firestore";
 import { useEffect, useState, useCallback } from "react";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import Match from "./match";
-import { URL } from "../../constants/userConstants";
+import { URL, FIRESTORE_ENABLED } from "../../constants/userConstants";
+import db from "../../firebase";
 import {
   getDisplayDate,
   hoursRemaining,
@@ -153,20 +155,70 @@ export function Home() {
   const MAX_RETRIES = 3;
   const API_TIMEOUT = 10000; // 10 seconds
 
+  // Fetch matches from Firestore as primary data source
+  const fetchMatchesFromFirestore = async () => {
+    try {
+      const matchesRef = collection(db, "matches");
+      const matchesQuery = query(matchesRef, orderBy("date", "asc"));
+      const snapshot = await getDocs(matchesQuery);
+
+      if (snapshot.empty) {
+        return null;
+      }
+
+      const matches = [];
+      snapshot.forEach((doc) => {
+        matches.push({ id: doc.id, ...doc.data() });
+      });
+
+      const now = new Date();
+      const upcomingMatches = matches.filter(
+        (m) => m.result !== "Yes" && new Date(m.date) >= now
+      );
+      const liveMatches = matches.filter(
+        (m) => m.live === true || m.status === "live"
+      );
+      const completedMatches = matches.filter((m) => m.result === "Yes");
+
+      return { upcoming: upcomingMatches, live: liveMatches, past: completedMatches };
+    } catch (error) {
+      console.error("Error fetching from Firestore:", error);
+      return null;
+    }
+  };
+
   // Fetch data with error handling
   const fetchData = useCallback(async () => {
     const userId = user?._id || user?.uid;
     
     if (!userId) {
-      console.log('⚠️ No user ID, skipping data fetch');
+      console.log('No user ID, skipping data fetch');
       setLoading(false);
       return;
     }
 
-    console.log('🔄 Fetching home data for user:', userId);
+    console.log('Fetching home data for user:', userId);
     setLoading(true);
     setApiError(null);
 
+    // Try Firestore first if enabled
+    if (FIRESTORE_ENABLED) {
+      const firestoreData = await fetchMatchesFromFirestore();
+      if (firestoreData) {
+        setUpcoming(firestoreData.upcoming || []);
+        setLive(firestoreData.live || []);
+        if (firestoreData.past?.length > 0) {
+          setPast([firestoreData.past[firestoreData.past.length - 1]]);
+        }
+        setLoading(false);
+        setApiError(null);
+        setRetryCount(0);
+        console.log('Data loaded from Firestore');
+        return;
+      }
+    }
+
+    // Fallback to backend API
     try {
       // Create axios instance with timeout
       const api = axios.create({
@@ -177,7 +229,7 @@ export function Home() {
       });
 
       // Fetch upcoming matches
-      console.log('📡 Fetching upcoming matches...');
+      console.log('Fetching upcoming matches from API...');
       const upcomingResponse = await api.get(`${URL}/home`);
       
       if (upcomingResponse.data?.upcoming?.results) {
@@ -185,11 +237,11 @@ export function Home() {
           (a, b) => new Date(a.date) - new Date(b.date)
         );
         setUpcoming([...urr]);
-        console.log('✅ Upcoming matches loaded:', urr.length);
+        console.log('Upcoming matches loaded:', urr.length);
       }
 
       // Fetch user-specific data
-      console.log('📡 Fetching user matches...');
+      console.log('Fetching user matches from API...');
       const userResponse = await api.get(`${URL}/home/${userId}`);
       
       if (userResponse.data) {
@@ -214,7 +266,7 @@ export function Home() {
           setPast([pastMatches.pop()]);
         }
         
-        console.log('✅ User data loaded successfully');
+        console.log('User data loaded successfully from API');
       }
 
       setLoading(false);
@@ -222,7 +274,7 @@ export function Home() {
       setRetryCount(0);
       
     } catch (error) {
-      console.error('❌ Error fetching data:', error);
+      console.error('Error fetching data:', error);
       setLoading(false);
       
       // Set user-friendly error message
@@ -277,7 +329,7 @@ export function Home() {
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (!token) {
-      console.log('⚠️ No token found, redirecting to login');
+      console.log('No token found, redirecting to login');
       navigate("/login");
     }
   }, [navigate]);

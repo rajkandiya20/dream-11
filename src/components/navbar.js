@@ -87,7 +87,7 @@ export function Navbar({ home }) {
   const { user } = useSelector((state) => state.user);
   const [open, setOpen] = useState(false);
   const [leftOpen, setLeftOpen] = useState(false);
-  const dispatch = useDispatch;
+  const dispatch = useDispatch();
   const navigate = useNavigate();
 
   const handleClick = () => {

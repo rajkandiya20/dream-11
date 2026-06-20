@@ -97,22 +97,90 @@ export function ContestDetail() {
   const [leaderboard, setLeaderboard] = useState([]);
   const [match, setMatch] = useState(null);
   const [contest, setContest] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const { id } = useParams();
   const history = useNavigate();
+
   useEffect(() => {
     async function getteams() {
-      if (id.length > 3) {
-        const teamdata = await axios.get(`${URL}/getteamsofcontest/${id}`);
-        const contestdata = await axios.get(`${URL}/getcontest/${id}`);
-        setContest(contestdata.data.contest);
-        setMatch(teamdata.data.match);
-        const t = teamdata.data.teams.sort((a, b) => a.points - b.points);
-        setLeaderboard([...t]);
+      if (id && id.length > 3) {
+        setLoading(true);
+        setError(null);
+        try {
+          const teamdata = await axios.get(`${URL}/getteamsofcontest/${id}`, { timeout: 10000 });
+          const contestdata = await axios.get(`${URL}/getcontest/${id}`, { timeout: 10000 });
+          setContest(contestdata.data.contest);
+          setMatch(teamdata.data.match);
+          const t = teamdata.data.teams.sort((a, b) => a.points - b.points);
+          setLeaderboard([...t]);
+        } catch (err) {
+          console.error('Error fetching contest details:', err);
+          setError('Unable to load contest details. Please try again.');
+        } finally {
+          setLoading(false);
+        }
+      } else {
+        setLoading(false);
       }
     }
     getteams();
+
+    // Timeout fallback to stop loading after 10s
+    const timeout = setTimeout(() => {
+      setLoading(false);
+    }, 10000);
+
+    return () => clearTimeout(timeout);
   }, [id]);
   console.log(state, "state");
+
+  if (loading) {
+    return (
+      <ContestsContainer container>
+        <Top>
+          <LeftSide>
+            <WestIcon onClick={() => history(-1)} style={{ cursor: "pointer" }} />
+            <h1>Loading...</h1>
+          </LeftSide>
+          <RightSide>
+            <Brightness1Icon />
+            <AccountBalanceWalletOutlinedIcon />
+            <NotificationAddOutlinedIcon />
+          </RightSide>
+        </Top>
+        <ContestContainer>
+          <div style={{ textAlign: 'center', padding: '60px 20px', marginTop: '70px' }}>
+            <p style={{ color: '#666' }}>Loading contest details...</p>
+          </div>
+        </ContestContainer>
+      </ContestsContainer>
+    );
+  }
+
+  if (error) {
+    return (
+      <ContestsContainer container>
+        <Top>
+          <LeftSide>
+            <WestIcon onClick={() => history(-1)} style={{ cursor: "pointer" }} />
+            <h1>Error</h1>
+          </LeftSide>
+          <RightSide>
+            <Brightness1Icon />
+            <AccountBalanceWalletOutlinedIcon />
+            <NotificationAddOutlinedIcon />
+          </RightSide>
+        </Top>
+        <ContestContainer>
+          <div style={{ textAlign: 'center', padding: '60px 20px', marginTop: '70px' }}>
+            <p style={{ color: '#666' }}>{error}</p>
+          </div>
+        </ContestContainer>
+      </ContestsContainer>
+    );
+  }
+
   return (
     <>
       <ContestsContainer container>

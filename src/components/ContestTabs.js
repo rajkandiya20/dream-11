@@ -243,13 +243,29 @@ function a11yProps(index) {
 export default function ContestTabs({ contest, leaderboard, match_details }) {
   const { isAuthenticated, user } = useSelector((state) => state.user);
   const [value, setValue] = React.useState(0);
+  const [error, setError] = React.useState(null);
   const navigate = useNavigate();
+  const userId = user?._id || user?.uid;
 
   const handleChange = (event, newValue) => {
     setValue(newValue);
   };
   console.log(match_details, "leaderboard");
-  leaderboardChanges(leaderboard);
+  if (leaderboard && leaderboard.length > 0) {
+    leaderboardChanges(leaderboard);
+  }
+
+  // Show empty state if no contest data
+  if (!contest) {
+    return (
+      <Container style={{ width: "100%" }}>
+        <div style={{ textAlign: 'center', padding: '40px 20px' }}>
+          <p style={{ color: '#999' }}>Contest details not available</p>
+        </div>
+      </Container>
+    );
+  }
+
   return (
     <Container style={{ width: "100%" }}>
       <Tabs
@@ -271,7 +287,7 @@ export default function ContestTabs({ contest, leaderboard, match_details }) {
               </tr>
               {contest &&
                 contest.prizeDetails.map((p, index) => (
-                  <tr>
+                  <tr key={index}>
                     <td>{index + 1}</td>
                     <td>₹{p.prize}</td>
                   </tr>
@@ -296,7 +312,8 @@ export default function ContestTabs({ contest, leaderboard, match_details }) {
                 .sort((a, b) => b._doc.points - a._doc.points)
                 .map((f, index) => (
                   <tr
-                    className={f._doc.userId === user._id ? "selected" : ""}
+                    key={f._doc._id || index}
+                    className={f._doc.userId === userId ? "selected" : ""}
                     onClick={() => navigate(`/savedteam/${f._doc._id}`)}
                     style={{ cursor: "pointer" }}
                   >
@@ -313,7 +330,7 @@ export default function ContestTabs({ contest, leaderboard, match_details }) {
                                   alignItems: "center",
                                 }}
                               >
-                                {f._doc.userId == user._id ? (
+                                {f._doc.userId == userId ? (
                                   <>
                                     <span
                                       style={{

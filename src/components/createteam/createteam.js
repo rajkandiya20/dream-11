@@ -200,98 +200,117 @@ export function CreateTeam() {
     async function getupcoming() {
       if (id) {
         setLoading(true);
-        const data = await axios.get(`${URL}/getplayers/${id}`);
-        console.log(data, "testdata");
-        setLive(data.data.live);
-        let awayPlayers = data.data.matchdetails.teamAwayPlayers.map((obj) => ({
-          ...obj,
-          isHome: false,
-          code: data.data.matchdetails.teamAwayCode,
-        }));
-        let homePlayers = data.data.matchdetails.teamHomePlayers.map((obj) => ({
-          ...obj,
-          isHome: true,
-          code: data.data.matchdetails.teamHomeCode,
-        }));
-        if (!data.data.live) {
-          if (state?.editMode) {
-            const p = awayPlayers.concat(homePlayers).map((obj) => ({
-              ...obj,
-              isSelected: false,
-            }));
-            setPlayers([
-              ...p.map((r) =>
-                state.selectedPlayers.find((f) => f.playerId == r.playerId)
-                  ? { ...r, isSelected: true }
-                  : r
-              ),
-            ]);
-          } else {
-            const p = awayPlayers.concat(homePlayers).map((obj) => ({
-              ...obj,
-              isSelected: false,
-            }));
-            setPlayers([...p]);
-          }
-        } else {
-          if (state?.editMode) {
-            const p = awayPlayers.concat(homePlayers).map((obj) => ({
-              ...obj,
-              isSelected: false,
-            }));
-            setPlayers([
-              ...p.map((r) =>
-                state.selectedPlayers.find((f) => f.playerId == r.playerId)
-                  ? { ...r, isSelected: true }
-                  : r
-              ),
-            ]);
-          } else {
-            const p = awayPlayers
-              .splice(0, 11)
-              .concat(homePlayers.splice(0, 11))
-              .map((obj) => ({
+        try {
+          const data = await axios.get(`${URL}/getplayers/${id}`, { timeout: 10000 });
+          console.log(data, "testdata");
+          setLive(data.data.live);
+          let awayPlayers = data.data.matchdetails.teamAwayPlayers.map((obj) => ({
+            ...obj,
+            isHome: false,
+            code: data.data.matchdetails.teamAwayCode,
+          }));
+          let homePlayers = data.data.matchdetails.teamHomePlayers.map((obj) => ({
+            ...obj,
+            isHome: true,
+            code: data.data.matchdetails.teamHomeCode,
+          }));
+          if (!data.data.live) {
+            if (state?.editMode) {
+              const p = awayPlayers.concat(homePlayers).map((obj) => ({
                 ...obj,
                 isSelected: false,
               }));
-            setPlayers([...p]);
+              setPlayers([
+                ...p.map((r) =>
+                  state.selectedPlayers.find((f) => f.playerId == r.playerId)
+                    ? { ...r, isSelected: true }
+                    : r
+                ),
+              ]);
+            } else {
+              const p = awayPlayers.concat(homePlayers).map((obj) => ({
+                ...obj,
+                isSelected: false,
+              }));
+              setPlayers([...p]);
+            }
+          } else {
+            if (state?.editMode) {
+              const p = awayPlayers.concat(homePlayers).map((obj) => ({
+                ...obj,
+                isSelected: false,
+              }));
+              setPlayers([
+                ...p.map((r) =>
+                  state.selectedPlayers.find((f) => f.playerId == r.playerId)
+                    ? { ...r, isSelected: true }
+                    : r
+                ),
+              ]);
+            } else {
+              const p = awayPlayers
+                .splice(0, 11)
+                .concat(homePlayers.splice(0, 11))
+                .map((obj) => ({
+                  ...obj,
+                  isSelected: false,
+                }));
+              setPlayers([...p]);
+            }
           }
+          setMatch(data.data.matchdetails);
+          const k = homePlayers;
+          const l = awayPlayers;
+          const nonp = k
+            .splice(k.length - 11, k.length)
+            .concat(l.splice(l.length - 11, l.length))
+            .map((obj) => ({
+              ...obj,
+              isSelected: false,
+            }));
+          setNonPlayers([...nonp]);
+          const lm = k
+            .splice(k.length - 5, k.length)
+            .concat(l.splice(l.length - 8, l.length))
+            .map((obj) => ({
+              ...obj,
+              isSelected: false,
+            }));
+          setLmplayers([...lm]);
+        } catch (error) {
+          console.error('Error fetching players:', error);
+          setPlayers([]);
         }
-        setMatch(data.data.matchdetails);
-        const k = homePlayers;
-        const l = awayPlayers;
-        const nonp = k
-          .splice(k.length - 11, k.length)
-          .concat(l.splice(l.length - 11, l.length))
-          .map((obj) => ({
-            ...obj,
-            isSelected: false,
-          }));
-        setNonPlayers([...nonp]);
-        const lm = k
-          .splice(k.length - 5, k.length)
-          .concat(l.splice(l.length - 8, l.length))
-          .map((obj) => ({
-            ...obj,
-            isSelected: false,
-          }));
-        setLmplayers([...lm]);
       }
       setLoading(false);
     }
     getupcoming();
+
+    // Timeout fallback to stop loading after 10s
+    const timeout = setTimeout(() => {
+      setLoading(false);
+    }, 10000);
+
+    return () => clearTimeout(timeout);
   }, [id, state]);
   useEffect(() => {
     async function getplayers() {
-      if (user?._id && match) {
-        const data = await axios.get(
-          `${URL}/getteam/${match?.titleFI}/${match.titleSI}`
-        );
-        const moredata = await axios.get(
-          `${URL}/getteam/${match?.titleSI}/${match?.titleFI}`
-        );
-        console.log(data.data.lmplayers, moredata.data.lmplayers, "lmplayers");
-        setLmplayers([...data.data.lmplayers]);
+      const userId = user?._id || user?.uid;
+      if (userId && match) {
+        try {
+          const data = await axios.get(
+            `${URL}/getteam/${match?.titleFI}/${match.titleSI}`,
+            { timeout: 10000 }
+          );
+          const moredata = await axios.get(
+            `${URL}/getteam/${match?.titleSI}/${match?.titleFI}`,
+            { timeout: 10000 }
+          );
+          console.log(data.data.lmplayers, moredata.data.lmplayers, "lmplayers");
+          setLmplayers([...data.data.lmplayers]);
+        } catch (error) {
+          console.error('Error fetching team players:', error);
+        }
       }
     }
     getplayers();

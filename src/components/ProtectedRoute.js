@@ -1,24 +1,40 @@
 import React, { useEffect, useState } from "react";
-import { Route, useNavigate } from "react-router-dom";
-const ProtectedRoute = (props) => {
+import { useNavigate } from "react-router-dom";
+
+const ProtectedRoute = ({ children }) => {
   const navigate = useNavigate();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const checkUserToken = () => {
-    const userToken = localStorage.getItem("user-token");
-    const user = JSON.parse(localStorage.getItem("user") || "{}");
-    if (!userToken || userToken === "undefined") {
+  const [checking, setChecking] = useState(true);
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    const storedUser = localStorage.getItem("user");
+
+    if (!token || token === "undefined") {
       setIsLoggedIn(false);
-      return navigate("/auth/login");
-    }
-    if (user?.email === "rexoagency.in@gmail.com") {
-      setIsLoggedIn(true);
+      setChecking(false);
+      navigate("/login");
       return;
     }
-    setIsLoggedIn(true);
-  };
-  useEffect(() => {
-    checkUserToken();
-  }, [isLoggedIn]);
-  return <React.Fragment>{isLoggedIn ? props.children : null}</React.Fragment>;
+
+    if (storedUser) {
+      try {
+        JSON.parse(storedUser);
+        setIsLoggedIn(true);
+      } catch {
+        setIsLoggedIn(false);
+        navigate("/login");
+      }
+    } else {
+      setIsLoggedIn(false);
+      navigate("/login");
+    }
+    setChecking(false);
+  }, [navigate]);
+
+  if (checking) return null;
+
+  return <React.Fragment>{isLoggedIn ? children : null}</React.Fragment>;
 };
+
 export default ProtectedRoute;
