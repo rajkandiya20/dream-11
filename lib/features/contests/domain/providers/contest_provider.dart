@@ -1,0 +1,187 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../matches/data/models/contest_model.dart';
+import '../../data/repositories/contest_repository.dart';
+
+/// State for contest list screen.
+class ContestListState {
+  final List<ContestModel> contests;
+  final bool isLoading;
+  final String? errorMessage;
+  final String? filterType;
+
+  const ContestListState({
+    this.contests = const [],
+    this.isLoading = false,
+    this.errorMessage,
+    this.filterType,
+  });
+
+  ContestListState copyWith({
+    List<ContestModel>? contests,
+    bool? isLoading,
+    String? errorMessage,
+    String? filterType,
+  }) {
+    return ContestListState(
+      contests: contests ?? this.contests,
+      isLoading: isLoading ?? this.isLoading,
+      errorMessage: errorMessage,
+      filterType: filterType ?? this.filterType,
+    );
+  }
+
+  /// Filtered contests based on current filter.
+  List<ContestModel> get filteredContests {
+    if (filterType == null || filterType == 'all') return contests;
+    return contests.where((c) => c.contestType == filterType).toList();
+  }
+}
+
+/// Notifier for contest list.
+class ContestListNotifier extends StateNotifier<ContestListState> {
+  final ContestRepository _repository;
+  final String matchId;
+
+  ContestListNotifier(this._repository, this.matchId)
+      : super(const ContestListState()) {
+    loadContests();
+  }
+
+  /// Load contests for the match.
+  Future<void> loadContests() async {
+    state = state.copyWith(isLoading: true, errorMessage: null);
+
+    try {
+      final contests = await _repository.getContestsByMatch(matchId);
+      state = state.copyWith(contests: contests, isLoading: false);
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: 'Failed to load contests.',
+      );
+    }
+  }
+
+  /// Set filter type (all, paid, free).
+  void setFilter(String? type) {
+    state = state.copyWith(filterType: type);
+  }
+
+  /// Refresh contests.
+  Future<void> refresh() async {
+    await loadContests();
+  }
+}
+
+/// State for contest detail screen.
+class ContestDetailState {
+  final ContestModel? contest;
+  final List<LeaderboardEntry> leaderboard;
+  final bool isLoading;
+  final bool hasJoined;
+  final String? errorMessage;
+
+  const ContestDetailState({
+    this.contest,
+    this.leaderboard = const [],
+    this.isLoading = false,
+    this.hasJoined = false,
+    this.errorMessage,
+  });
+
+  ContestDetailState copyWith({
+    ContestModel? contest,
+    List<LeaderboardEntry>? leaderboard,
+    bool? isLoading,
+    bool? hasJoined,
+    String? errorMessage,
+  }) {
+    return ContestDetailState(
+      contest: contest ?? this.contest,
+      leaderboard: leaderboard ?? this.leaderboard,
+      isLoading: isLoading ?? this.isLoading,
+      hasJoined: hasJoined ?? this.hasJoined,
+      errorMessage: errorMessage,
+    );
+  }
+}
+
+/// Notifier for contest detail.
+class ContestDetailNotifier extends StateNotifier<ContestDetailState> {
+  final ContestRepository _repository;
+  final String contestId;
+  final String? userId;
+
+  ContestDetailNotifier(this._repository, this.contestId, this.userId)
+      : super(const ContestDetailState()) {
+    loadContestDetail();
+  }
+
+  /// Load contest detail and leaderboard.
+  Future<void> loadContestDetail() async {
+    state = state.copyWith(isLoading: true, errorMessage: null);
+
+    try {
+      final results = await Future.wait([
+        _repository.getContestById(contestId),
+        _repository.getLeaderboard(contestId),
+        if (userId != null)
+          _repository.hasUserJoinedContest(
+            contestId: contestId,
+            userId: userId!,
+          ),
+      ]);
+
+      state = ContestDetailState(
+        contest: results[0] as ContestModel?,
+        leaderboard: results[1] as List<LeaderboardEntry>,
+        hasJoined: results.length > 2 ? results[2] as bool : false,
+        isLoading: false,
+      );
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: 'Failed to load contest details.',
+      );
+    }
+  }
+
+  /// Join contest with a fantasy team.
+  Future<bool> joinContest(String fantasyTeamId) async {
+    if (userId == null) return false;
+
+    final success = await _repository.joinContest(
+      contestId: contestId,
+      userId: userId!,
+      fantasyTeamId: fantasyTeamId,
+    );
+
+    if (success) {
+      state = state.copyWith(hasJoined: true);
+      await loadContestDetail();
+    }
+
+    return success;
+  }
+
+  /// Refresh contest detail.
+  Future<void> refresh() async {
+    await loadContestDetail();
+  }
+}
+
+/// Family provider for contest list keyed by matchId.
+final contestListProvider = StateNotifierProvider.family<ContestListNotifier,
+    ContestListState, String>((ref, matchId) {
+  final repository = ref.watch(contestRepositoryProvider);
+  return ContestListNotifier(repository, matchId);
+});
+
+/// Family provider for contest detail keyed by contestId.
+final contestDetailProvider = StateNotifierProvider.family<
+    ContestDetailNotifier, ContestDetailState, String>((ref, contestId) {
+  final repository = ref.watch(contestRepositoryProvider);
+  // Get user ID from auth state if available.
+  return ContestDetailNotifier(repository, contestId, null);
+});

@@ -2,7 +2,7 @@
   "id": "FEAT-003",
   "type": "feat",
   "description": "Implement Home screen, Match Details, Contest flow, and Fantasy Team Builder - the core gameplay features",
-  "status": "pending",
+  "status": "in_progress",
   "steps": [
     "Create lib/features/home/data/models/match_model.dart - Freezed model for matches table with tournament relation",
     "Create lib/features/home/data/models/tournament_model.dart - Freezed model for tournaments",
