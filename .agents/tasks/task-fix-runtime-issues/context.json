@@ -1,0 +1,29 @@
+{
+  "project_type": "Flutter mobile app (fantasy cricket platform)",
+  "language": "Dart",
+  "build_system": "Flutter SDK with pubspec.yaml",
+  "test_framework": "flutter_test",
+  "build_command": "N/A - Flutter SDK not available in sandbox",
+  "test_command": "N/A - Flutter SDK not available in sandbox",
+  "verification_instructions": "Verify files are syntactically correct Dart/XML. Cannot run flutter build in this environment.",
+  "snapshot_or_generated_files": null,
+  "setup_instructions": "N/A - INTEGRATIONS_ONLY network mode, no Flutter SDK available",
+  "environment_constraints": "INTEGRATIONS_ONLY network mode - no package installation, no Flutter SDK, no Docker. Validation limited to file content inspection and static checks.",
+  "contribution_requirements": "Push directly to main branch, no PR creation",
+  "key_patterns": "Riverpod for state management, GoRouter for navigation, Supabase as backend, Firebase for auth. Main entry point at lib/main.dart with async initialization pattern.",
+  "relevant_files": [
+    "lib/main.dart",
+    "pubspec.yaml",
+    "android/app/google-services.json",
+    "android/app/src/main/res/drawable/launch_background.xml",
+    "android/app/src/main/res/drawable-v21/launch_background.xml",
+    "android/app/src/main/res/values/styles.xml",
+    "android/app/src/main/res/values-night/styles.xml",
+    "android/app/src/main/res/mipmap-hdpi/ic_launcher.png",
+    "android/app/src/main/res/mipmap-mdpi/ic_launcher.png",
+    "android/app/src/main/res/mipmap-xhdpi/ic_launcher.png",
+    "android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png",
+    "android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png"
+  ],
+  "directory_structure": "Standard Flutter project: lib/ for Dart source, android/ for Android native, ios/ for iOS, assets/ for resources. lib/core/ has constants, network, router, storage, theme subdirectories."
+}

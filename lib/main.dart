@@ -33,8 +33,10 @@ void main() async {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
+    debugPrint('✅ Firebase initialized successfully');
   } catch (e) {
-    debugPrint('Firebase initialization failed: $e');
+    debugPrint('❌ Firebase initialization failed: $e');
+    // App continues without Firebase - Supabase is the primary backend
   }
 
   // Initialize Hive for local storage

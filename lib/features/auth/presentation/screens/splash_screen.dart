@@ -22,6 +22,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   late AnimationController _textController;
   late Animation<double> _logoScaleAnimation;
   late Animation<double> _logoRotateAnimation;
+  bool _hasNavigated = false;
 
   @override
   void initState() {
@@ -63,14 +64,27 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     if (!mounted) return;
     _textController.forward();
 
-    // Wait for animation to complete then navigate
+    // Wait for animation to complete then attempt navigation
     await Future.delayed(const Duration(milliseconds: 1500));
     if (!mounted) return;
-    _navigateToNext();
+    _tryNavigate();
   }
 
-  void _navigateToNext() {
+  void _tryNavigate() {
+    if (_hasNavigated) return;
+
     final authState = ref.read(authProvider);
+
+    // If auth is still loading or initial, wait and retry
+    if (authState.status == AuthStatus.loading ||
+        authState.status == AuthStatus.initial) {
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (mounted) _tryNavigate();
+      });
+      return;
+    }
+
+    _hasNavigated = true;
     if (authState.isAuthenticated) {
       context.go(AppRoutes.home);
     } else {
@@ -87,6 +101,15 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
   @override
   Widget build(BuildContext context) {
+    // Listen to auth state changes so we navigate once resolved
+    ref.listen<AuthState>(authProvider, (previous, next) {
+      if (!_hasNavigated &&
+          next.status != AuthStatus.loading &&
+          next.status != AuthStatus.initial) {
+        _tryNavigate();
+      }
+    });
+
     return Scaffold(
       backgroundColor: AppColors.surface,
       body: Center(

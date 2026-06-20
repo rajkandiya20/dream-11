@@ -57,7 +57,17 @@ class AuthNotifier extends StateNotifier<AuthState> {
           user: user,
         );
       } else {
-        state = const AuthState(status: AuthStatus.unauthenticated);
+        // Still authenticated via Firebase - create minimal user model
+        // This handles cases where Supabase fetch fails or user not yet synced
+        state = AuthState(
+          status: AuthStatus.authenticated,
+          user: UserModel(
+            uid: firebaseUser.uid,
+            email: firebaseUser.email ?? '',
+            username: firebaseUser.displayName,
+            avatarUrl: firebaseUser.photoURL,
+          ),
+        );
       }
     } else {
       state = const AuthState(status: AuthStatus.unauthenticated);
@@ -103,48 +113,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
       username: username,
       phoneNumber: phoneNumber,
     );
-
-    if (result.success && result.user != null) {
-      state = AuthState(
-        status: AuthStatus.authenticated,
-        user: result.user,
-      );
-      return true;
-    } else {
-      state = AuthState(
-        status: AuthStatus.error,
-        errorMessage: result.errorMessage,
-      );
-      return false;
-    }
-  }
-
-  /// Sign in with Google.
-  Future<bool> signInWithGoogle() async {
-    state = state.copyWith(status: AuthStatus.loading, errorMessage: null);
-
-    final result = await _repository.signInWithGoogle();
-
-    if (result.success && result.user != null) {
-      state = AuthState(
-        status: AuthStatus.authenticated,
-        user: result.user,
-      );
-      return true;
-    } else {
-      state = AuthState(
-        status: AuthStatus.error,
-        errorMessage: result.errorMessage,
-      );
-      return false;
-    }
-  }
-
-  /// Sign in with GitHub.
-  Future<bool> signInWithGitHub() async {
-    state = state.copyWith(status: AuthStatus.loading, errorMessage: null);
-
-    final result = await _repository.signInWithGitHub();
 
     if (result.success && result.user != null) {
       state = AuthState(

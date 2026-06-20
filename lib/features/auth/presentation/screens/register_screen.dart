@@ -14,7 +14,6 @@ import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/app_text_field.dart';
 import '../../domain/providers/auth_provider.dart';
 import '../widgets/auth_header.dart';
-import '../widgets/social_login_button.dart';
 
 /// Registration screen with full validation and premium design.
 class RegisterScreen extends ConsumerStatefulWidget {
@@ -31,8 +30,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final _confirmPasswordController = TextEditingController();
   final _usernameController = TextEditingController();
   final _phoneController = TextEditingController();
-  bool _isGoogleLoading = false;
-  bool _isGitHubLoading = false;
 
   @override
   void dispose() {
@@ -69,28 +66,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               title: 'Registration Failed',
               message: error,
             );
-      }
-    }
-  }
-
-  Future<void> _handleGoogleSignIn() async {
-    setState(() => _isGoogleLoading = true);
-    final success = await ref.read(authProvider.notifier).signInWithGoogle();
-    if (mounted) {
-      setState(() => _isGoogleLoading = false);
-      if (success) {
-        context.go(AppRoutes.home);
-      }
-    }
-  }
-
-  Future<void> _handleGitHubSignIn() async {
-    setState(() => _isGitHubLoading = true);
-    final success = await ref.read(authProvider.notifier).signInWithGitHub();
-    if (mounted) {
-      setState(() => _isGitHubLoading = false);
-      if (success) {
-        context.go(AppRoutes.home);
       }
     }
   }
@@ -252,48 +227,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     .slideY(begin: 0.1, end: 0),
                 AppSpacing.gapH24,
 
-                // Divider
-                Row(
-                  children: [
-                    Expanded(
-                      child: Container(height: 1, color: AppColors.border),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Text(
-                        'or sign up with',
-                        style: AppTypography.bodySmall.copyWith(
-                          color: AppColors.textTertiary,
-                        ),
-                      ),
-                    ),
-                    Expanded(
-                      child: Container(height: 1, color: AppColors.border),
-                    ),
-                  ],
-                )
-                    .animate()
-                    .fadeIn(delay: 850.ms, duration: 300.ms),
-                AppSpacing.gapH24,
-
-                // Social buttons
-                SocialLoginButton(
-                  provider: SocialProvider.google,
-                  onPressed: _handleGoogleSignIn,
-                  isLoading: _isGoogleLoading,
-                )
-                    .animate()
-                    .fadeIn(delay: 900.ms, duration: 400.ms),
-                AppSpacing.gapH12,
-                SocialLoginButton(
-                  provider: SocialProvider.github,
-                  onPressed: _handleGitHubSignIn,
-                  isLoading: _isGitHubLoading,
-                )
-                    .animate()
-                    .fadeIn(delay: 950.ms, duration: 400.ms),
-                AppSpacing.gapH24,
-
                 // Login link
                 Center(
                   child: Row(
@@ -319,7 +252,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   ),
                 )
                     .animate()
-                    .fadeIn(delay: 1000.ms, duration: 400.ms),
+                    .fadeIn(delay: 850.ms, duration: 400.ms),
                 const SizedBox(height: 32),
               ],
             ),

@@ -106,44 +106,6 @@ class AuthRepository {
     }
   }
 
-  /// Sign in with Google OAuth.
-  Future<AuthResult> signInWithGoogle() async {
-    try {
-      final googleProvider = GoogleAuthProvider();
-      final credential = await _firebaseAuth.signInWithProvider(googleProvider);
-
-      if (credential.user == null) {
-        return AuthResult.failure('Google sign-in failed. Please try again.');
-      }
-
-      final user = await _upsertSupabaseUser(credential.user!);
-      return AuthResult.success(user);
-    } on FirebaseAuthException catch (e) {
-      return AuthResult.failure(_mapFirebaseError(e.code));
-    } catch (e) {
-      return AuthResult.failure('Google sign-in failed. Please try again.');
-    }
-  }
-
-  /// Sign in with GitHub OAuth.
-  Future<AuthResult> signInWithGitHub() async {
-    try {
-      final githubProvider = GithubAuthProvider();
-      final credential = await _firebaseAuth.signInWithProvider(githubProvider);
-
-      if (credential.user == null) {
-        return AuthResult.failure('GitHub sign-in failed. Please try again.');
-      }
-
-      final user = await _upsertSupabaseUser(credential.user!);
-      return AuthResult.success(user);
-    } on FirebaseAuthException catch (e) {
-      return AuthResult.failure(_mapFirebaseError(e.code));
-    } catch (e) {
-      return AuthResult.failure('GitHub sign-in failed. Please try again.');
-    }
-  }
-
   /// Send password reset email.
   Future<AuthResult> forgotPassword({required String email}) async {
     try {

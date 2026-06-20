@@ -1,0 +1,32 @@
+{
+  "project_type": "Flutter mobile app (Fantasy Cricket Platform)",
+  "language": "Dart/Flutter",
+  "build_system": "Flutter SDK (not installed in sandbox), pubspec.yaml with dev_dependencies including flutter_launcher_icons",
+  "test_framework": "flutter_test (no test files exist in the project currently)",
+  "build_command": "flutter build apk --release (not executable - Flutter not installed in sandbox)",
+  "test_command": "flutter test (not executable - Flutter not installed in sandbox)",
+  "verification_instructions": "Since Flutter SDK is not available in this sandbox, verification must be done via static analysis: check Dart syntax correctness, ensure no import errors, validate JSON/YAML configuration. Use grep/read to confirm changes are consistent.",
+  "snapshot_or_generated_files": "Android mipmap icon files in android/app/src/main/res/mipmap-*/. flutter_launcher_icons generates these from assets/icon/app_icon.png.",
+  "setup_instructions": "flutter pub get && dart run build_runner build --delete-conflicting-outputs",
+  "environment_constraints": "INTEGRATIONS_ONLY network mode. Flutter/Dart SDK NOT installed. Cannot run flutter pub get, flutter build, or any Dart tooling. All changes must be validated via static code analysis (reading files, checking syntax). Cannot install packages.",
+  "contribution_requirements": "Clean Architecture with Riverpod state management. Features organized in data/domain/presentation layers.",
+  "key_patterns": "GoRouter with redirect for auth guards, Riverpod StateNotifier for auth state, Firebase Auth + Supabase for user data, flutter_launcher_icons for app icons",
+  "relevant_files": [
+    "lib/core/router/app_router.dart",
+    "lib/features/auth/domain/providers/auth_provider.dart",
+    "lib/features/auth/data/repositories/auth_repository.dart",
+    "lib/features/auth/presentation/screens/login_screen.dart",
+    "lib/features/auth/presentation/screens/register_screen.dart",
+    "lib/features/auth/presentation/screens/splash_screen.dart",
+    "lib/features/auth/presentation/widgets/social_login_button.dart",
+    "lib/features/auth/data/models/user_model.dart",
+    "pubspec.yaml",
+    "assets/icon/app_icon.png",
+    "android/app/src/main/res/mipmap-hdpi/ic_launcher.png",
+    "android/app/src/main/res/mipmap-mdpi/ic_launcher.png",
+    "android/app/src/main/res/mipmap-xhdpi/ic_launcher.png",
+    "android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png",
+    "android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png"
+  ],
+  "directory_structure": "lib/core/ (router, theme, network, utils), lib/features/ (auth, home, matches, contests, fantasy, wallet, groups, profile, notifications, admin), lib/shared/ (widgets, components), assets/ (fonts, icons, images, sounds), android/ (native Android config)"
+}

@@ -1,0 +1,38 @@
+{
+  "id": "FEAT-001",
+  "type": "fix",
+  "description": "Fix authentication flow, remove social login, and generate proper app icons. This is a single cohesive feature that addresses three interrelated issues: (1) Login redirects back to login screen after successful auth due to router/auth state issues, (2) Social login (Google/GitHub) needs complete removal from all layers, (3) App icon is a placeholder and needs proper generation.",
+  "status": "completed",
+  "steps": [
+    "Step 1 - Fix auth provider (lib/features/auth/domain/providers/auth_provider.dart): In _init(), when Firebase user exists but Supabase user is null, create a minimal UserModel from Firebase user data (uid, email, displayName) and set state to authenticated instead of unauthenticated. This ensures users stay logged in even if Supabase fetch fails. Remove signInWithGoogle() and signInWithGitHub() methods entirely.",
+    "Step 2 - Fix auth repository (lib/features/auth/data/repositories/auth_repository.dart): Remove signInWithGoogle() and signInWithGitHub() methods entirely. Keep loginWithEmail, registerWithEmail, forgotPassword, logout, getCurrentUser, and isAdmin.",
+    "Step 3 - Fix router (lib/core/router/app_router.dart): Change the appRouterProvider to properly rebuild when auth state changes. The current implementation creates a new GoRouter instance on every auth state change which is problematic. Instead, use refreshListenable pattern or ensure the redirect logic works with the current approach. The key fix is that after login sets state to authenticated, the router redirect should detect authenticated + on login page and redirect to home.",
+    "Step 4 - Fix login screen (lib/features/auth/presentation/screens/login_screen.dart): Remove all social login related code (_isGoogleLoading, _isGitHubLoading, _handleGoogleSignIn, _handleGitHubSignIn methods). Remove the 'or continue with' divider and SocialLoginButton widgets. Remove the import of social_login_button.dart. Keep the manual context.go(AppRoutes.home) after login success as a fallback alongside the router redirect.",
+    "Step 5 - Fix register screen (lib/features/auth/presentation/screens/register_screen.dart): Remove all social login related code (_isGoogleLoading, _isGitHubLoading, _handleGoogleSignIn, _handleGitHubSignIn methods). Remove the 'or sign up with' divider and SocialLoginButton widgets. Remove the import of social_login_button.dart.",
+    "Step 6 - Delete social login button widget: Remove the file lib/features/auth/presentation/widgets/social_login_button.dart entirely.",
+    "Step 7 - Fix splash screen (lib/features/auth/presentation/screens/splash_screen.dart): Ensure that when auth state is still 'loading' or 'initial', the splash screen waits for it to resolve before navigating. Add a listener or check for the loading state.",
+    "Step 8 - Generate proper app icon: Create a proper 1024x1024 PNG icon for the app using a script (convert command with ImageMagick or Python PIL). The icon should be a solid branded background (#E11D48) with 'D11' text in white centered. Place it at assets/icon/app_icon.png. Then generate properly-sized Android mipmap icons (mdpi=48x48, hdpi=72x72, xhdpi=96x96, xxhdpi=144x144, xxxhdpi=192x192) and place them in the respective android/app/src/main/res/mipmap-*/ directories, replacing both ic_launcher.png and ic_launcher_round.png.",
+    "Step 9 - Verify pubspec.yaml flutter_launcher_icons config: Ensure the flutter_launcher_icons section in pubspec.yaml is correct with android: true, ios: true, image_path pointing to assets/icon/app_icon.png, adaptive_icon_background: '#E11D48', adaptive_icon_foreground: 'assets/icon/app_icon.png'."
+  ],
+  "acceptance_criteria": [
+    "lib/features/auth/domain/providers/auth_provider.dart no longer contains signInWithGoogle or signInWithGitHub methods",
+    "lib/features/auth/domain/providers/auth_provider.dart _init() sets authenticated state with a UserModel built from Firebase data when Supabase user is null but Firebase user exists",
+    "lib/features/auth/data/repositories/auth_repository.dart no longer contains signInWithGoogle or signInWithGitHub methods",
+    "lib/features/auth/presentation/screens/login_screen.dart has no imports or references to social_login_button",
+    "lib/features/auth/presentation/screens/register_screen.dart has no imports or references to social_login_button",
+    "lib/features/auth/presentation/widgets/social_login_button.dart file does not exist",
+    "Router redirect properly sends authenticated users away from login/register to home",
+    "assets/icon/app_icon.png is a valid PNG larger than 100 bytes (not a placeholder)",
+    "Android mipmap directories contain properly-sized icon PNGs (each larger than 100 bytes)",
+    "pubspec.yaml flutter_launcher_icons config is correct"
+  ],
+  "verification": [
+    "grep -r 'signInWithGoogle\\|signInWithGitHub\\|social_login_button' lib/ should return no results",
+    "Check that lib/features/auth/presentation/widgets/social_login_button.dart does not exist",
+    "Read lib/features/auth/domain/providers/auth_provider.dart and confirm _init() creates UserModel from Firebase when Supabase returns null",
+    "Verify assets/icon/app_icon.png file size is > 100 bytes",
+    "Verify android mipmap icon files are > 100 bytes each"
+  ],
+  "blocked_reason": null,
+  "findings": "All changes verified: no social login references remain in lib/, social_login_button.dart deleted, auth provider creates UserModel from Firebase when Supabase returns null, router skips redirects during loading/initial states, splash screen waits for auth resolution, all icon files are valid PNGs above 100 bytes. Flutter SDK not available so no dart analyze or flutter test was possible, but all changes are syntactically correct Dart code following existing patterns."
+}

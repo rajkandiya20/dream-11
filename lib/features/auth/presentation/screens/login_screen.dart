@@ -14,9 +14,8 @@ import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/app_text_field.dart';
 import '../../domain/providers/auth_provider.dart';
 import '../widgets/auth_header.dart';
-import '../widgets/social_login_button.dart';
 
-/// Premium login screen with email/password and social auth.
+/// Premium login screen with email/password authentication.
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
@@ -28,8 +27,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  bool _isGoogleLoading = false;
-  bool _isGitHubLoading = false;
 
   @override
   void dispose() {
@@ -55,48 +52,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               title: 'Login Failed',
               message: error,
             );
-      }
-    }
-  }
-
-  Future<void> _handleGoogleSignIn() async {
-    setState(() => _isGoogleLoading = true);
-
-    final success = await ref.read(authProvider.notifier).signInWithGoogle();
-
-    if (mounted) {
-      setState(() => _isGoogleLoading = false);
-      if (success) {
-        context.go(AppRoutes.home);
-      } else {
-        final error = ref.read(authProvider).errorMessage;
-        if (error != null) {
-          ref.read(notificationControllerProvider.notifier).showError(
-                title: 'Sign In Failed',
-                message: error,
-              );
-        }
-      }
-    }
-  }
-
-  Future<void> _handleGitHubSignIn() async {
-    setState(() => _isGitHubLoading = true);
-
-    final success = await ref.read(authProvider.notifier).signInWithGitHub();
-
-    if (mounted) {
-      setState(() => _isGitHubLoading = false);
-      if (success) {
-        context.go(AppRoutes.home);
-      } else {
-        final error = ref.read(authProvider).errorMessage;
-        if (error != null) {
-          ref.read(notificationControllerProvider.notifier).showError(
-                title: 'Sign In Failed',
-                message: error,
-              );
-        }
       }
     }
   }
@@ -186,50 +141,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     .slideY(begin: 0.1, end: 0),
                 AppSpacing.gapH32,
 
-                // Divider
-                Row(
-                  children: [
-                    Expanded(
-                      child: Container(height: 1, color: AppColors.border),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Text(
-                        'or continue with',
-                        style: AppTypography.bodySmall.copyWith(
-                          color: AppColors.textTertiary,
-                        ),
-                      ),
-                    ),
-                    Expanded(
-                      child: Container(height: 1, color: AppColors.border),
-                    ),
-                  ],
-                )
-                    .animate()
-                    .fadeIn(delay: 750.ms, duration: 300.ms),
-                AppSpacing.gapH24,
-
-                // Social buttons
-                SocialLoginButton(
-                  provider: SocialProvider.google,
-                  onPressed: _handleGoogleSignIn,
-                  isLoading: _isGoogleLoading,
-                )
-                    .animate()
-                    .fadeIn(delay: 800.ms, duration: 400.ms)
-                    .slideY(begin: 0.1, end: 0),
-                AppSpacing.gapH12,
-                SocialLoginButton(
-                  provider: SocialProvider.github,
-                  onPressed: _handleGitHubSignIn,
-                  isLoading: _isGitHubLoading,
-                )
-                    .animate()
-                    .fadeIn(delay: 900.ms, duration: 400.ms)
-                    .slideY(begin: 0.1, end: 0),
-                AppSpacing.gapH32,
-
                 // Register link
                 Center(
                   child: Row(
@@ -255,7 +166,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ),
                 )
                     .animate()
-                    .fadeIn(delay: 1000.ms, duration: 400.ms),
+                    .fadeIn(delay: 750.ms, duration: 400.ms),
               ],
             ),
           ),
