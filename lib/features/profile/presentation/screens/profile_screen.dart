@@ -53,6 +53,70 @@ class ProfileScreen extends ConsumerWidget {
                       onTap: () => context.go(AppRoutes.wallet),
                     ),
                   ),
+                  // Admin Panel Button (only for admin users)
+                  if (authState.isAdmin)
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                        child: GestureDetector(
+                          onTap: () => context.push(AppRoutes.adminDashboard),
+                          child: Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [Color(0xFFDC2626), Color(0xFFB91C1C)],
+                                begin: Alignment.centerLeft,
+                                end: Alignment.centerRight,
+                              ),
+                              borderRadius: AppSpacing.borderRadiusMd,
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 40,
+                                  height: 40,
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.2),
+                                    borderRadius: AppSpacing.borderRadiusSm,
+                                  ),
+                                  child: const Icon(
+                                    Icons.admin_panel_settings,
+                                    color: Colors.white,
+                                    size: 22,
+                                  ),
+                                ),
+                                AppSpacing.gapW12,
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Admin Panel',
+                                        style: AppTypography.titleSmall.copyWith(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                      Text(
+                                        'Manage app settings & users',
+                                        style: AppTypography.bodySmall.copyWith(
+                                          color: Colors.white.withOpacity(0.8),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const Icon(
+                                  Icons.arrow_forward_ios,
+                                  color: Colors.white,
+                                  size: 16,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
                   // Stats Section
                   SliverToBoxAdapter(
                     child: Padding(

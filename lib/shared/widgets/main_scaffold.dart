@@ -48,7 +48,7 @@ class MainScaffold extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppColors.scaffoldBackground,
       body: child,
-      extendBody: true,
+      extendBody: false,
       bottomNavigationBar: FloatingBottomNavBar(
         currentIndex: selectedIndex,
         onTap: (index) => _onItemTapped(context, index),
