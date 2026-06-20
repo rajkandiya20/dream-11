@@ -38,9 +38,17 @@ class AuthNotifier extends StateNotifier<AuthState> {
     final firebaseUser = _repository.currentFirebaseUser;
     if (firebaseUser != null) {
       debugPrint('✅ Existing session: ${firebaseUser.email}');
-      // Set loading state while we fetch the full user profile from Supabase
-      state = const AuthState(status: AuthStatus.loading);
-      // Fetch full user data (including role) from Supabase before emitting authenticated
+      // Set authenticated IMMEDIATELY with Firebase data (fast)
+      state = AuthState(
+        status: AuthStatus.authenticated,
+        user: UserModel(
+          uid: firebaseUser.uid,
+          email: firebaseUser.email ?? '',
+          username: firebaseUser.displayName,
+          avatarUrl: firebaseUser.photoURL,
+        ),
+      );
+      // Then fetch Supabase data in background (slow but non-blocking)
       _fetchSupabaseUser(firebaseUser);
     } else {
       debugPrint('ℹ️ No session, unauthenticated');
