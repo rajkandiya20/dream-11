@@ -2,7 +2,7 @@
   "id": "FEAT-004",
   "type": "feat",
   "description": "Implement Wallet, Profile, Groups, Notifications features and the complete Admin Dashboard",
-  "status": "pending",
+  "status": "in_progress",
   "steps": [
     "Create lib/features/wallet/data/models/wallet_model.dart - Freezed model for wallets table (balance, bonus, winnings)",
     "Create lib/features/wallet/data/models/transaction_model.dart - Freezed model for transactions",

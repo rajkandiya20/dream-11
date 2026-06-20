@@ -8,16 +8,18 @@ import '../../domain/providers/admin_provider.dart';
 import '../widgets/admin_data_table.dart';
 import '../widgets/admin_nav_drawer.dart';
 
-/// Match manager admin screen - CRUD for matches with team selection.
-class MatchManagerScreen extends ConsumerStatefulWidget {
-  const MatchManagerScreen({super.key});
+/// Admin matches CRUD screen with team selection and status management.
+class AdminMatchesScreen extends ConsumerStatefulWidget {
+  const AdminMatchesScreen({super.key});
 
   @override
-  ConsumerState<MatchManagerScreen> createState() =>
-      _MatchManagerScreenState();
+  ConsumerState<AdminMatchesScreen> createState() =>
+      _AdminMatchesScreenState();
 }
 
-class _MatchManagerScreenState extends ConsumerState<MatchManagerScreen> {
+class _AdminMatchesScreenState extends ConsumerState<AdminMatchesScreen> {
+  String? _statusFilter;
+
   @override
   void initState() {
     super.initState();
@@ -35,119 +37,65 @@ class _MatchManagerScreenState extends ConsumerState<MatchManagerScreen> {
       appBar: AppBar(
         backgroundColor: AppColors.surface,
         elevation: 0,
-        leading: IconButton(
-          onPressed: () => Navigator.of(context).pop(),
-          icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
+        leading: Builder(
+          builder: (context) => IconButton(
+            onPressed: () => Scaffold.of(context).openDrawer(),
+            icon: const Icon(Icons.menu, color: AppColors.textPrimary),
+          ),
         ),
         title: Text(
-          'Match Manager',
+          'Matches',
           style: AppTypography.titleLarge.copyWith(color: AppColors.textPrimary),
         ),
+        actions: [
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.filter_list, color: AppColors.textSecondary),
+            onSelected: (status) {
+              setState(() => _statusFilter = status == 'all' ? null : status);
+              ref
+                  .read(adminProvider.notifier)
+                  .loadMatches(status: _statusFilter);
+            },
+            itemBuilder: (_) => [
+              const PopupMenuItem(value: 'all', child: Text('All')),
+              const PopupMenuItem(value: 'upcoming', child: Text('Upcoming')),
+              const PopupMenuItem(value: 'live', child: Text('Live')),
+              const PopupMenuItem(value: 'completed', child: Text('Completed')),
+            ],
+          ),
+        ],
       ),
       drawer: const AdminNavDrawer(currentRoute: '/admin/matches'),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: AdminDataTable(
-          title: 'Manage Matches',
-          columns: const ['Team A', 'Team B', 'Status', 'Venue'],
+          title: 'All Matches',
+          columns: const ['Team A', 'Team B', 'Status', 'Date'],
           displayKeys: const [
             'team_a_name',
             'team_b_name',
             'status',
-            'venue'
+            'date_time'
           ],
           rows: adminState.matches,
           isLoading: adminState.isLoading,
-          onAdd: () => _showCreateMatchDialog(),
-          onEdit: (match) => _showEditMatchDialog(match),
-          onDelete: (match) async {
-            await ref
-                .read(adminProvider.notifier)
-                .deleteMatch(match['id'] as String);
-          },
+          onAdd: () => _showFormDialog(null),
+          onEdit: (match) => _showFormDialog(match),
+          onDelete: (match) => _confirmDelete(match),
         ),
       ),
     );
   }
 
-  void _showCreateMatchDialog() {
-    final teamAController = TextEditingController();
-    final teamBController = TextEditingController();
-    final venueController = TextEditingController();
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: AppSpacing.borderRadiusLg),
-        title: Text('Create Match', style: AppTypography.titleLarge),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: teamAController,
-                decoration: InputDecoration(
-                  labelText: 'Team A Name',
-                  border: OutlineInputBorder(
-                    borderRadius: AppSpacing.borderRadiusSm,
-                  ),
-                ),
-              ),
-              AppSpacing.gapH12,
-              TextField(
-                controller: teamBController,
-                decoration: InputDecoration(
-                  labelText: 'Team B Name',
-                  border: OutlineInputBorder(
-                    borderRadius: AppSpacing.borderRadiusSm,
-                  ),
-                ),
-              ),
-              AppSpacing.gapH12,
-              TextField(
-                controller: venueController,
-                decoration: InputDecoration(
-                  labelText: 'Venue',
-                  border: OutlineInputBorder(
-                    borderRadius: AppSpacing.borderRadiusSm,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              final success =
-                  await ref.read(adminProvider.notifier).createMatch({
-                'team_a_name': teamAController.text.trim(),
-                'team_b_name': teamBController.text.trim(),
-                'venue': venueController.text.trim(),
-                'status': 'upcoming',
-              });
-              if (success && mounted) Navigator.pop(context);
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
-            child: const Text('Create', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showEditMatchDialog(Map<String, dynamic> match) {
+  void _showFormDialog(Map<String, dynamic>? match) {
+    final isEditing = match != null;
     final teamAController =
-        TextEditingController(text: match['team_a_name'] ?? '');
+        TextEditingController(text: match?['team_a_name'] ?? '');
     final teamBController =
-        TextEditingController(text: match['team_b_name'] ?? '');
+        TextEditingController(text: match?['team_b_name'] ?? '');
     final venueController =
-        TextEditingController(text: match['venue'] ?? '');
-    String status = match['status'] ?? 'upcoming';
+        TextEditingController(text: match?['venue'] ?? '');
+    String status = match?['status'] ?? 'upcoming';
 
     showDialog(
       context: context,
@@ -156,7 +104,10 @@ class _MatchManagerScreenState extends ConsumerState<MatchManagerScreen> {
           shape: RoundedRectangleBorder(
             borderRadius: AppSpacing.borderRadiusLg,
           ),
-          title: Text('Edit Match', style: AppTypography.titleLarge),
+          title: Text(
+            isEditing ? 'Edit Match' : 'Create Match',
+            style: AppTypography.titleLarge,
+          ),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -214,23 +165,60 @@ class _MatchManagerScreenState extends ConsumerState<MatchManagerScreen> {
             ),
             ElevatedButton(
               onPressed: () async {
-                final success = await ref
-                    .read(adminProvider.notifier)
-                    .updateMatch(match['id'] as String, {
+                final data = {
                   'team_a_name': teamAController.text.trim(),
                   'team_b_name': teamBController.text.trim(),
                   'venue': venueController.text.trim(),
                   'status': status,
-                });
+                };
+                bool success;
+                if (isEditing) {
+                  success = await ref
+                      .read(adminProvider.notifier)
+                      .updateMatch(match['id'], data);
+                } else {
+                  success = await ref
+                      .read(adminProvider.notifier)
+                      .createMatch(data);
+                }
                 if (success && mounted) Navigator.pop(context);
               },
               style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary),
-              child:
-                  const Text('Update', style: TextStyle(color: Colors.white)),
+              child: Text(
+                isEditing ? 'Update' : 'Create',
+                style: const TextStyle(color: Colors.white),
+              ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  void _confirmDelete(Map<String, dynamic> match) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Match'),
+        content: Text(
+            'Delete match "${match['team_a_name']} vs ${match['team_b_name']}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              await ref
+                  .read(adminProvider.notifier)
+                  .deleteMatch(match['id']);
+              if (mounted) Navigator.pop(context);
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
+            child: const Text('Delete', style: TextStyle(color: Colors.white)),
+          ),
+        ],
       ),
     );
   }
