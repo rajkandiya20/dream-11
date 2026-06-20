@@ -1,0 +1,36 @@
+{
+  "id": "FEAT-001",
+  "type": "fix",
+  "description": "Fix all 3 runtime issues: Firebase initialization, app icons, and splash screen",
+  "status": "completed",
+  "steps": [
+    "Create lib/firebase_options.dart with DefaultFirebaseOptions class using placeholder values from google-services.json (project_id: dream11-fantasy, app_id: 1:000000000000:android:0000000000000000, api_key: AIzaSyPlaceholderKeyForBuildOnly, storage_bucket: dream11-fantasy.appspot.com, messaging_sender_id: 000000000000)",
+    "Update lib/main.dart to import firebase_core and firebase_options.dart, add Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform) wrapped in try-catch BEFORE the Supabase initialization line",
+    "Update pubspec.yaml to add flutter_launcher_icons: ^0.14.3 and flutter_native_splash: ^2.4.3 to dev_dependencies, add flutter_launcher_icons config section, add flutter_native_splash config section with color #E11D48, add assets/icon/ to assets list",
+    "Create assets/icon/app_icon.png - a proper 1024x1024 PNG with solid #E11D48 red color (generate using dart:io or base64 encoded minimal valid PNG)",
+    "Generate proper-sized solid red (#E11D48) PNG files for each mipmap density: mdpi 48x48, hdpi 72x72, xhdpi 96x96, xxhdpi 144x144, xxxhdpi 192x192 - replace both ic_launcher.png and ic_launcher_round.png in each density folder. Use a script that creates valid PNG files with proper headers.",
+    "Update android/app/src/main/res/drawable/launch_background.xml to use solid color #E11D48 instead of ?android:colorBackground",
+    "Update android/app/src/main/res/drawable-v21/launch_background.xml to use solid color #E11D48 instead of ?android:colorBackground",
+    "Update android/app/src/main/res/values/styles.xml to set LaunchTheme windowBackground to use the updated launch_background drawable (already references it, so just ensure it stays correct)",
+    "Update android/app/src/main/res/values-night/styles.xml similarly to ensure night mode also uses the red splash"
+  ],
+  "acceptance_criteria": [
+    "lib/firebase_options.dart exists with DefaultFirebaseOptions class containing currentPlatform getter and android/ios FirebaseOptions",
+    "lib/main.dart imports firebase_core and firebase_options, calls Firebase.initializeApp with try-catch before Supabase init",
+    "pubspec.yaml has flutter_launcher_icons and flutter_native_splash in dev_dependencies with proper config sections",
+    "assets/icon/app_icon.png exists as a valid PNG file",
+    "All mipmap density folders have properly-sized PNG files for ic_launcher.png and ic_launcher_round.png",
+    "Both launch_background.xml files use #E11D48 solid color",
+    "styles.xml files reference the launch_background drawable correctly"
+  ],
+  "verification": [
+    "Read lib/firebase_options.dart and confirm it has DefaultFirebaseOptions with currentPlatform",
+    "Read lib/main.dart and confirm Firebase.initializeApp is called in try-catch before SupabaseClientHelper.initialize()",
+    "Read pubspec.yaml and confirm dev_dependencies include flutter_launcher_icons and flutter_native_splash",
+    "Verify assets/icon/app_icon.png exists and is a valid PNG (check file header bytes)",
+    "Verify mipmap PNG files exist and are larger than 70 bytes (the placeholder size)",
+    "Read both launch_background.xml files and confirm #E11D48 color"
+  ],
+  "blocked_reason": null,
+  "findings": "All 3 runtime issues fixed in a single commit on fix/kotlin-version branch. No Flutter SDK available so verification was limited to file content inspection. PNG files generated using Python script with proper PNG headers and correct dimensions. styles.xml files already referenced launch_background drawable correctly so only the drawable XMLs needed color changes."
+}
