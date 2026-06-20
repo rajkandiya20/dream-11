@@ -96,10 +96,10 @@ class _UpcomingMatchCardState extends State<UpcomingMatchCard> {
                   Padding(
                     padding: const EdgeInsets.only(right: 8),
                     child: CachedImage(
-                      url: widget.match.tournamentLogo!,
+                      imageUrl: widget.match.tournamentLogo!,
                       width: 16,
                       height: 16,
-                      borderRadius: 4,
+                      borderRadius: BorderRadius.circular(4),
                     ),
                   ),
                 Expanded(
@@ -226,10 +226,10 @@ class _TeamLogo extends StatelessWidget {
   Widget build(BuildContext context) {
     if (flag != null && flag!.isNotEmpty) {
       return CachedImage(
-        url: flag!,
+        imageUrl: flag!,
         width: 36,
         height: 36,
-        borderRadius: 18,
+        borderRadius: BorderRadius.circular(18),
       );
     }
     return Container(
