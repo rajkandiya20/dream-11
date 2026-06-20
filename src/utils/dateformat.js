@@ -1,6 +1,14 @@
-import moment from "moment";
+function formatTime(date) {
+  const d = new Date(date);
+  return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+}
 
-const days = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+function formatDateAndTime(date) {
+  const d = new Date(date);
+  const datePart = d.toLocaleDateString('en-US', { day: '2-digit', month: 'short' });
+  const timePart = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+  return `${datePart}, ${timePart}`;
+}
 
 const value = "";
 export function getDisplayDate(date, sc, d) {
@@ -17,26 +25,26 @@ export function getDisplayDate(date, sc, d) {
   const diff = current.getTime() - today.getTime(); // get the difference between today(at 00:00:00) and the date
   if (current.getTime() == today.getTime()) {
     if (sc) {
-      const a = moment(date).format("HH:mm a");
+      const a = formatTime(date);
       return `Today, ${a}`;
     }
     return "Today";
   }
   if (Math.abs(diff) < 24 * 60 * 60 * 1000 * 2 && diff > 0) {
-    const a = moment(date).format("HH:mm a");
+    const a = formatTime(date);
     return `Tommorrow, ${a}`;
   }
   if (Math.abs(diff) < 24 * 60 * 60 * 1000 * 2 && diff < 0) {
-    const a = moment(date).format("HH:mm a");
+    const a = formatTime(date);
     return `Yesterday, ${a}`;
   }
   if (
     today.getDate() - current.getDate() < 7 &&
     today.getMonth() == current.getMonth()
   ) {
-    return moment(date).format("DD MMM, HH:MM a"); // or format it what ever way you want
+    return formatDateAndTime(date); // or format it what ever way you want
   }
-  return moment(date).format("DD MMM, HH:MM a");
+  return formatDateAndTime(date);
 }
 
 export function sameDayorNot(a, b) {

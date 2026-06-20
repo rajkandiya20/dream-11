@@ -2,7 +2,6 @@ import "./App.css";
 
 import { useEffect, useState } from "react";
 import ReactCanvasConfetti from "react-confetti";
-import ReactGA from "react-ga";
 import { useDispatch, useSelector } from "react-redux";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { loadUser } from "./actions/userAction";
@@ -23,8 +22,6 @@ import SavedTeam from "./components/savedteam";
 import NewUsers from "./components/newUsers";
 import FindPeople from "./components/findPeople/FindPeople";
 
-import { WhatsAppWidget } from "react-whatsapp-widget";
-import "react-whatsapp-widget/dist/index.css";
 import MyInfo from "./components/myinfo/MyInfo";
 import TransactionTabs from "./components/transaction";
 import Admin from "./components/admin/Admin";
@@ -75,9 +72,6 @@ function App() {
     };
   }, [dimensions]);
 
-  const TRACKING_ID = "G-YWB7BCRZML";
-  ReactGA.initialize(TRACKING_ID);
-
   const { user, isAuthenticated, loading, error } = useSelector(
     (state) => state.user
   );
@@ -85,10 +79,6 @@ function App() {
   useEffect(() => {
     dispatch(loadUser());
   }, [dispatch]);
-
-  useEffect(() => {
-    ReactGA.pageview(window.location.pathname + window.location.search);
-  }, []);
 
   // Show splash screen on initial app load
   if (showSplash) {
@@ -139,9 +129,6 @@ function App() {
           opacity={0.6}
         />
       )}
-      <div className="whatsappwidget">
-        <WhatsAppWidget phoneNumber="7259293140" />
-      </div>
     </>
   );
 }

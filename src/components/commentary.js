@@ -1,16 +1,9 @@
 import styled from "@emotion/styled";
-import { RemoveRedEyeSharp } from "@mui/icons-material";
-import EmojiEventsOutlinedIcon from "@mui/icons-material/EmojiEventsOutlined";
-import FeedOutlinedIcon from "@mui/icons-material/FeedOutlined";
-import GroupsOutlinedIcon from "@mui/icons-material/GroupsOutlined";
-import HomeOutlinedIcon from "@mui/icons-material/HomeOutlined";
-import MoreHorizOutlinedIcon from "@mui/icons-material/MoreHorizOutlined";
 import { useEffect, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import { addconfetti, removeconfetti } from "../actions/userAction";
-import Animate from "./animate";
-import Cracker from "./Cracker";
+import { subscribeToScoreboard } from "../services/realtimeService";
 
 const CommentaryContainer = styled.div`
   padding: 15px 0;
@@ -99,16 +92,38 @@ export function Commentary({ matchdata }) {
   const [commentary, setCommentary] = useState([]);
   const scrollit = useRef();
   const dispatch = useDispatch();
-  const [launched, setLaunched] = useState(true);
-  const [lastPong, setLastPong] = useState(null);
-  const [confetti, setConfetti] = useState(false);
+
   useEffect(() => {
-    // TODO: Replace with Supabase realtime subscription for commentary data
-    // The previous implementation used Firestore onSnapshot on a 'cities' collection
-    // which does not exist in Supabase. Commentary data should be fetched via
-    // Supabase realtime channels once the backend is set up.
+    const matchId = matchdata?.matchId || matchdata?.id || matchdata?._id;
+    if (!matchId) return;
+
+    const unsubscribe = subscribeToScoreboard(matchId, (payload) => {
+      const newData = payload.new;
+      if (newData && newData.commentary) {
+        // Transform scoreboard commentary data to the expected format
+        const commentaryData = Array.isArray(newData.commentary)
+          ? newData.commentary
+          : [];
+        setCommentary(commentaryData);
+      } else if (newData) {
+        // If the payload contains ball-by-ball data directly
+        setCommentary((prev) => {
+          const entry = {
+            event: newData.event || '',
+            overNumber: newData.over_number || newData.overNumber || '',
+            commText: newData.comm_text || newData.commText || '',
+            overSeparator: newData.over_separator || newData.overSeparator || null,
+          };
+          return [entry, ...prev];
+        });
+      }
+    });
+
+    return () => {
+      unsubscribe();
+    };
   }, [matchdata]);
-  console.log(commentary, "com");
+
   useEffect(() => {
     if (commentary[0]?.event == "SIX") {
       dispatch(addconfetti());
@@ -133,19 +148,19 @@ export function Commentary({ matchdata }) {
 
   return (
     <CommentaryContainer>
-      {commentary?.map((p) => (
-        <>
+      {commentary?.map((p, idx) => (
+        <div key={idx}>
           {p?.event == "over-break" ? (
             <>
               <Break>
-                <h5>End of over {p?.overSeparator.overNum}</h5>
+                <h5>End of over {p?.overSeparator?.overNum}</h5>
                 <BreakBot>
-                  <p>{p?.overSeparator.bowlNames[0]}</p>
-                  <p>{p?.overSeparator.runs} runs</p>
-                  <p>{p?.overSeparator.bowlwickets} wickets</p>
-                  <p>{p?.overSeparator.batTeamName}</p>
+                  <p>{p?.overSeparator?.bowlNames?.[0]}</p>
+                  <p>{p?.overSeparator?.runs} runs</p>
+                  <p>{p?.overSeparator?.bowlwickets} wickets</p>
+                  <p>{p?.overSeparator?.batTeamName}</p>
                   <p>
-                    {p?.overSeparator.score}/{p?.overSeparator.wickets}
+                    {p?.overSeparator?.score}/{p?.overSeparator?.wickets}
                   </p>
                 </BreakBot>
               </Break>
@@ -182,9 +197,8 @@ export function Commentary({ matchdata }) {
               <Des>{p?.commText?.replace("$", "").replace("B0", "")}</Des>
             </Comment>
           )}
-        </>
+        </div>
       ))}
-      <Animate confetti={confetti} setConfetti={setConfetti} />
     </CommentaryContainer>
   );
 }
