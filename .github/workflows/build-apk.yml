@@ -35,6 +35,16 @@ jobs:
         uses: android-actions/setup-android@v3
 
       - name: Build React App
+        env:
+          REACT_APP_SUPABASE_URL: ${{ secrets.REACT_APP_SUPABASE_URL }}
+          REACT_APP_SUPABASE_ANON_KEY: ${{ secrets.REACT_APP_SUPABASE_ANON_KEY }}
+          REACT_APP_FIREBASE_API_KEY: ${{ secrets.REACT_APP_FIREBASE_API_KEY }}
+          REACT_APP_FIREBASE_AUTH_DOMAIN: dream11local.firebaseapp.com
+          REACT_APP_FIREBASE_PROJECT_ID: dream11local
+          REACT_APP_FIREBASE_STORAGE_BUCKET: dream11local.firebasestorage.app
+          REACT_APP_FIREBASE_MESSAGING_SENDER_ID: "325007849691"
+          REACT_APP_FIREBASE_APP_ID: "1:325007849691:web:2bc6df74747cf46e5234fe"
+          CI: false
         run: npm run build
 
       - name: Setup Capacitor Android
