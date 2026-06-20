@@ -4,6 +4,8 @@ import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
 import SportsCricketIcon from "@mui/icons-material/SportsCricket";
 import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
 import GroupAddIcon from "@mui/icons-material/GroupAdd";
+import PeopleIcon from "@mui/icons-material/People";
+import LeaderboardIcon from "@mui/icons-material/Leaderboard";
 import { useState, useEffect } from "react";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
@@ -12,8 +14,12 @@ import AWithdrawal from "./Awithdrawal";
 import TournamentManager from "./TournamentManager";
 import MatchManager from "./MatchManager";
 import ScoreboardManager from "./ScoreboardManager";
+import PlayerManager from "./PlayerManager";
+import ContestManager from "./ContestManager";
 import Navbar from "../navbar";
 import Bottomnav from "../navbar/bottomnavbar";
+import { checkIsAdmin, ensureAdminDocument } from "../../services/adminService";
+import { logRender } from "../../utils/logger";
 
 const Container = styled.div`
   .MuiTabs-indicator {
@@ -59,15 +65,28 @@ export default function AdminDashboard() {
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
-    const adminEmail = "rexoagency.in@gmail.com";
-    const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
-    const storedToken = localStorage.getItem("token");
-    
-    if (storedUser?.email === adminEmail || user?.email === adminEmail) {
-      setIsAdmin(true);
-    } else if (!isAuthenticated || !storedToken) {
-      navigate("/login");
-    }
+    logRender('AdminDashboard', 'mount');
+
+    const verifyAdmin = async () => {
+      const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
+      const storedToken = localStorage.getItem("token");
+      const currentEmail = user?.email || storedUser?.email;
+      const currentUid = user?.uid || storedUser?.uid;
+
+      if (currentEmail && checkIsAdmin(currentEmail)) {
+        setIsAdmin(true);
+        // Ensure admin document exists in Firestore with super_admin role
+        if (currentUid) {
+          await ensureAdminDocument(currentUid, currentEmail);
+        }
+      } else if (!isAuthenticated || !storedToken) {
+        navigate("/login");
+      } else {
+        navigate("/");
+      }
+    };
+
+    verifyAdmin();
   }, [user, isAuthenticated, navigate]);
 
   const handleChange = (event, newValue) => {
@@ -79,8 +98,14 @@ export default function AdminDashboard() {
     { label: "Withdrawal Approve", icon: <AccountBalanceIcon /> },
     { label: "Tournaments", icon: <EmojiEventsIcon /> },
     { label: "Matches", icon: <SportsCricketIcon /> },
+    { label: "Players", icon: <PeopleIcon /> },
+    { label: "Contests", icon: <LeaderboardIcon /> },
     { label: "Scoreboard", icon: <GroupAddIcon /> },
   ];
+
+  if (!isAdmin) {
+    return null;
+  }
 
   return (
     <>
@@ -114,6 +139,12 @@ export default function AdminDashboard() {
           <MatchManager />
         </TabPanel>
         <TabPanel value={value} index={4}>
+          <PlayerManager />
+        </TabPanel>
+        <TabPanel value={value} index={5}>
+          <ContestManager />
+        </TabPanel>
+        <TabPanel value={value} index={6}>
           <ScoreboardManager />
         </TabPanel>
       </Container>

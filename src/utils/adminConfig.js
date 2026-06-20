@@ -23,7 +23,6 @@ export const isAdminEmail = (email) => email === "rexoagency.in@gmail.com";
 
 export const ADMIN_CONFIG = {
   email: "rexoagency.in@gmail.com",
-  password: "Mm12345@",
 };
 
 export default AdminLoginCheck;
