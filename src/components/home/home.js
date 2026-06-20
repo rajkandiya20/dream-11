@@ -140,7 +140,7 @@ const RetryButton = styled(Button)`
 `;
 
 export function Home() {
-  const { user, isAuthenticated, error } = useSelector((state) => state.user);
+  const { user, isAuthenticated, loading: userLoading } = useSelector((state) => state.user);
   const [upcoming, setUpcoming] = useState([]);
   const [loading, setLoading] = useState(true);
   const [apiError, setApiError] = useState(null);
@@ -164,11 +164,8 @@ export function Home() {
         getCompletedMatches()
       ]);
 
-      if (!upcomingData.length && !liveData.length && !completedData.length) {
-        return null;
-      }
-
-      return { upcoming: upcomingData, live: liveData, past: completedData };
+      // Even if empty, return the arrays (empty state is valid)
+      return { upcoming: upcomingData || [], live: liveData || [], past: completedData || [] };
     } catch (error) {
       console.error("Error fetching from Supabase:", error);
       return null;
@@ -177,19 +174,10 @@ export function Home() {
 
   // Fetch data with error handling
   const fetchData = useCallback(async () => {
-    const userId = user?._id || user?.uid;
-    
-    if (!userId) {
-      console.log('No user ID, skipping data fetch');
-      setLoading(false);
-      return;
-    }
-
-    console.log('Fetching home data for user:', userId);
     setLoading(true);
     setApiError(null);
 
-    // Try Supabase first
+    // Try Supabase first (doesn't need userId)
     const supabaseData = await fetchMatchesFromSupabase();
     if (supabaseData) {
       setUpcoming(supabaseData.upcoming || []);
@@ -200,11 +188,15 @@ export function Home() {
       setLoading(false);
       setApiError(null);
       setRetryCount(0);
-      console.log('Data loaded from Supabase');
       return;
     }
 
-    // Fallback to backend API
+    // Fallback to backend API (needs userId)
+    const userId = user?._id || user?.uid;
+    if (!userId) {
+      setLoading(false);
+      return;
+    }
     try {
       // Create axios instance with timeout
       const api = axios.create({
@@ -299,17 +291,10 @@ export function Home() {
     }
   };
 
-  // Load data when user changes
+  // Load data on mount and when user changes
   useEffect(() => {
-    if (user && (user._id || user.uid)) {
-      fetchData();
-    } else if (!loading) {
-      // If not loading and no user, show empty state
-      setUpcoming([]);
-      setLive([]);
-      setPast([]);
-    }
-  }, [user, fetchData]);
+    fetchData();
+  }, [fetchData]);
 
   // Real-time subscription for match changes
   useEffect(() => {
