@@ -37,6 +37,7 @@ import ScoreboardManager from "./components/admin/ScoreboardManager";
 import ADeposit from "./components/admin/ADeposit";
 import AWithdrawal from "./components/admin/Awithdrawal";
 import ProtectedRoute from "./components/ProtectedRoute";
+import SplashScreen from "./components/SplashScreen";
 import Feed from "./components/feed/Feed";
 import Groups from "./components/groups/Groups";
 import More from "./components/more/More";
@@ -45,7 +46,7 @@ import Notifications from "./components/notifications/Notifications";
 function App() {
   const dispatch = useDispatch();
   const { confetti } = useSelector((state) => state.user);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [showSplash, setShowSplash] = useState(true);
 
   const [dimensions, setDimensions] = useState({
     width: window.innerWidth,
@@ -58,9 +59,14 @@ function App() {
       height: window.innerHeight,
     });
   };
+
+  // Show splash screen for 2.5 seconds on app load
   useEffect(() => {
-    checkUserToken();
-  }, [isLoggedIn]);
+    const splashTimer = setTimeout(() => {
+      setShowSplash(false);
+    }, 2500);
+    return () => clearTimeout(splashTimer);
+  }, []);
 
   useEffect(() => {
     window.addEventListener("resize", showAnimation);
@@ -68,56 +74,59 @@ function App() {
       window.removeEventListener("resize", showAnimation);
     };
   }, [dimensions]);
+
   const TRACKING_ID = "G-YWB7BCRZML";
   ReactGA.initialize(TRACKING_ID);
+
   const { user, isAuthenticated, loading, error } = useSelector(
     (state) => state.user
   );
+
   useEffect(() => {
     dispatch(loadUser());
   }, [dispatch]);
+
   useEffect(() => {
     ReactGA.pageview(window.location.pathname + window.location.search);
   }, []);
-  const checkUserToken = () => {
-    const userToken = localStorage.getItem("user-token");
-    if (!userToken || userToken === "undefined") {
-      setIsLoggedIn(false);
-    }
-    setIsLoggedIn(true);
-  };
+
+  // Show splash screen on initial app load
+  if (showSplash) {
+    return <SplashScreen />;
+  }
+
   return (
     <>
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Home />} />
+          <Route path="/" element={<ProtectedRoute><Home /></ProtectedRoute>} />
           <Route path="/register" element={<Register />} />
           <Route path="/login" element={<Login />} />
-          <Route path="/completed/:id" element={<Completed />} />
-          <Route path="/players" element={<Players />} />
-          <Route path="/createteam/:id" element={<CreateTeam />} />
-          <Route path="/editTeam/:id" element={<CreateTeam />} />
-          <Route path="/contests/:id" element={<Contests />} />
+          <Route path="/completed/:id" element={<ProtectedRoute><Completed /></ProtectedRoute>} />
+          <Route path="/players" element={<ProtectedRoute><Players /></ProtectedRoute>} />
+          <Route path="/createteam/:id" element={<ProtectedRoute><CreateTeam /></ProtectedRoute>} />
+          <Route path="/editTeam/:id" element={<ProtectedRoute><CreateTeam /></ProtectedRoute>} />
+          <Route path="/contests/:id" element={<ProtectedRoute><Contests /></ProtectedRoute>} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route path="/savedteam/:id" element={<SavedTeam />} />
-          <Route path="/contestdetail/:id" element={<ContestDetail />} />
-          <Route path="/joined" element={<JoinedContests />} />
+          <Route path="/savedteam/:id" element={<ProtectedRoute><SavedTeam /></ProtectedRoute>} />
+          <Route path="/contestdetail/:id" element={<ProtectedRoute><ContestDetail /></ProtectedRoute>} />
+          <Route path="/joined" element={<ProtectedRoute><JoinedContests /></ProtectedRoute>} />
           <Route path="/test" element={<Test />} />
           <Route path="/counter" element={<Counter />} />
-          <Route path="/payment" element={<Payment />} />
+          <Route path="/payment" element={<ProtectedRoute><Payment /></ProtectedRoute>} />
 
-          <Route path="/newusers" element={<NewUsers />} />
-          <Route path="/findpeople" element={<FindPeople />} />
-          <Route path="/my-info" element={<MyInfo />} />
-          <Route path="/transaction" element={<TransactionTabs />} />
-          <Route path="/admin" element={<Admin/>} />
-          <Route path="/admin/contests" element={<ContestManager/>} />
-          <Route path="/admin/players" element={<PlayerManager/>} />
-          <Route path="/admin/matches" element={<MatchManager/>} />
-          <Route path="/admin/tournaments" element={<TournamentManager/>} />
-          <Route path="/admin/scoreboard" element={<ScoreboardManager/>} />
-          <Route path="/admin/deposits" element={<ADeposit/>} />
-          <Route path="/admin/withdrawals" element={<AWithdrawal/>} />
+          <Route path="/newusers" element={<ProtectedRoute><NewUsers /></ProtectedRoute>} />
+          <Route path="/findpeople" element={<ProtectedRoute><FindPeople /></ProtectedRoute>} />
+          <Route path="/my-info" element={<ProtectedRoute><MyInfo /></ProtectedRoute>} />
+          <Route path="/transaction" element={<ProtectedRoute><TransactionTabs /></ProtectedRoute>} />
+          <Route path="/admin" element={<ProtectedRoute><Admin/></ProtectedRoute>} />
+          <Route path="/admin/contests" element={<ProtectedRoute><ContestManager/></ProtectedRoute>} />
+          <Route path="/admin/players" element={<ProtectedRoute><PlayerManager/></ProtectedRoute>} />
+          <Route path="/admin/matches" element={<ProtectedRoute><MatchManager/></ProtectedRoute>} />
+          <Route path="/admin/tournaments" element={<ProtectedRoute><TournamentManager/></ProtectedRoute>} />
+          <Route path="/admin/scoreboard" element={<ProtectedRoute><ScoreboardManager/></ProtectedRoute>} />
+          <Route path="/admin/deposits" element={<ProtectedRoute><ADeposit/></ProtectedRoute>} />
+          <Route path="/admin/withdrawals" element={<ProtectedRoute><AWithdrawal/></ProtectedRoute>} />
           <Route path="/feed" element={<ProtectedRoute><Feed/></ProtectedRoute>} />
           <Route path="/groups" element={<ProtectedRoute><Groups/></ProtectedRoute>} />
           <Route path="/more" element={<ProtectedRoute><More/></ProtectedRoute>} />

@@ -1,3 +1,6 @@
+/* Legacy styles - Login and Register now use emotion styled-components */
+/* Keeping styles for forgot-password and myinfo component compatibility */
+
 .register {
   background-color: #fafafa;
   padding: 2vh 2vw;
@@ -8,6 +11,7 @@
   flex-direction: column;
   justify-content: space-between;
 }
+
 .registerform {
   padding: 2vh 2vw;
   box-sizing: border-box;
@@ -17,6 +21,7 @@
   flex-direction: column;
   justify-content: space-between;
 }
+
 .loginform {
   padding: 2vh 2vw;
   box-sizing: border-box;
@@ -26,6 +31,7 @@
   flex-direction: column;
   justify-content: space-between;
 }
+
 .forgotform {
   padding: 2vh 2vw;
   box-sizing: border-box;
@@ -35,6 +41,7 @@
   flex-direction: column;
   justify-content: space-between;
 }
+
 .registertopbar {
   background-color: var(--red);
   color: #ffffff;
@@ -46,6 +53,7 @@
   justify-content: space-between;
   box-sizing: border-box;
 }
+
 .logintopbar {
   background-color: var(--red);
   color: #ffffff;
@@ -56,14 +64,4 @@
   align-items: center;
   box-sizing: border-box;
   justify-content: space-between;
-}
-.MuiPaper-root {
-  display: flex;
-  flex-direction: column;
-  height: 360px;
-  justify-content: space-between;
-  padding: 0;
-  box-sizing: border-box;
-  text-align: center;
-  margin-bottom: 15px;
 }
