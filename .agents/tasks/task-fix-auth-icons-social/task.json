@@ -1,0 +1,7 @@
+{
+  "task_id": "task-fix-auth-icons-social",
+  "task_description": "Fix authentication flow (login redirects back to login), remove social login (Google/GitHub) completely, and generate proper app icons replacing placeholders.",
+  "status": "in_progress",
+  "feature_order": ["FEAT-001"],
+  "blocked_reason": null
+}

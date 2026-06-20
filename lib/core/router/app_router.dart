@@ -90,10 +90,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     initialLocation: AppRoutes.splash,
     debugLogDiagnostics: true,
     redirect: (context, state) {
+      final status = authState.status;
       final isAuthenticated = authState.isAuthenticated;
       final currentPath = state.uri.path;
       final isPublicRoute = _publicRoutes.contains(currentPath);
       final isSplash = currentPath == AppRoutes.splash;
+
+      // Don't redirect while auth state is loading or initial
+      if (status == AuthStatus.loading || status == AuthStatus.initial) {
+        return null;
+      }
 
       // Don't redirect on splash (it handles its own navigation)
       if (isSplash) return null;
