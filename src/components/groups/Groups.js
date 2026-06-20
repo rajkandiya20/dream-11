@@ -4,10 +4,9 @@ import styled from "@emotion/styled";
 import GroupsOutlinedIcon from "@mui/icons-material/GroupsOutlined";
 import AddIcon from "@mui/icons-material/Add";
 import { Button } from "@mui/material";
-import { collection, getDocs } from "firebase/firestore";
 import { useEffect, useRef, useState } from "react";
 import { useSelector } from "react-redux";
-import db from "../../firebase";
+import { getUserGroups } from "../../services/supabaseService";
 import Bottomnav from "../navbar/bottomnavbar";
 import Loader from "../loader";
 import Navbar from "../navbar";
@@ -50,54 +49,46 @@ const RetryButton = styled(Button)`
 const GroupCard = styled.div`
   background-color: #ffffff;
   box-shadow: 0 0 1.5px 1.5px rgba(83, 80, 80, 0.15);
-  border-radius: 5px;
+  border-radius: 8px;
   padding: 15px;
   margin-bottom: 12px;
   display: flex;
   align-items: center;
   cursor: pointer;
+  transition: box-shadow 0.2s;
+  &:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  }
 `;
 
 const GroupAvatar = styled.div`
-  width: 45px;
-  height: 45px;
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
-  background-color: var(--green);
-  color: #ffffff;
+  background-color: #e0f2e9;
+  color: var(--green);
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 700;
   font-size: 18px;
-  margin-right: 12px;
-  flex-shrink: 0;
+  margin-right: 15px;
 `;
 
 const GroupInfo = styled.div`
   flex: 1;
 `;
 
-const GroupName = styled.h5`
+const GroupName = styled.h4`
+  margin: 0;
   font-size: 15px;
-  font-weight: 600;
   color: #333;
-  margin: 0 0 4px 0;
 `;
 
-const GroupMembers = styled.span`
+const GroupMeta = styled.p`
+  margin: 4px 0 0;
   font-size: 12px;
   color: #999;
-`;
-
-const CreateButton = styled(Button)`
-  background-color: var(--green);
-  color: #ffffff;
-  text-transform: capitalize;
-  margin-top: 15px;
-  &:hover {
-    background-color: #0d7a2c;
-    color: #ffffff;
-  }
 `;
 
 export function Groups() {
@@ -105,85 +96,35 @@ export function Groups() {
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
-  const LOADING_TIMEOUT = 10000; // 10 seconds max loading
-
   const isMountedRef = useRef(true);
-  const timerRef = useRef(null);
 
   useEffect(() => {
     isMountedRef.current = true;
-
-    if (user && (user._id || user.uid)) {
-      fetchGroups();
-    } else {
-      setLoading(false);
-    }
-
-    // Timeout to prevent infinite loading
-    timerRef.current = setTimeout(() => {
-      if (isMountedRef.current) {
-        setLoading(false);
-      }
-    }, LOADING_TIMEOUT);
-
-    return () => {
-      isMountedRef.current = false;
-      if (timerRef.current) clearTimeout(timerRef.current);
-    };
+    fetchGroups();
+    return () => { isMountedRef.current = false; };
   }, [user]);
 
   const fetchGroups = async () => {
+    const userId = user?._id || user?.uid;
+    if (!userId) {
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
 
-      const userId = user?._id || user?.uid;
-      if (!userId) {
-        setLoading(false);
-        return;
-      }
-
-      // members is a map { userId: boolean }, not an array.
-      // Firestore does not support array-contains on map fields.
-      // Query all groups and filter client-side by checking the map key.
-      const groupsRef = collection(db, "groups");
-      const snapshot = await getDocs(groupsRef);
-
-      if (!isMountedRef.current) return;
-
-      if (snapshot.empty) {
-        setGroups([]);
-        setLoading(false);
-        if (timerRef.current) clearTimeout(timerRef.current);
-        return;
-      }
-
-      const userGroups = [];
-      snapshot.forEach((doc) => {
-        const data = doc.data();
-        // Check if user is a member using map key lookup
-        if (data.members && data.members[userId] === true) {
-          userGroups.push({ id: doc.id, ...data });
-        }
-      });
+      const userGroups = await getUserGroups(userId);
 
       if (!isMountedRef.current) return;
       setGroups(userGroups);
       setLoading(false);
-      if (timerRef.current) clearTimeout(timerRef.current);
     } catch (err) {
       if (!isMountedRef.current) return;
       console.error("Error fetching groups:", err);
-      // If collection doesn't exist or no permissions, show empty state
-      if (err.code === "permission-denied" || err.code === "not-found") {
-        setGroups([]);
-        setLoading(false);
-      } else {
-        setError("Unable to load groups. Please try again.");
-        setLoading(false);
-      }
-      if (timerRef.current) clearTimeout(timerRef.current);
+      setError("Unable to load groups. Please try again.");
+      setLoading(false);
     }
   };
 
@@ -191,7 +132,6 @@ export function Groups() {
     fetchGroups();
   };
 
-  // Error state
   if (error && !loading) {
     return (
       <>
@@ -218,29 +158,29 @@ export function Groups() {
         </div>
       ) : (
         <GroupsContainer>
-          <h4 style={{ marginBottom: 15 }}>My Groups</h4>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 15 }}>
+            <h4>Groups</h4>
+          </div>
           {groups.length === 0 ? (
             <EmptyState>
               <GroupsOutlinedIcon style={{ fontSize: 60, color: "#ccc" }} />
               <h4 style={{ color: "#666", marginTop: 20 }}>No groups yet</h4>
               <p style={{ color: "#999", fontSize: 14 }}>
-                Create or join a group to play with friends
+                Join or create a group to connect with other players
               </p>
-              <CreateButton variant="contained" startIcon={<AddIcon />}>
-                Create Group
-              </CreateButton>
             </EmptyState>
           ) : (
             groups.map((group) => (
               <GroupCard key={group.id}>
                 <GroupAvatar>
-                  {group.name ? group.name.charAt(0).toUpperCase() : "G"}
+                  {(group.name || "G").charAt(0).toUpperCase()}
                 </GroupAvatar>
                 <GroupInfo>
-                  <GroupName>{group.name || "Unnamed Group"}</GroupName>
-                  <GroupMembers>
-                    {group.members ? Object.keys(group.members).length : 0} member{(group.members ? Object.keys(group.members).length : 0) !== 1 ? "s" : ""}
-                  </GroupMembers>
+                  <GroupName>{group.name}</GroupName>
+                  <GroupMeta>
+                    {group.member_count || 0} members
+                    {group.membership?.role === 'admin' && ' - Admin'}
+                  </GroupMeta>
                 </GroupInfo>
               </GroupCard>
             ))

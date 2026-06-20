@@ -1,15 +1,14 @@
 import styled from "@emotion/styled";
 import NotificationsOutlinedIcon from "@mui/icons-material/NotificationsOutlined";
 import { Button } from "@mui/material";
-import { collection, getDocs, query, where, orderBy } from "firebase/firestore";
 import { useEffect, useRef, useState } from "react";
 import { useSelector } from "react-redux";
-import db from "../../firebase";
+import { getUserNotifications, markNotificationRead } from "../../services/supabaseService";
 import Bottomnav from "../navbar/bottomnavbar";
 import Loader from "../loader";
 import Navbar from "../navbar";
 
-const NotificationsContainer = styled.div`
+const NotifContainer = styled.div`
   padding: 10px 15px;
   padding-bottom: 90px;
   min-height: 60vh;
@@ -44,32 +43,34 @@ const RetryButton = styled(Button)`
   }
 `;
 
-const NotificationCard = styled.div`
-  background-color: #ffffff;
-  box-shadow: 0 0 1.5px 1.5px rgba(83, 80, 80, 0.15);
-  border-radius: 5px;
+const NotifCard = styled.div`
+  background-color: ${props => props.isRead ? '#ffffff' : '#f0f9f4'};
+  box-shadow: 0 0 1.5px 1.5px rgba(83, 80, 80, 0.1);
+  border-radius: 8px;
   padding: 15px;
   margin-bottom: 10px;
-  border-left: 3px solid var(--green);
+  border-left: 3px solid ${props => props.isRead ? '#ddd' : 'var(--green)'};
+  cursor: pointer;
 `;
 
-const NotificationTitle = styled.h5`
+const NotifTitle = styled.h5`
+  margin: 0 0 5px;
   font-size: 14px;
-  font-weight: 600;
   color: #333;
-  margin: 0 0 5px 0;
 `;
 
-const NotificationMessage = styled.p`
+const NotifMessage = styled.p`
+  margin: 0;
   font-size: 13px;
   color: #666;
-  margin: 0 0 8px 0;
   line-height: 1.4;
 `;
 
-const NotificationTime = styled.span`
+const NotifTime = styled.span`
   font-size: 11px;
   color: #999;
+  margin-top: 5px;
+  display: block;
 `;
 
 export function Notifications() {
@@ -77,93 +78,51 @@ export function Notifications() {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
-  const LOADING_TIMEOUT = 10000; // 10 seconds max loading
-
   const isMountedRef = useRef(true);
-  const timerRef = useRef(null);
 
   useEffect(() => {
     isMountedRef.current = true;
-
-    if (user && (user._id || user.uid)) {
-      fetchNotifications();
-    } else {
-      setLoading(false);
-    }
-
-    // Timeout to prevent infinite loading
-    timerRef.current = setTimeout(() => {
-      if (isMountedRef.current) {
-        setLoading(false);
-      }
-    }, LOADING_TIMEOUT);
-
-    return () => {
-      isMountedRef.current = false;
-      if (timerRef.current) clearTimeout(timerRef.current);
-    };
+    fetchNotifications();
+    return () => { isMountedRef.current = false; };
   }, [user]);
 
   const fetchNotifications = async () => {
+    const userId = user?._id || user?.uid;
+    if (!userId) {
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
 
-      const userId = user?._id || user?.uid;
-      if (!userId) {
-        setLoading(false);
-        return;
-      }
-
-      const notifRef = collection(db, "notifications");
-      const notifQuery = query(
-        notifRef,
-        where("userId", "==", userId),
-        orderBy("createdAt", "desc")
-      );
-      const snapshot = await getDocs(notifQuery);
+      const notifs = await getUserNotifications(userId);
 
       if (!isMountedRef.current) return;
-
-      if (snapshot.empty) {
-        setNotifications([]);
-        setLoading(false);
-        if (timerRef.current) clearTimeout(timerRef.current);
-        return;
-      }
-
-      const notifList = [];
-      snapshot.forEach((doc) => {
-        notifList.push({ id: doc.id, ...doc.data() });
-      });
-
-      if (!isMountedRef.current) return;
-      setNotifications(notifList);
+      setNotifications(notifs);
       setLoading(false);
-      if (timerRef.current) clearTimeout(timerRef.current);
     } catch (err) {
       if (!isMountedRef.current) return;
       console.error("Error fetching notifications:", err);
-      if (err.code === "permission-denied" || err.code === "not-found") {
-        setNotifications([]);
-        setLoading(false);
-      } else {
-        setError("Unable to load notifications. Please try again.");
-        setLoading(false);
-      }
-      if (timerRef.current) clearTimeout(timerRef.current);
+      setError("Unable to load notifications. Please try again.");
+      setLoading(false);
     }
   };
 
-  const handleRetry = () => {
-    fetchNotifications();
+  const handleNotifClick = async (notif) => {
+    if (!notif.is_read) {
+      await markNotificationRead(notif.id);
+      setNotifications(prev =>
+        prev.map(n => n.id === notif.id ? { ...n, is_read: true } : n)
+      );
+    }
   };
 
   const formatTimestamp = (timestamp) => {
     if (!timestamp) return "";
     try {
-      const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+      const date = new Date(timestamp);
       const now = new Date();
       const diff = now - date;
       const minutes = Math.floor(diff / 60000);
@@ -180,18 +139,13 @@ export function Notifications() {
     }
   };
 
-  // Error state
   if (error && !loading) {
     return (
       <>
         <Navbar />
         <ErrorContainer>
-          <NotificationsOutlinedIcon
-            style={{ fontSize: 60, color: "#ccc", marginBottom: 20 }}
-          />
-          <h3 style={{ color: "#333", marginBottom: 10 }}>
-            Unable to Load Notifications
-          </h3>
+          <NotificationsOutlinedIcon style={{ fontSize: 60, color: "#ccc", marginBottom: 20 }} />
+          <h3 style={{ color: "#333", marginBottom: 10 }}>Unable to Load Notifications</h3>
           <p style={{ color: "#666", marginBottom: 20 }}>{error}</p>
           <RetryButton variant="contained" onClick={handleRetry}>
             Try Again
@@ -202,51 +156,42 @@ export function Notifications() {
     );
   }
 
+  const handleRetry = () => {
+    fetchNotifications();
+  };
+
   return (
     <>
       <Navbar />
       {loading ? (
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            minHeight: "60vh",
-          }}
-        >
+        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "60vh" }}>
           <Loader />
         </div>
       ) : (
-        <NotificationsContainer>
+        <NotifContainer>
           <h4 style={{ marginBottom: 15 }}>Notifications</h4>
           {notifications.length === 0 ? (
             <EmptyState>
-              <NotificationsOutlinedIcon
-                style={{ fontSize: 60, color: "#ccc" }}
-              />
-              <h4 style={{ color: "#666", marginTop: 20 }}>
-                No notifications yet
-              </h4>
+              <NotificationsOutlinedIcon style={{ fontSize: 60, color: "#ccc" }} />
+              <h4 style={{ color: "#666", marginTop: 20 }}>No notifications</h4>
               <p style={{ color: "#999", fontSize: 14 }}>
-                You will see match updates and alerts here
+                You'll receive notifications about matches, contests, and more
               </p>
             </EmptyState>
           ) : (
             notifications.map((notif) => (
-              <NotificationCard key={notif.id}>
-                <NotificationTitle>
-                  {notif.title || "Notification"}
-                </NotificationTitle>
-                <NotificationMessage>
-                  {notif.message || notif.body || ""}
-                </NotificationMessage>
-                <NotificationTime>
-                  {formatTimestamp(notif.createdAt)}
-                </NotificationTime>
-              </NotificationCard>
+              <NotifCard
+                key={notif.id}
+                isRead={notif.is_read}
+                onClick={() => handleNotifClick(notif)}
+              >
+                <NotifTitle>{notif.title}</NotifTitle>
+                <NotifMessage>{notif.message}</NotifMessage>
+                <NotifTime>{formatTimestamp(notif.created_at)}</NotifTime>
+              </NotifCard>
             ))
           )}
-        </NotificationsContainer>
+        </NotifContainer>
       )}
       <Bottomnav />
     </>

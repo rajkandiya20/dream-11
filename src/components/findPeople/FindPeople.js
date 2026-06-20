@@ -1,141 +1,106 @@
-import "../home.css";
-import "../create.css";
-import Bottomnav from "../navbar/bottomnavbar";
-import { useState, useCallback } from "react";
-import Loader from "../loader";
-import Navbar from "../navbar";
 import styled from "@emotion/styled";
 import { Grid, TextField, Avatar, List, ListItem, ListItemAvatar, ListItemText } from "@mui/material";
 import PersonSearchIcon from "@mui/icons-material/PersonSearch";
-import { collection, getDocs, query, where, orderBy, limit } from "firebase/firestore";
-import db from "../../firebase";
+import { searchUsers } from "../../services/supabaseService";
+import { useState } from "react";
+import { useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
+import Navbar from "../navbar";
+import Bottomnav from "../navbar/bottomnavbar";
 
 const Container = styled(Grid)`
-  padding: 10px 10px;
+  padding: 15px;
+  padding-bottom: 90px;
+  min-height: 60vh;
 `;
 
-const Title = styled.h3`
-  margin-bottom: 10px;
+const SearchContainer = styled.div`
+  margin-bottom: 20px;
 `;
 
 const EmptyState = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 40vh;
+  padding: 20px;
   text-align: center;
-  padding: 40px 20px;
-`;
-
-const ResultItem = styled(ListItem)`
-  border-bottom: 1px solid #eee;
-  cursor: pointer;
-  &:hover {
-    background-color: #f5f5f5;
-  }
 `;
 
 export default function FindPeople() {
-  const [results, setResults] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [searched, setSearched] = useState(false);
-  const [error, setError] = useState(null);
+  const { user } = useSelector((state) => state.user);
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
+  const [results, setResults] = useState([]);
+  const [searching, setSearching] = useState(false);
 
-  const handleSearch = useCallback(async (term) => {
-    setSearchTerm(term);
-
-    if (!term || term.length < 2) {
+  const handleSearch = async (value) => {
+    setSearchTerm(value);
+    if (value.length < 2) {
       setResults([]);
-      setSearched(false);
       return;
     }
 
-    setLoading(true);
-    setError(null);
-    setSearched(true);
-
     try {
-      const usersRef = collection(db, "users");
-      // Search by username prefix
-      const q = query(
-        usersRef,
-        where("username", ">=", term.toLowerCase()),
-        where("username", "<=", term.toLowerCase() + "\uf8ff"),
-        limit(20)
-      );
-      const snapshot = await getDocs(q);
-      const users = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-      setResults(users);
+      setSearching(true);
+      const users = await searchUsers(value);
+      // Filter out current user
+      const filtered = users.filter(u => u.uid !== (user?.uid || user?._id));
+      setResults(filtered);
     } catch (err) {
-      console.error("Error searching users:", err);
-      setError("Unable to search. Please try again.");
+      console.error("Search error:", err);
       setResults([]);
     } finally {
-      setLoading(false);
+      setSearching(false);
     }
-
-    // Timeout fallback
-    setTimeout(() => {
-      setLoading(false);
-    }, 10000);
-  }, []);
+  };
 
   return (
     <>
       <Navbar />
-      <Container>
-        <Title>Search People You Know</Title>
-        <TextField
-          label="Find People"
-          fullWidth
-          value={searchTerm}
-          onChange={(e) => handleSearch(e.target.value)}
-          placeholder="Type at least 2 characters to search..."
-        />
+      <Container container>
+        <Grid item xs={12}>
+          <h4 style={{ marginBottom: 15 }}>Find People</h4>
+          <SearchContainer>
+            <TextField
+              fullWidth
+              variant="outlined"
+              placeholder="Search by username..."
+              value={searchTerm}
+              onChange={(e) => handleSearch(e.target.value)}
+              size="small"
+            />
+          </SearchContainer>
 
-        {loading && (
-          <div style={{ padding: '20px', textAlign: 'center' }}>
-            <Loader />
-          </div>
-        )}
-
-        {error && (
-          <EmptyState>
-            <p style={{ color: '#d32f2f' }}>{error}</p>
-          </EmptyState>
-        )}
-
-        {!loading && searched && results.length === 0 && !error && (
-          <EmptyState>
-            <PersonSearchIcon style={{ fontSize: 60, color: '#ccc' }} />
-            <p style={{ color: '#666', marginTop: 10 }}>No users found matching "{searchTerm}"</p>
-          </EmptyState>
-        )}
-
-        {!loading && results.length > 0 && (
-          <List>
-            {results.map((person) => (
-              <ResultItem key={person.id}>
-                <ListItemAvatar>
-                  <Avatar src={person.avatar || ""}>
-                    {person.username ? person.username[0].toUpperCase() : "U"}
-                  </Avatar>
-                </ListItemAvatar>
-                <ListItemText
-                  primary={person.username || "Unknown User"}
-                  secondary={person.email || ""}
-                />
-              </ResultItem>
-            ))}
-          </List>
-        )}
-
-        {!loading && !searched && (
-          <EmptyState>
-            <PersonSearchIcon style={{ fontSize: 60, color: '#ccc' }} />
-            <p style={{ color: '#999', marginTop: 10 }}>Search for people by username</p>
-          </EmptyState>
-        )}
+          {results.length > 0 ? (
+            <List>
+              {results.map((person) => (
+                <ListItem key={person.uid} style={{ cursor: "pointer", borderBottom: "1px solid #f0f0f0" }}>
+                  <ListItemAvatar>
+                    <Avatar style={{ backgroundColor: "var(--green)" }}>
+                      {(person.username || "U").charAt(0).toUpperCase()}
+                    </Avatar>
+                  </ListItemAvatar>
+                  <ListItemText
+                    primary={person.username}
+                    secondary={person.email}
+                  />
+                </ListItem>
+              ))}
+            </List>
+          ) : searchTerm.length >= 2 && !searching ? (
+            <EmptyState>
+              <PersonSearchIcon style={{ fontSize: 60, color: "#ccc" }} />
+              <p style={{ color: "#666", marginTop: 15 }}>No users found for "{searchTerm}"</p>
+            </EmptyState>
+          ) : (
+            <EmptyState>
+              <PersonSearchIcon style={{ fontSize: 60, color: "#ccc" }} />
+              <p style={{ color: "#666", marginTop: 15 }}>Search for people by username</p>
+            </EmptyState>
+          )}
+        </Grid>
       </Container>
       <Bottomnav />
     </>

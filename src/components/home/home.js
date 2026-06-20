@@ -7,13 +7,12 @@ import PersonOutlineOutlinedIcon from "@mui/icons-material/PersonOutlineOutlined
 import { Button, Alert, Snackbar } from "@mui/material";
 import LinearProgress from "@mui/material/LinearProgress";
 import axios from "axios";
-import { collection, getDocs, query, orderBy } from "firebase/firestore";
 import { useEffect, useState, useCallback } from "react";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import Match from "./match";
-import { URL, FIRESTORE_ENABLED } from "../../constants/userConstants";
-import db from "../../firebase";
+import { URL } from "../../constants/userConstants";
+import { getUpcomingMatches, getLiveMatches, getCompletedMatches } from "../../services/supabaseService";
 import {
   getDisplayDate,
   hoursRemaining,
@@ -155,34 +154,22 @@ export function Home() {
   const MAX_RETRIES = 3;
   const API_TIMEOUT = 10000; // 10 seconds
 
-  // Fetch matches from Firestore as primary data source
-  const fetchMatchesFromFirestore = async () => {
+  // Fetch matches from Supabase as primary data source
+  const fetchMatchesFromSupabase = async () => {
     try {
-      const matchesRef = collection(db, "matches");
-      const matchesQuery = query(matchesRef, orderBy("date", "asc"));
-      const snapshot = await getDocs(matchesQuery);
+      const [upcomingData, liveData, completedData] = await Promise.all([
+        getUpcomingMatches(),
+        getLiveMatches(),
+        getCompletedMatches()
+      ]);
 
-      if (snapshot.empty) {
+      if (!upcomingData.length && !liveData.length && !completedData.length) {
         return null;
       }
 
-      const matches = [];
-      snapshot.forEach((doc) => {
-        matches.push({ id: doc.id, ...doc.data() });
-      });
-
-      const now = new Date();
-      const upcomingMatches = matches.filter(
-        (m) => m.result !== "Yes" && new Date(m.date) >= now
-      );
-      const liveMatches = matches.filter(
-        (m) => m.live === true || m.status === "live"
-      );
-      const completedMatches = matches.filter((m) => m.result === "Yes");
-
-      return { upcoming: upcomingMatches, live: liveMatches, past: completedMatches };
+      return { upcoming: upcomingData, live: liveData, past: completedData };
     } catch (error) {
-      console.error("Error fetching from Firestore:", error);
+      console.error("Error fetching from Supabase:", error);
       return null;
     }
   };
@@ -201,21 +188,19 @@ export function Home() {
     setLoading(true);
     setApiError(null);
 
-    // Try Firestore first if enabled
-    if (FIRESTORE_ENABLED) {
-      const firestoreData = await fetchMatchesFromFirestore();
-      if (firestoreData) {
-        setUpcoming(firestoreData.upcoming || []);
-        setLive(firestoreData.live || []);
-        if (firestoreData.past?.length > 0) {
-          setPast([firestoreData.past[firestoreData.past.length - 1]]);
-        }
-        setLoading(false);
-        setApiError(null);
-        setRetryCount(0);
-        console.log('Data loaded from Firestore');
-        return;
+    // Try Supabase first
+    const supabaseData = await fetchMatchesFromSupabase();
+    if (supabaseData) {
+      setUpcoming(supabaseData.upcoming || []);
+      setLive(supabaseData.live || []);
+      if (supabaseData.past?.length > 0) {
+        setPast([supabaseData.past[0]]);
       }
+      setLoading(false);
+      setApiError(null);
+      setRetryCount(0);
+      console.log('Data loaded from Supabase');
+      return;
     }
 
     // Fallback to backend API

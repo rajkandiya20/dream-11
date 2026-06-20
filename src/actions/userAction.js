@@ -7,13 +7,7 @@ import {
   resetPassword as firebaseResetPassword,
   getFreshToken
 } from "../firebase";
-import { 
-  doc, 
-  setDoc, 
-  getDoc,
-  serverTimestamp 
-} from "firebase/firestore";
-import db from "../firebase";
+import { upsertUser, getUserProfile, getAdminByEmail } from "../services/supabaseService";
 
 import {
   ADD_CONFETTI,
@@ -47,15 +41,15 @@ API.interceptors.request.use(async (req) => {
 API.interceptors.response.use(
   (response) => response,
   (error) => {
-    console.error('❌ API Error:', error.response?.status, error.message);
+    console.error('API Error:', error.response?.status, error.message);
     return Promise.reject(error);
   }
 );
 
-// Register user with Firebase Auth
+// Register user with Firebase Auth + Supabase DB
 export const register = (formData) => async (dispatch) => {
   try {
-    console.log('📝 Starting registration...');
+    console.log('Starting registration...');
     dispatch({ type: REGISTER_USER_REQUEST });
     
     const { email, password, username, phoneNumber } = formData;
@@ -64,43 +58,53 @@ export const register = (formData) => async (dispatch) => {
     const userCredential = await firebaseRegister(email, password);
     const user = userCredential.user;
     
-    // Store additional user data in Firestore
+    // Store user data in Supabase
     const userData = {
       uid: user.uid,
-      _id: user.uid, // Add _id for compatibility
       email: email,
-      username: username,
-      phoneNumber: phoneNumber,
-      createdAt: serverTimestamp(),
+      username: username || email.split('@')[0],
+      phone_number: phoneNumber || null,
       role: "user",
       balance: 0,
-      teams: [],
-      matches: []
+      avatar_url: null,
+      created_at: new Date().toISOString()
     };
     
-    await setDoc(doc(db, "users", user.uid), userData);
-    console.log('✅ User data stored in Firestore');
+    const savedUser = await upsertUser(userData);
+    console.log('User data stored in Supabase');
+    
+    // Build local user object
+    const localUserData = {
+      uid: user.uid,
+      _id: user.uid,
+      email: email,
+      username: username || email.split('@')[0],
+      phoneNumber: phoneNumber || null,
+      role: "user",
+      balance: 0,
+      isAdmin: false
+    };
     
     // Store token in localStorage
     const token = await user.getIdToken();
     localStorage.setItem("token", token);
-    localStorage.setItem("user", JSON.stringify(userData));
+    localStorage.setItem("user", JSON.stringify(localUserData));
     
-    dispatch({ type: REGISTER_USER_SUCCESS, payload: userData });
+    dispatch({ type: REGISTER_USER_SUCCESS, payload: localUserData });
     
-    return { success: true, user: userData };
+    return { success: true, user: localUserData };
   } catch (error) {
-    console.error('❌ Registration failed:', error);
+    console.error('Registration failed:', error);
     const errorMessage = getFirebaseErrorMessage(error.code);
     dispatch({ type: REGISTER_USER_FAIL, payload: errorMessage });
     return { success: false, message: errorMessage };
   }
 };
 
-// Login user with Firebase Auth
+// Login user with Firebase Auth + Supabase DB
 export const login = (formData) => async (dispatch) => {
   try {
-    console.log('🔑 Starting login...');
+    console.log('Starting login...');
     dispatch({ type: LOGIN_REQUEST });
     
     const { email, password } = formData;
@@ -109,45 +113,57 @@ export const login = (formData) => async (dispatch) => {
     const userCredential = await firebaseLogin(email, password);
     const user = userCredential.user;
     
-    // Get additional user data from Firestore
+    // Get user data from Supabase
     let userData = {
       uid: user.uid,
       _id: user.uid,
       email: user.email,
-      role: "user"
+      role: "user",
+      isAdmin: false
     };
     
     try {
-      const userDoc = await getDoc(doc(db, "users", user.uid));
-      if (userDoc.exists()) {
-        userData = { ...userData, ...userDoc.data() };
-        console.log('✅ User data loaded from Firestore');
+      const supabaseUser = await getUserProfile(user.uid);
+      if (supabaseUser) {
+        userData = {
+          ...userData,
+          username: supabaseUser.username,
+          phoneNumber: supabaseUser.phone_number,
+          balance: supabaseUser.balance || 0,
+          avatar_url: supabaseUser.avatar_url,
+          role: supabaseUser.role || "user"
+        };
+        console.log('User data loaded from Supabase');
       } else {
-        // Create user document if it doesn't exist
+        // Create user in Supabase if doesn't exist
         const newUserData = {
           uid: user.uid,
-          _id: user.uid,
           email: user.email,
           username: email.split('@')[0],
-          createdAt: serverTimestamp(),
           role: "user",
-          balance: 0
+          balance: 0,
+          created_at: new Date().toISOString()
         };
-        await setDoc(doc(db, "users", user.uid), newUserData);
-        userData = { ...userData, ...newUserData };
-        console.log('✅ New user document created');
+        await upsertUser(newUserData);
+        userData.username = newUserData.username;
+        console.log('New user created in Supabase');
       }
-    } catch (firestoreError) {
-      console.error('❌ Firestore error (permissions?):', firestoreError);
-      // Continue with basic user data even if Firestore fails
+    } catch (dbError) {
+      console.error('Supabase error:', dbError);
+      userData.username = email.split('@')[0];
     }
     
-    // Check if user is admin and set isAdmin flag
-    const ADMIN_EMAIL = 'rexoagency.in@gmail.com';
-    if (userData.email === ADMIN_EMAIL) {
-      userData.isAdmin = true;
-      userData.role = 'super_admin';
-      console.log('✅ Admin user detected');
+    // Check if user is admin
+    try {
+      const adminRecord = await getAdminByEmail(email);
+      if (adminRecord) {
+        userData.isAdmin = true;
+        userData.role = adminRecord.role || 'super_admin';
+        userData.permissions = adminRecord.permissions || [];
+        console.log('Admin user detected');
+      }
+    } catch (adminError) {
+      // Not an admin, continue
     }
     
     // Store token in localStorage
@@ -158,7 +174,7 @@ export const login = (formData) => async (dispatch) => {
     dispatch({ type: LOGIN_SUCCESS, payload: userData });
     return { success: true, user: userData };
   } catch (error) {
-    console.error('❌ Login failed:', error);
+    console.error('Login failed:', error);
     const errorMessage = getFirebaseErrorMessage(error.code);
     dispatch({ type: LOGIN_FAIL, payload: errorMessage });
     return { success: false, message: errorMessage };
@@ -187,7 +203,7 @@ export const logout = () => async (dispatch) => {
     localStorage.removeItem("user");
     window.location.href = "/login";
   } catch (error) {
-    console.error('❌ Logout error:', error);
+    console.error('Logout error:', error);
   }
 };
 
@@ -202,7 +218,6 @@ export const removeconfetti = () => async (dispatch) => {
 // Load user from localStorage with validation
 export const loadUser = () => async (dispatch) => {
   try {
-    console.log('🔄 Loading user from storage...');
     dispatch({ type: LOAD_USER_REQUEST });
     
     const storedUser = localStorage.getItem("user");
@@ -210,24 +225,12 @@ export const loadUser = () => async (dispatch) => {
     
     if (storedUser && token) {
       const userData = JSON.parse(storedUser);
-      
-      // Ensure admin flag is set for admin email
-      const ADMIN_EMAIL = 'rexoagency.in@gmail.com';
-      if (userData.email === ADMIN_EMAIL) {
-        userData.isAdmin = true;
-        userData.role = 'super_admin';
-        // Update localStorage with admin flag
-        localStorage.setItem("user", JSON.stringify(userData));
-      }
-      
-      console.log('✅ User loaded from localStorage:', userData.uid);
       dispatch({ type: LOAD_USER_SUCCESS, payload: userData });
     } else {
-      console.log('⚠️ No user in storage');
       dispatch({ type: LOAD_USER_FAIL });
     }
   } catch (error) {
-    console.error('❌ Load user error:', error);
+    console.error('Load user error:', error);
     dispatch({ type: LOAD_USER_FAIL });
   }
 };
@@ -245,7 +248,7 @@ const getFirebaseErrorMessage = (code) => {
     'auth/invalid-credential': 'Invalid email or password.',
     'auth/too-many-requests': 'Too many failed attempts. Try again later.',
     'auth/network-request-failed': 'Network error. Check your connection.',
-    'permission-denied': 'Permission denied. Check Firebase rules.',
+    'permission-denied': 'Permission denied.',
     'unavailable': 'Service temporarily unavailable. Try again later.'
   };
   return errorMessages[code] || 'An error occurred. Please try again.';

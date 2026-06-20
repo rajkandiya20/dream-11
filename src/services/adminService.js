@@ -1,10 +1,8 @@
 /**
- * Admin service for admin operations and permission management.
+ * Admin service - uses Supabase for admin operations.
  */
 
-import db from '../firebase';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { logAuth, logQuery } from '../utils/logger';
+import { checkIsAdmin as checkAdmin, getAdminByEmail } from './supabaseService';
 
 const ADMIN_EMAIL = 'rexoagency.in@gmail.com';
 
@@ -22,84 +20,46 @@ const SUPER_ADMIN_PERMISSIONS = [
 ];
 
 /**
- * Check if an email belongs to an admin
- * @param {string} email - Email address to check
- * @returns {boolean} True if the email is the admin email
+ * Check if an email belongs to an admin (quick check)
  */
 export const checkIsAdmin = (email) => {
-  const result = email === ADMIN_EMAIL;
-  logAuth('Admin check', { email, isAdmin: result });
-  return result;
+  return email === ADMIN_EMAIL;
 };
 
 /**
- * Get admin permissions from Firestore
- * @param {string} uid - User UID
- * @returns {Promise<Object|null>} Admin document with role and permissions, or null
+ * Verify admin status from database
  */
-export const getAdminPermissions = async (uid) => {
-  try {
-    logQuery('admins', 'start', { uid });
-    const docRef = doc(db, 'admins', uid);
-    const docSnap = await getDoc(docRef);
-    if (docSnap.exists()) {
-      logQuery('admins', 'success', { uid, role: docSnap.data().role });
-      return { id: docSnap.id, ...docSnap.data() };
-    }
-    logQuery('admins', 'success', { uid, found: false });
-    return null;
-  } catch (error) {
-    logQuery('admins', 'error', error.message);
-    return null;
-  }
+export const verifyAdminFromDB = async (uid) => {
+  const admin = await checkAdmin(uid);
+  return admin;
 };
 
 /**
- * Ensure the admin document exists with super_admin role and full permissions.
- * Creates or updates the admins document if the user is the known admin email.
- * @param {string} uid - User UID
- * @param {string} email - User email
- * @returns {Promise<Object|null>} The admin document
+ * Get admin permissions from Supabase
  */
-export const ensureAdminDocument = async (uid, email) => {
-  if (!checkIsAdmin(email)) {
-    return null;
-  }
-
+export const getAdminPermissions = async (email) => {
   try {
-    logQuery('admins', 'start', { action: 'ensure', uid });
-    const docRef = doc(db, 'admins', uid);
-    const docSnap = await getDoc(docRef);
-
-    if (docSnap.exists()) {
-      const data = docSnap.data();
-      if (data.role === 'super_admin' && data.permissions?.length === SUPER_ADMIN_PERMISSIONS.length) {
-        logQuery('admins', 'success', { action: 'already_exists', uid });
-        return { id: docSnap.id, ...data };
-      }
+    const admin = await getAdminByEmail(email);
+    if (admin) {
+      return {
+        id: admin.id,
+        uid: admin.uid,
+        email: admin.email,
+        role: admin.role,
+        permissions: admin.permissions || SUPER_ADMIN_PERMISSIONS
+      };
     }
-
-    // Create or update admin document with full permissions
-    const adminData = {
-      uid,
-      email,
-      role: 'super_admin',
-      permissions: SUPER_ADMIN_PERMISSIONS,
-      createdAt: new Date()
-    };
-    await setDoc(docRef, adminData, { merge: true });
-    logQuery('admins', 'success', { action: 'created', uid });
-    return { id: uid, ...adminData };
+    return null;
   } catch (error) {
-    logQuery('admins', 'error', error.message);
+    console.error('Admin permissions error:', error);
     return null;
   }
 };
 
 export default {
   checkIsAdmin,
+  verifyAdminFromDB,
   getAdminPermissions,
-  ensureAdminDocument,
   ADMIN_EMAIL,
   SUPER_ADMIN_PERMISSIONS
 };

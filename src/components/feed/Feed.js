@@ -3,10 +3,9 @@ import "./Feed.css";
 import styled from "@emotion/styled";
 import FeedOutlinedIcon from "@mui/icons-material/FeedOutlined";
 import { Button } from "@mui/material";
-import { collection, getDocs, query, orderBy } from "firebase/firestore";
 import { useEffect, useRef, useState } from "react";
 import { useSelector } from "react-redux";
-import db from "../../firebase";
+import { getFeedPosts } from "../../services/supabaseService";
 import Bottomnav from "../navbar/bottomnavbar";
 import Loader from "../loader";
 import Navbar from "../navbar";
@@ -98,79 +97,40 @@ export function Feed() {
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
-  const LOADING_TIMEOUT = 10000; // 10 seconds max loading
-
   const isMountedRef = useRef(true);
-  const timerRef = useRef(null);
 
   useEffect(() => {
     isMountedRef.current = true;
-    fetchFeedPosts();
-
-    // Timeout to prevent infinite loading
-    timerRef.current = setTimeout(() => {
-      if (isMountedRef.current) {
-        setLoading(false);
-      }
-    }, LOADING_TIMEOUT);
-
-    return () => {
-      isMountedRef.current = false;
-      if (timerRef.current) clearTimeout(timerRef.current);
-    };
+    fetchFeed();
+    return () => { isMountedRef.current = false; };
   }, []);
 
-  const fetchFeedPosts = async () => {
+  const fetchFeed = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const feedRef = collection(db, "feed_posts");
-      const feedQuery = query(feedRef, orderBy("createdAt", "desc"));
-      const snapshot = await getDocs(feedQuery);
-
-      if (!isMountedRef.current) return;
-
-      if (snapshot.empty) {
-        setPosts([]);
-        setLoading(false);
-        if (timerRef.current) clearTimeout(timerRef.current);
-        return;
-      }
-
-      const feedPosts = [];
-      snapshot.forEach((doc) => {
-        feedPosts.push({ id: doc.id, ...doc.data() });
-      });
+      const feedPosts = await getFeedPosts(30);
 
       if (!isMountedRef.current) return;
       setPosts(feedPosts);
       setLoading(false);
-      if (timerRef.current) clearTimeout(timerRef.current);
     } catch (err) {
       if (!isMountedRef.current) return;
       console.error("Error fetching feed posts:", err);
-      // If collection doesn't exist, show empty state instead of error
-      if (err.code === "permission-denied" || err.code === "not-found") {
-        setPosts([]);
-        setLoading(false);
-      } else {
-        setError("Unable to load feed. Please try again.");
-        setLoading(false);
-      }
-      if (timerRef.current) clearTimeout(timerRef.current);
+      setError("Unable to load feed. Please try again.");
+      setLoading(false);
     }
   };
 
   const handleRetry = () => {
-    fetchFeedPosts();
+    fetchFeed();
   };
 
   const formatTimestamp = (timestamp) => {
     if (!timestamp) return "";
     try {
-      const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+      const date = new Date(timestamp);
       const now = new Date();
       const diff = now - date;
       const minutes = Math.floor(diff / 60000);
@@ -187,7 +147,6 @@ export function Feed() {
     }
   };
 
-  // Error state
   if (error && !loading) {
     return (
       <>
@@ -228,14 +187,14 @@ export function Feed() {
               <PostCard key={post.id}>
                 <PostHeader>
                   <PostAvatar>
-                    {post.authorName ? post.authorName.charAt(0).toUpperCase() : "U"}
+                    {(post.user?.username || post.author_name || "U").charAt(0).toUpperCase()}
                   </PostAvatar>
                   <div>
-                    <PostAuthor>{post.authorName || "User"}</PostAuthor>
-                    <PostTime>{formatTimestamp(post.createdAt)}</PostTime>
+                    <PostAuthor>{post.user?.username || post.author_name || "User"}</PostAuthor>
+                    <PostTime>{formatTimestamp(post.created_at)}</PostTime>
                   </div>
                 </PostHeader>
-                <PostContent>{post.content || post.message || ""}</PostContent>
+                <PostContent>{post.content || ""}</PostContent>
               </PostCard>
             ))
           )}
