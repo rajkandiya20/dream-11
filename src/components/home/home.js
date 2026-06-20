@@ -310,14 +310,7 @@ export function Home() {
     }
   }, [user, fetchData]);
 
-  // Check authentication on mount
-  useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) {
-      console.log('No token found, redirecting to login');
-      navigate("/login");
-    }
-  }, [navigate]);
+  // Authentication is now handled by ProtectedRoute wrapper in App.js
 
   const handleClick = () => {
     setOpen(true);
