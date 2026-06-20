@@ -117,7 +117,7 @@ const Spanner = styled.div`
   width: 20px;
   height: 5px;
 `;
-export function Match({ u, live }) {
+export function Match({ match: u, live }) {
   const { user, isAuthenticated, error } = useSelector((state) => state.user);
   const [upcoming, setUpcoming] = useState([]);
   const [loading, setLoading] = useState(true);

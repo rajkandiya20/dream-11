@@ -187,31 +187,41 @@ export function MatchDetails({ players }) {
     });
   };
   useEffect(() => {
+    let unsub = null;
     async function getdata(m) {
       if (match_details?.matchId) {
-        const docRef = doc(db, "cities", match_details.matchId);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-        } else {
-          // docSnap.data() will be undefined in this case
-        }
-        const unsub = onSnapshot(
-          doc(db, "cities", match_details?.matchId),
-          (doc) => {
-            if (doc.data()) {
-              console.log(doc.data(), "data");
-              setCommentary([...doc.data().capital]);
-              setLivescore({ ...doc.data().miniscore });
-            }
+        try {
+          const docRef = doc(db, "cities", match_details.matchId);
+          const docSnap = await getDoc(docRef);
+          if (docSnap.exists()) {
+            const data = docSnap.data();
+            if (data.capital) setCommentary([...data.capital]);
+            if (data.miniscore) setLivescore({ ...data.miniscore });
           }
-        );
+
+          unsub = onSnapshot(
+            doc(db, "cities", match_details?.matchId),
+            (doc) => {
+              if (doc.data()) {
+                console.log(doc.data(), "data");
+                if (doc.data().capital) setCommentary([...doc.data().capital]);
+                if (doc.data().miniscore) setLivescore({ ...doc.data().miniscore });
+              }
+            },
+            (error) => {
+              console.error("Firestore onSnapshot error:", error);
+            }
+          );
+        } catch (error) {
+          console.error("Error fetching match details from Firestore:", error);
+        }
       }
     }
     getdata(match_details);
-    // onSnapshot((docRef, "cities"), (snapshot) => {
-    // let array = []; // Get users all recent talks and render that in leftColumn content
-    // console.log(snapshot, "snaps");
-    // });
+
+    return () => {
+      if (unsub) unsub();
+    };
   }, [match_details]);
 
   useEffect(() => {
@@ -228,8 +238,17 @@ export function MatchDetails({ players }) {
     async function getupcoming() {
       if (id?.length > 3) {
         dispatch(getmatch(id));
-        const data = await axios.get(`${URL}/getcontests/${id}`);
-        setContests(data.data.contests);
+        try {
+          const data = await axios.get(`${URL}/getcontests/${id}`, {
+            timeout: 10000,
+          });
+          if (data?.data?.contests) {
+            setContests(data.data.contests);
+          }
+        } catch (error) {
+          console.error("Error fetching contests:", error);
+          setContests([]);
+        }
       }
     }
     getupcoming();

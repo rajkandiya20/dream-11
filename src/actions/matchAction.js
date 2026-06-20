@@ -8,18 +8,40 @@ import {
 } from "../constants/matchConstants";
 import { URL } from "../constants/userConstants";
 
+const API_TIMEOUT = 10000; // 10 seconds
+
 const headers = {
   Accept: "application/json",
 };
 
 export const getmatch = (id) => async (dispatch) => {
   try {
-    const data = await axios.get(`${URL}/getcontests/${id}`);
-    const matchdata = await axios.get(`${URL}/getmatch/${id}`);
-    const matchlivedata = await axios.get(`${URL}/getmatchlive/${id}`);
-    dispatch({ type: MATCH_SUCCESS, payload: matchdata.data.match });
-    dispatch({ type: MATCH_LIVE_SUCCESS, payload: matchlivedata.data.match });
+    dispatch({ type: MATCH_REQUEST });
+
+    const api = axios.create({ timeout: API_TIMEOUT });
+
+    const [contestsResponse, matchResponse, matchLiveResponse] =
+      await Promise.allSettled([
+        api.get(`${URL}/getcontests/${id}`),
+        api.get(`${URL}/getmatch/${id}`),
+        api.get(`${URL}/getmatchlive/${id}`),
+      ]);
+
+    if (matchResponse.status === "fulfilled" && matchResponse.value?.data?.match) {
+      dispatch({ type: MATCH_SUCCESS, payload: matchResponse.value.data.match });
+    } else {
+      console.error("Failed to fetch match data:", matchResponse.reason || "No data");
+      dispatch({ type: MATCH_FAIL, payload: "Failed to load match data" });
+    }
+
+    if (matchLiveResponse.status === "fulfilled" && matchLiveResponse.value?.data?.match) {
+      dispatch({ type: MATCH_LIVE_SUCCESS, payload: matchLiveResponse.value.data.match });
+    }
   } catch (error) {
-    console.log(error);
+    console.error("Error in getmatch action:", error);
+    dispatch({
+      type: MATCH_FAIL,
+      payload: error?.response?.data?.message || error.message || "Failed to load match",
+    });
   }
 };
