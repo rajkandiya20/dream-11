@@ -1,7 +1,9 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState, User;
 
+import '../../../../core/network/supabase_client.dart';
 import '../models/user_model.dart';
 
 /// Auth result wrapping success/error outcomes.
@@ -23,16 +25,65 @@ class AuthResult {
       AuthResult(success: false, errorMessage: message);
 }
 
-/// Repository handling Firebase Auth ONLY.
+/// Repository handling Firebase Auth with Supabase user data.
 class AuthRepository {
   final FirebaseAuth _firebaseAuth;
+  final SupabaseClient _supabaseClient;
 
-  AuthRepository({FirebaseAuth? firebaseAuth})
-      : _firebaseAuth = firebaseAuth ?? FirebaseAuth.instance;
+  AuthRepository({
+    FirebaseAuth? firebaseAuth,
+    required SupabaseClient supabaseClient,
+  })  : _firebaseAuth = firebaseAuth ?? FirebaseAuth.instance,
+        _supabaseClient = supabaseClient;
 
   User? get currentFirebaseUser => _firebaseAuth.currentUser;
   Stream<User?> get authStateChanges => _firebaseAuth.authStateChanges();
   bool get isAuthenticated => currentFirebaseUser != null;
+
+  /// Fetch user data from Supabase 'users' table by Firebase UID.
+  /// If user doesn't exist, upserts with default role 'user'.
+  Future<UserModel> _fetchOrCreateSupabaseUser(User firebaseUser, {String? overrideUsername}) async {
+    try {
+      // Try to fetch user from Supabase by uid
+      final response = await _supabaseClient
+          .from('users')
+          .select('*')
+          .eq('uid', firebaseUser.uid)
+          .maybeSingle();
+
+      if (response != null) {
+        debugPrint('✅ Found user in Supabase with role: ${response['role']}');
+        return UserModel.fromJson(response);
+      }
+
+      // User not found in Supabase - create with default role
+      debugPrint('ℹ️ User not in Supabase, upserting...');
+      final upsertData = {
+        'uid': firebaseUser.uid,
+        'email': firebaseUser.email ?? '',
+        'username': overrideUsername ?? firebaseUser.displayName,
+        'avatar_url': firebaseUser.photoURL,
+        'role': 'user',
+      };
+
+      final inserted = await _supabaseClient
+          .from('users')
+          .upsert(upsertData, onConflict: 'uid')
+          .select()
+          .single();
+
+      return UserModel.fromJson(inserted);
+    } catch (e) {
+      debugPrint('⚠️ Supabase user fetch failed: $e');
+      // Fallback to Firebase-only data if Supabase is unavailable
+      return UserModel(
+        uid: firebaseUser.uid,
+        email: firebaseUser.email ?? '',
+        username: overrideUsername ?? firebaseUser.displayName,
+        avatarUrl: firebaseUser.photoURL,
+      );
+    }
+  }
 
   Future<AuthResult> loginWithEmail({
     required String email,
@@ -48,7 +99,9 @@ class AuthRepository {
         return AuthResult.failure('Login failed. Please try again.');
       }
       debugPrint('✅ Login successful: ${credential.user!.uid}');
-      return AuthResult.success(_userFromFirebase(credential.user!));
+      // Fetch role from Supabase
+      final userModel = await _fetchOrCreateSupabaseUser(credential.user!);
+      return AuthResult.success(userModel);
     } on FirebaseAuthException catch (e) {
       debugPrint('❌ FirebaseAuthException: ${e.code} - ${e.message}');
       return AuthResult.failure(_mapFirebaseError(e.code));
@@ -81,10 +134,13 @@ class AuthRepository {
         await credential.user!.reload();
       }
       debugPrint('✅ Registration successful: ${credential.user!.uid}');
-      return AuthResult.success(_userFromFirebase(
-        _firebaseAuth.currentUser ?? credential.user!,
+      final firebaseUser = _firebaseAuth.currentUser ?? credential.user!;
+      // Create user in Supabase with default role
+      final userModel = await _fetchOrCreateSupabaseUser(
+        firebaseUser,
         overrideUsername: username,
-      ));
+      );
+      return AuthResult.success(userModel);
     } on FirebaseAuthException catch (e) {
       debugPrint('❌ FirebaseAuthException: ${e.code} - ${e.message}');
       return AuthResult.failure(_mapFirebaseError(e.code));
@@ -112,13 +168,16 @@ class AuthRepository {
     await _firebaseAuth.signOut();
   }
 
-  UserModel _userFromFirebase(User firebaseUser, {String? overrideUsername}) {
-    return UserModel(
-      uid: firebaseUser.uid,
-      email: firebaseUser.email ?? '',
-      username: overrideUsername ?? firebaseUser.displayName,
-      avatarUrl: firebaseUser.photoURL,
-    );
+  /// Fetch user from Supabase for existing session (used during _init in AuthNotifier).
+  Future<UserModel?> fetchCurrentUserFromSupabase() async {
+    final firebaseUser = currentFirebaseUser;
+    if (firebaseUser == null) return null;
+    try {
+      return await _fetchOrCreateSupabaseUser(firebaseUser);
+    } catch (e) {
+      debugPrint('⚠️ Could not fetch Supabase user during init: $e');
+      return null;
+    }
   }
 
   String _mapFirebaseError(String code) {
@@ -150,7 +209,8 @@ class AuthRepository {
   }
 }
 
-/// Provider — NO Supabase dependency.
+/// Provider for the auth repository with Supabase dependency.
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
-  return AuthRepository();
+  final supabaseClient = ref.watch(supabaseClientProvider);
+  return AuthRepository(supabaseClient: supabaseClient);
 });

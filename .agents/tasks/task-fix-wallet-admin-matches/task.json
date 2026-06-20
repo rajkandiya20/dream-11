@@ -1,0 +1,7 @@
+{
+  "task_id": "task-fix-wallet-admin-matches",
+  "task_description": "Fix wallet buttons hidden behind nav bar, fix admin access not working after login, fix match tabs horizontal layout, register all admin routes, add admin payment methods management, and enhance admin permissions/access",
+  "status": "in_progress",
+  "feature_order": ["FEAT-001"],
+  "blocked_reason": null
+}

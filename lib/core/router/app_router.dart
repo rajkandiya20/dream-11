@@ -24,6 +24,14 @@ import '../../features/profile/presentation/screens/profile_screen.dart';
 import '../../features/profile/presentation/screens/edit_profile_screen.dart';
 import '../../features/notifications/presentation/screens/notifications_screen.dart';
 import '../../features/admin/presentation/screens/admin_dashboard_screen.dart';
+import '../../features/admin/presentation/screens/admin_users_screen.dart';
+import '../../features/admin/presentation/screens/admin_tournaments_screen.dart';
+import '../../features/admin/presentation/screens/admin_teams_screen.dart';
+import '../../features/admin/presentation/screens/admin_scoreboard_screen.dart';
+import '../../features/admin/presentation/screens/admin_wallet_screen.dart';
+import '../../features/admin/presentation/screens/admin_reports_screen.dart';
+import '../../features/admin/presentation/screens/admin_settings_screen.dart';
+import '../../features/admin/presentation/screens/admin_payment_methods_screen.dart';
 import '../../features/admin/presentation/screens/match_manager_screen.dart';
 import '../../features/admin/presentation/screens/contest_manager_screen.dart';
 import '../../features/admin/presentation/screens/player_manager_screen.dart';
@@ -73,6 +81,14 @@ class AppRoutes {
   static const String adminMatches = '/admin/matches';
   static const String adminContests = '/admin/contests';
   static const String adminPlayers = '/admin/players';
+  static const String adminUsers = '/admin/users';
+  static const String adminTournaments = '/admin/tournaments';
+  static const String adminTeams = '/admin/teams';
+  static const String adminScoreboard = '/admin/scoreboard';
+  static const String adminWallet = '/admin/wallet';
+  static const String adminReports = '/admin/reports';
+  static const String adminSettings = '/admin/settings';
+  static const String adminPaymentMethods = '/admin/payment-methods';
 }
 
 /// Routes that don't require authentication.
@@ -288,6 +304,46 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.adminPlayers,
         name: 'adminPlayers',
         builder: (context, state) => const PlayerManagerScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.adminUsers,
+        name: 'adminUsers',
+        builder: (context, state) => const AdminUsersScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.adminTournaments,
+        name: 'adminTournaments',
+        builder: (context, state) => const AdminTournamentsScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.adminTeams,
+        name: 'adminTeams',
+        builder: (context, state) => const AdminTeamsScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.adminScoreboard,
+        name: 'adminScoreboard',
+        builder: (context, state) => const AdminScoreboardScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.adminWallet,
+        name: 'adminWallet',
+        builder: (context, state) => const AdminWalletScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.adminReports,
+        name: 'adminReports',
+        builder: (context, state) => const AdminReportsScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.adminSettings,
+        name: 'adminSettings',
+        builder: (context, state) => const AdminSettingsScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.adminPaymentMethods,
+        name: 'adminPaymentMethods',
+        builder: (context, state) => const AdminPaymentMethodsScreen(),
       ),
     ],
     errorBuilder: (context, state) => Scaffold(

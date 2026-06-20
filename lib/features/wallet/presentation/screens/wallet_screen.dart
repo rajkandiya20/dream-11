@@ -102,9 +102,9 @@ class WalletScreen extends ConsumerWidget {
                           childCount: walletState.recentTransactions.length,
                         ),
                       ),
-                    // Bottom spacing
+                    // Bottom spacing to clear floating nav bar
                     const SliverToBoxAdapter(
-                      child: SizedBox(height: 100),
+                      child: SizedBox(height: 120),
                     ),
                   ],
                 ),
@@ -171,6 +171,53 @@ class _DepositBottomSheetState extends ConsumerState<DepositBottomSheet> {
   void dispose() {
     _amountController.dispose();
     super.dispose();
+  }
+
+  Widget _buildPaymentMethodSelector(WalletState walletState) {
+    final adminMethods = walletState.adminPaymentMethods;
+
+    // If admin has defined payment methods, show those
+    if (adminMethods.isNotEmpty) {
+      return Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: adminMethods.map((method) {
+          final displayName =
+              method['display_name'] as String? ?? method['method_type'] as String? ?? 'Payment';
+          final isSelected = _selectedMethod == displayName;
+          return ChoiceChip(
+            label: Text(displayName),
+            selected: isSelected,
+            onSelected: (selected) {
+              if (selected) setState(() => _selectedMethod = displayName);
+            },
+            selectedColor: AppColors.primary.withOpacity(0.1),
+            labelStyle: AppTypography.labelMedium.copyWith(
+              color: isSelected ? AppColors.primary : AppColors.textSecondary,
+            ),
+          );
+        }).toList(),
+      );
+    }
+
+    // Fallback to default options
+    return Wrap(
+      spacing: 8,
+      children: ['UPI', 'Bank', 'PhonePe'].map((method) {
+        final isSelected = _selectedMethod == method;
+        return ChoiceChip(
+          label: Text(method),
+          selected: isSelected,
+          onSelected: (selected) {
+            if (selected) setState(() => _selectedMethod = method);
+          },
+          selectedColor: AppColors.primary.withOpacity(0.1),
+          labelStyle: AppTypography.labelMedium.copyWith(
+            color: isSelected ? AppColors.primary : AppColors.textSecondary,
+          ),
+        );
+      }).toList(),
+    );
   }
 
   @override
@@ -248,23 +295,7 @@ class _DepositBottomSheetState extends ConsumerState<DepositBottomSheet> {
             // Payment Method Selection
             Text('Payment Method', style: AppTypography.titleSmall),
             AppSpacing.gapH8,
-            Wrap(
-              spacing: 8,
-              children: ['UPI', 'Bank', 'PhonePe'].map((method) {
-                final isSelected = _selectedMethod == method;
-                return ChoiceChip(
-                  label: Text(method),
-                  selected: isSelected,
-                  onSelected: (selected) {
-                    if (selected) setState(() => _selectedMethod = method);
-                  },
-                  selectedColor: AppColors.primary.withOpacity(0.1),
-                  labelStyle: AppTypography.labelMedium.copyWith(
-                    color: isSelected ? AppColors.primary : AppColors.textSecondary,
-                  ),
-                );
-              }).toList(),
-            ),
+            _buildPaymentMethodSelector(walletState),
             AppSpacing.gapH24,
             // Deposit Button
             SizedBox(

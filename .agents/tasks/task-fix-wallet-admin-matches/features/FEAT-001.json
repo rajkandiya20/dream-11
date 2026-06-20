@@ -1,0 +1,32 @@
+{
+  "id": "FEAT-001",
+  "type": "fix",
+  "description": "Fix critical UI and authentication issues: wallet buttons hidden behind nav bar, admin access not working after login, match tabs horizontal layout, and complete admin panel routing/functionality",
+  "status": "in_progress",
+  "steps": [
+    "1. Fix wallet buttons hidden behind bottom nav bar: In lib/shared/widgets/main_scaffold.dart, the MainScaffold uses extendBody: true which causes content to go behind the floating bottom nav. The wallet_screen.dart already has SizedBox(height: 100) at the bottom of the CustomScrollView which should provide enough padding. The issue is more likely that the BalanceCard's deposit/withdraw buttons get obscured. Verify the bottom spacing is adequate (should be at least 120px to clear the floating nav which has 16px margin bottom + ~72px height). Update the SizedBox at the bottom of wallet_screen.dart from height:100 to height:120.",
+    "2. Fix admin access not granted after login: The auth_repository.dart _userFromFirebase() only creates a UserModel from Firebase data with default role='user'. It never fetches the role from Supabase 'users' table. Modify AuthRepository to: (a) add a method _fetchUserFromSupabase(String uid) that queries the 'users' table by uid and returns the user with role, (b) modify loginWithEmail to fetch user data from Supabase after Firebase auth succeeds so the role is populated, (c) modify _init() to also fetch from Supabase when an existing session exists, (d) Also need to handle the case where user doesn't exist in Supabase yet (first time login after register) by upserting. The repository needs access to SupabaseClient - import from core/network/supabase_client.dart and update the provider.",
+    "3. Fix match page tabs horizontal layout: In lib/features/matches/presentation/screens/matches_screen.dart, the TabBar uses AppSpacing.borderRadiusSm and Tab(text: ...) widgets. To make the Live/Upcoming/Completed tabs display properly in a horizontal row with equal spacing, ensure the TabBar has indicatorSize: TabBarIndicatorSize.tab set and the padding is correct. The current implementation looks fine structurally but add indicatorSize: TabBarIndicatorSize.tab and ensure labelPadding: EdgeInsets.symmetric(horizontal: 4) for tighter fit.",
+    "4. Register all missing admin routes in app_router.dart: The admin nav drawer navigates to /admin/users, /admin/tournaments, /admin/teams, /admin/scoreboard, /admin/wallet, /admin/reports, /admin/settings but only /admin, /admin/matches, /admin/contests, /admin/players are registered. Add the missing routes and their corresponding AppRoutes constants. Import the required screen files: admin_users_screen.dart, admin_tournaments_screen.dart, admin_teams_screen.dart, admin_scoreboard_screen.dart, admin_wallet_screen.dart, admin_reports_screen.dart, admin_settings_screen.dart.",
+    "5. Create admin payment methods management screen: Create lib/features/admin/presentation/screens/admin_payment_methods_screen.dart where admin can add/edit/delete payment methods that will be available app-wide for users when they deposit. These are the admin's bank accounts/UPI where user deposits go. Add CRUD methods in admin_repository.dart (getPaymentMethods, createPaymentMethod, updatePaymentMethod, deletePaymentMethod) working with a 'payment_methods' or 'admin_payment_methods' table. Add route /admin/payment-methods. Add navigation entry in admin_nav_drawer.dart.",
+    "6. Update wallet deposit flow to use admin-defined payment methods: In the WalletScreen's DepositBottomSheet, instead of hardcoded ['UPI', 'Bank', 'PhonePe'] choices, fetch payment methods defined by admin and display them so deposits go to admin's saved accounts. Load admin payment methods in wallet_repository.dart and expose them through wallet_provider.dart.",
+    "7. Enhance admin dashboard with payment methods quick action: Add a 'Payment Methods' quick action in the admin dashboard _QuickActionsGrid that navigates to /admin/payment-methods."
+  ],
+  "acceptance_criteria": [
+    "Wallet screen deposit and withdrawal buttons in BalanceCard are fully visible above the bottom navigation bar",
+    "After login with rexoagency.in@gmail.com (which has role='admin' in Supabase), the user gets admin access - isAdmin returns true and Admin Dashboard option appears in profile",
+    "Match screen Live/Upcoming/Completed tabs display in a proper horizontal row with correct styling",
+    "All admin nav drawer links (/admin/users, /admin/tournaments, /admin/teams, /admin/scoreboard, /admin/wallet, /admin/reports, /admin/settings, /admin/payment-methods) are registered as routes and navigate correctly",
+    "Admin can add/manage payment methods (bank accounts, UPI IDs) that users see when making deposits",
+    "Deposit bottom sheet shows admin-defined payment methods instead of hardcoded options",
+    "Code compiles without errors (flutter analyze passes)"
+  ],
+  "verification": [
+    "Read all modified files and verify they have correct Dart syntax, proper imports, and follow existing patterns",
+    "Verify app_router.dart has all admin routes registered with proper imports",
+    "Verify auth_repository.dart fetches user role from Supabase after Firebase login",
+    "Verify wallet_screen.dart has adequate bottom padding to clear the floating nav bar"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}

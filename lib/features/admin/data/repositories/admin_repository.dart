@@ -378,6 +378,59 @@ class AdminRepository {
 
   // ========== DEPOSITS & WITHDRAWALS (Admin Wallet) ==========
 
+  // ========== PAYMENT METHODS (Admin) ==========
+
+  /// Get all admin payment methods (methods available for user deposits).
+  Future<List<Map<String, dynamic>>> getAdminPaymentMethods() async {
+    try {
+      final response = await _client
+          .from('admin_payment_methods')
+          .select('*')
+          .order('created_at', ascending: false);
+      return List<Map<String, dynamic>>.from(response as List);
+    } catch (e) {
+      return [];
+    }
+  }
+
+  /// Create an admin payment method.
+  Future<Map<String, dynamic>?> createAdminPaymentMethod(
+      Map<String, dynamic> data) async {
+    try {
+      final response = await _client
+          .from('admin_payment_methods')
+          .insert(data)
+          .select()
+          .single();
+      return response;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /// Update an admin payment method.
+  Future<bool> updateAdminPaymentMethod(
+      String id, Map<String, dynamic> data) async {
+    try {
+      await _client.from('admin_payment_methods').update(data).eq('id', id);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /// Delete an admin payment method.
+  Future<bool> deleteAdminPaymentMethod(String id) async {
+    try {
+      await _client.from('admin_payment_methods').delete().eq('id', id);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // ========== DEPOSITS & WITHDRAWALS ==========
+
   /// Get pending deposits.
   Future<List<Map<String, dynamic>>> getPendingDeposits() async {
     try {
