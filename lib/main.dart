@@ -43,8 +43,13 @@ void main() async {
   await HiveStorage.initialize();
 
   // Initialize Supabase (required for data)
-  await SupabaseClientHelper.initialize();
-  debugPrint('✅ Supabase initialized successfully');
+  try {
+    await SupabaseClientHelper.initialize();
+    debugPrint('✅ Supabase initialized successfully');
+  } catch (e) {
+    debugPrint('⚠️ Supabase initialization failed: $e');
+    // App continues - features requiring Supabase will degrade gracefully
+  }
 
   runApp(
     const ProviderScope(

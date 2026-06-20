@@ -291,30 +291,42 @@ class AdminNotifier extends StateNotifier<AdminState> {
   // ========== PAYMENT METHODS ==========
 
   Future<void> loadPaymentMethods() async {
-    state = state.copyWith(isLoading: true);
+    state = state.copyWith(isLoading: true, errorMessage: null);
     final methods = await _repository.getAdminPaymentMethods();
     state = state.copyWith(paymentMethods: methods, isLoading: false);
   }
 
   Future<bool> createPaymentMethod(Map<String, dynamic> data) async {
+    state = state.copyWith(errorMessage: null);
     final result = await _repository.createAdminPaymentMethod(data);
     if (result != null) {
       await loadPaymentMethods();
       return true;
     }
+    state = state.copyWith(errorMessage: 'Failed to create payment method');
     return false;
   }
 
   Future<bool> updatePaymentMethod(String id, Map<String, dynamic> data) async {
+    state = state.copyWith(errorMessage: null);
     final success = await _repository.updateAdminPaymentMethod(id, data);
-    if (success) await loadPaymentMethods();
-    return success;
+    if (success) {
+      await loadPaymentMethods();
+      return true;
+    }
+    state = state.copyWith(errorMessage: 'Failed to update payment method');
+    return false;
   }
 
   Future<bool> deletePaymentMethod(String id) async {
+    state = state.copyWith(errorMessage: null);
     final success = await _repository.deleteAdminPaymentMethod(id);
-    if (success) await loadPaymentMethods();
-    return success;
+    if (success) {
+      await loadPaymentMethods();
+      return true;
+    }
+    state = state.copyWith(errorMessage: 'Failed to delete payment method');
+    return false;
   }
 
   /// Refresh dashboard data.
