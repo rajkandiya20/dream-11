@@ -4,10 +4,10 @@ import styled from "@emotion/styled";
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos";
 import NotificationAddOutlinedIcon from "@mui/icons-material/NotificationAddOutlined";
 import PersonOutlineOutlinedIcon from "@mui/icons-material/PersonOutlineOutlined";
-import { Button } from "@mui/material";
+import { Button, Alert, Snackbar } from "@mui/material";
 import LinearProgress from "@mui/material/LinearProgress";
 import axios from "axios";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import Match from "./match";
@@ -117,66 +117,210 @@ const Spanner = styled.div`
   width: 20px;
   height: 5px;
 `;
+
+const ErrorContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 50vh;
+  padding: 20px;
+  text-align: center;
+`;
+
+const RetryButton = styled(Button)`
+  margin-top: 20px;
+  background-color: var(--green);
+  color: white;
+  &:hover {
+    background-color: #0d7a2c;
+  }
+`;
+
 export function Home() {
   const { user, isAuthenticated, error } = useSelector((state) => state.user);
   const [upcoming, setUpcoming] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [apiError, setApiError] = useState(null);
   const [date, setDate] = useState();
   const [live, setLive] = useState([]);
   const [past, setPast] = useState([]);
   const [open, setOpen] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
   const navigate = useNavigate();
-  useEffect(() => {
-    async function getupcoming() {
-      if (user?._id) {
-        setLoading(true);
-        const upcoming = await axios.get(`${URL}/home`);
-        const urr = upcoming.data.upcoming.results.sort(
+
+  // Maximum retries and timeout
+  const MAX_RETRIES = 3;
+  const API_TIMEOUT = 10000; // 10 seconds
+
+  // Fetch data with error handling
+  const fetchData = useCallback(async () => {
+    const userId = user?._id || user?.uid;
+    
+    if (!userId) {
+      console.log('⚠️ No user ID, skipping data fetch');
+      setLoading(false);
+      return;
+    }
+
+    console.log('🔄 Fetching home data for user:', userId);
+    setLoading(true);
+    setApiError(null);
+
+    try {
+      // Create axios instance with timeout
+      const api = axios.create({
+        timeout: API_TIMEOUT,
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+
+      // Fetch upcoming matches
+      console.log('📡 Fetching upcoming matches...');
+      const upcomingResponse = await api.get(`${URL}/home`);
+      
+      if (upcomingResponse.data?.upcoming?.results) {
+        const urr = upcomingResponse.data.upcoming.results.sort(
           (a, b) => new Date(a.date) - new Date(b.date)
         );
         setUpcoming([...urr]);
-        setLoading(false);
-        const data = await axios.get(`${URL}/home/${user._id}`);
-        const ucm = data.data.upcoming.results.sort(
-          (a, b) => new Date(a.date) - new Date(b.date)
-        );
-        setUpcoming([...ucm]);
-        const lrr = data.data.live.results.sort(
-          (a, b) => new Date(a.date) - new Date(b.date)
-        );
-        setLive([...lrr]);
-        if (data.data.past.results.length > 0) {
-          setPast([
-            data.data.past.results
-              .sort((b, a) => new Date(a.date) - new Date(b.date))
-              .reverse()
-              .pop(),
-          ]);
-        } else {
-          //setPast([
-          // data.data.past.results
-          //    .sort((b, a) => new Date(a.date) - new Date(b.date))
-          //   .pop(),
-          //]);
-        }
+        console.log('✅ Upcoming matches loaded:', urr.length);
       }
+
+      // Fetch user-specific data
+      console.log('📡 Fetching user matches...');
+      const userResponse = await api.get(`${URL}/home/${userId}`);
+      
+      if (userResponse.data) {
+        if (userResponse.data.upcoming?.results) {
+          const ucm = userResponse.data.upcoming.results.sort(
+            (a, b) => new Date(a.date) - new Date(b.date)
+          );
+          setUpcoming([...ucm]);
+        }
+        
+        if (userResponse.data.live?.results) {
+          const lrr = userResponse.data.live.results.sort(
+            (a, b) => new Date(a.date) - new Date(b.date)
+          );
+          setLive([...lrr]);
+        }
+        
+        if (userResponse.data.past?.results?.length > 0) {
+          const pastMatches = userResponse.data.past.results
+            .sort((b, a) => new Date(a.date) - new Date(b.date))
+            .reverse();
+          setPast([pastMatches.pop()]);
+        }
+        
+        console.log('✅ User data loaded successfully');
+      }
+
+      setLoading(false);
+      setApiError(null);
+      setRetryCount(0);
+      
+    } catch (error) {
+      console.error('❌ Error fetching data:', error);
+      setLoading(false);
+      
+      // Set user-friendly error message
+      let errorMessage = 'Failed to load matches. ';
+      
+      if (error.code === 'ECONNABORTED') {
+        errorMessage += 'Request timed out. Please try again.';
+      } else if (error.response?.status === 401) {
+        errorMessage = 'Session expired. Please login again.';
+        setTimeout(() => {
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          navigate('/login');
+        }, 2000);
+      } else if (error.response?.status === 403) {
+        errorMessage += 'Access denied. Check permissions.';
+      } else if (error.response?.status === 404) {
+        errorMessage += 'Data not found.';
+      } else if (!navigator.onLine) {
+        errorMessage += 'No internet connection.';
+      } else {
+        errorMessage += 'Server error. Please try again later.';
+      }
+      
+      setApiError(errorMessage);
     }
-    getupcoming();
-  }, [user]);
+  }, [user, navigate]);
+
+  // Retry handler
+  const handleRetry = () => {
+    if (retryCount < MAX_RETRIES) {
+      setRetryCount(prev => prev + 1);
+      fetchData();
+    } else {
+      setApiError('Maximum retry attempts reached. Please refresh the page.');
+    }
+  };
+
+  // Load data when user changes
   useEffect(() => {
-    const servertoken =
-      localStorage.getItem("token") && localStorage.getItem("token");
-    if (!servertoken) {
+    if (user && (user._id || user.uid)) {
+      fetchData();
+    } else if (!loading) {
+      // If not loading and no user, show empty state
+      setUpcoming([]);
+      setLive([]);
+      setPast([]);
+    }
+  }, [user, fetchData]);
+
+  // Check authentication on mount
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      console.log('⚠️ No token found, redirecting to login');
       navigate("/login");
     }
-  }, []);
+  }, [navigate]);
+
   const handleClick = () => {
     setOpen(true);
   };
+
+  // Render error state
+  if (apiError && !loading) {
+    return (
+      <>
+        <Navbar home />
+        <ErrorContainer>
+          <SportsCricketOutlined style={{ fontSize: 60, color: '#ccc', marginBottom: 20 }} />
+          <h3 style={{ color: '#333', marginBottom: 10 }}>Unable to Load Matches</h3>
+          <p style={{ color: '#666', marginBottom: 20 }}>{apiError}</p>
+          {retryCount < MAX_RETRIES && (
+            <RetryButton variant="contained" onClick={handleRetry}>
+              Try Again ({MAX_RETRIES - retryCount} attempts left)
+            </RetryButton>
+          )}
+          <Button 
+            variant="outlined" 
+            style={{ marginTop: 10 }}
+            onClick={() => window.location.reload()}
+          >
+            Refresh Page
+          </Button>
+        </ErrorContainer>
+        <Bottomnav />
+      </>
+    );
+  }
+
   return (
     <>
       <Navbar home />
-      {!loading ? (
+      {loading ? (
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
+          <Loader />
+        </div>
+      ) : (
         <div className="homecontainer">
           {past?.length > 0 ? (
             <CricketBg id="section1">
@@ -188,7 +332,7 @@ export function Home() {
                     </h3>
                     <ViewAll
                       style={{ display: "flex", alignItems: "center" }}
-                      onClick={() => navigate(`/completed/${user?._id}`)}
+                      onClick={() => navigate(`/completed/${user?._id || user?.uid}`)}
                     >
                       View All
                       <ArrowForwardIosIcon style={{ fontSize: "12px" }} />
@@ -199,6 +343,7 @@ export function Home() {
                     (u) =>
                       u && (
                         <div
+                          key={u.id || u._id}
                           className="matchcontainere"
                           onClick={() => navigate(`/contests/${u.id}`)}
                           style={{
@@ -217,11 +362,11 @@ export function Home() {
                               }}
                             >
                               <span style={{ marginRight: "5px" }}>
-                                {u?.away.code}
+                                {u?.away?.code}
                               </span>{" "}
                               vs
                               <span style={{ marginLeft: "5px" }}>
-                                {u?.home.code}
+                                {u?.home?.code}
                               </span>
                             </h5>
                             <NotificationAddOutlinedIcon
@@ -232,7 +377,7 @@ export function Home() {
                             <div className="matchcenter">
                               <div className="matchlefts">
                                 <img
-                                  src={u?.teamAwayFlagUrl}
+                                  src={u?.teamAwayFlagUrl || u?.away?.flag}
                                   alt=""
                                   width="40"
                                 />
@@ -280,59 +425,13 @@ export function Home() {
                                 )}
                               </div>
                               <div className="matchrights">
-                                <h5> {u.home.code}</h5>
+                                <h5> {u?.home?.code}</h5>
                                 <img
-                                  src={u.teamHomeFlagUrl}
+                                  src={u?.teamHomeFlagUrl || u?.home?.flag}
                                   alt=""
                                   width="40"
                                 />
                               </div>
-                            </div>
-                          </div>
-                          <div
-                            className="bottom"
-                            style={{
-                              position: "relative",
-                              padding: "6px 15px",
-                              fontSize: "12px",
-                            }}
-                          >
-                            <div
-                              style={{
-                                display: "flex",
-                                width: "150px",
-                                justifyContent: "space-between",
-                                alignItems: "center",
-                              }}
-                            >
-                              {u.teams.length > 0 && (
-                                <h5
-                                  className=""
-                                  style={{
-                                    textTransform: "lowercase",
-                                    fontSize: "12px",
-                                  }}
-                                >
-                                  {u.teams.length} teams
-                                </h5>
-                              )}
-                              <div className="meg">
-                                {u.contests.length > 0 && (
-                                  <h5
-                                    style={{
-                                      textTransform: "lowercase",
-                                      fontSize: "12px",
-                                    }}
-                                  >
-                                    {u.contests.length} contests
-                                  </h5>
-                                )}
-                              </div>
-                            </div>
-                            <div className="icon">
-                              <SportsCricketOutlined
-                                style={{ color: "#595959", fontSize: "18px" }}
-                              />
                             </div>
                           </div>
                         </div>
@@ -342,29 +441,24 @@ export function Home() {
               ) : null}
             </CricketBg>
           ) : null}
-          <div className="matches">
-            {live?.length > 0 ? (
-              <>
-                <h3>Live Matches</h3>
-                {live.map((u) => (
-                  <Match u={u} live />
-                ))}
-              </>
-            ) : null}
-          </div>
-          <div className="matches">
-            {upcoming?.length > 0 ? (
-              <>
-                <h3>Upcoming Matches</h3>
-                {upcoming.map((u) => (
-                  <Match u={u} />
-                ))}
-              </>
-            ) : null}
-          </div>
+
+          {upcoming.length > 0 ? (
+            <>
+              <h4 style={{ padding: "10px 15px" }}>Upcoming Matches</h4>
+              {upcoming.map((match) => (
+                <Match key={match.id || match._id} match={match} />
+              ))}
+            </>
+          ) : (
+            !loading && (
+              <div style={{ textAlign: 'center', padding: '40px 20px' }}>
+                <SportsCricketOutlined style={{ fontSize: 60, color: '#ccc' }} />
+                <h4 style={{ color: '#666', marginTop: 20 }}>No Upcoming Matches</h4>
+                <p style={{ color: '#999', fontSize: 14 }}>Check back later for new matches</p>
+              </div>
+            )
+          )}
         </div>
-      ) : (
-        <Loader />
       )}
       <Bottomnav />
     </>

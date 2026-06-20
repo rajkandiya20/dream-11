@@ -1,0 +1,182 @@
+{
+  "schema_version": "1.0",
+  "project_id": "dream11local",
+  "database_type": "firestore",
+  "collections": {
+    "users": {
+      "description": "User profiles and account information",
+      "fields": {
+        "uid": { "type": "string", "description": "Firebase Auth UID", "required": true },
+        "_id": { "type": "string", "description": "User ID for backend compatibility" },
+        "email": { "type": "string", "description": "User email address", "required": true },
+        "username": { "type": "string", "description": "Display name" },
+        "phoneNumber": { "type": "string", "description": "Phone number" },
+        "role": { "type": "string", "enum": ["user", "admin"], "default": "user" },
+        "balance": { "type": "number", "default": 0, "description": "Wallet balance" },
+        "avatar": { "type": "string", "description": "Profile picture URL" },
+        "teams": { "type": "array", "items": "string", "description": "User's team IDs" },
+        "matches": { "type": "array", "items": "string", "description": "User's match IDs" },
+        "createdAt": { "type": "timestamp", "description": "Account creation date" },
+        "updatedAt": { "type": "timestamp", "description": "Last update date" }
+      },
+      "indexes": ["email", "username", "role"]
+    },
+    "tournaments": {
+      "description": "Cricket tournaments/leagues",
+      "fields": {
+        "name": { "type": "string", "required": true },
+        "shortName": { "type": "string" },
+        "status": { "type": "string", "enum": ["upcoming", "live", "completed"] },
+        "startDate": { "type": "timestamp" },
+        "endDate": { "type": "timestamp" },
+        "teams": { "type": "array", "items": "string" },
+        "matches": { "type": "array", "items": "string" },
+        "logo": { "type": "string" }
+      },
+      "indexes": ["status", "startDate"]
+    },
+    "teams": {
+      "description": "Cricket teams",
+      "fields": {
+        "name": { "type": "string", "required": true },
+        "shortName": { "type": "string" },
+        "country": { "type": "string" },
+        "flag": { "type": "string", "description": "Flag image URL" },
+        "players": { "type": "array", "items": "string" }
+      }
+    },
+    "players": {
+      "description": "Cricket players",
+      "fields": {
+        "name": { "type": "string", "required": true },
+        "teamId": { "type": "string" },
+        "role": { "type": "string", "enum": ["batsman", "bowler", "all-rounder", "wicket-keeper"] },
+        "credits": { "type": "number", "description": "Fantasy credits value" },
+        "photo": { "type": "string" },
+        "stats": { "type": "object" }
+      }
+    },
+    "matches": {
+      "description": "Cricket matches",
+      "fields": {
+        "tournamentId": { "type": "string" },
+        "home": { "type": "object", "fields": { "teamId": "string", "score": "string", "code": "string" } },
+        "away": { "type": "object", "fields": { "teamId": "string", "score": "string", "code": "string" } },
+        "date": { "type": "timestamp" },
+        "venue": { "type": "string" },
+        "status": { "type": "string", "enum": ["upcoming", "live", "completed"] },
+        "result": { "type": "string" },
+        "teamHomeFlagUrl": { "type": "string" },
+        "teamAwayFlagUrl": { "type": "string" }
+      },
+      "indexes": ["status", "date", "tournamentId"]
+    },
+    "fantasy_teams": {
+      "description": "User-created fantasy teams",
+      "fields": {
+        "userId": { "type": "string", "required": true },
+        "matchId": { "type": "string", "required": true },
+        "contestId": { "type": "string" },
+        "players": { "type": "array", "items": "string" },
+        "captain": { "type": "string" },
+        "viceCaptain": { "type": "string" },
+        "totalCredits": { "type": "number" },
+        "points": { "type": "number" },
+        "createdAt": { "type": "timestamp" }
+      },
+      "indexes": ["userId", "matchId", "contestId"]
+    },
+    "contests": {
+      "description": "Fantasy contests",
+      "fields": {
+        "matchId": { "type": "string", "required": true },
+        "name": { "type": "string" },
+        "entryFee": { "type": "number" },
+        "totalSpots": { "type": "number" },
+        "filledSpots": { "type": "number" },
+        "prizePool": { "type": "number" },
+        "winners": { "type": "number" },
+        "status": { "type": "string", "enum": ["open", "closed", "completed"] }
+      },
+      "indexes": ["matchId", "entryFee", "status"]
+    },
+    "leaderboards": {
+      "description": "Contest leaderboards",
+      "fields": {
+        "matchId": { "type": "string" },
+        "contestId": { "type": "string" },
+        "userId": { "type": "string" },
+        "rank": { "type": "number" },
+        "points": { "type": "number" },
+        "prize": { "type": "number" }
+      },
+      "indexes": ["matchId", "contestId", "rank"]
+    },
+    "groups": {
+      "description": "User groups for private contests",
+      "fields": {
+        "name": { "type": "string" },
+        "createdBy": { "type": "string" },
+        "members": { "type": "map", "values": "boolean" },
+        "admins": { "type": "map", "values": "boolean" },
+        "contestIds": { "type": "array", "items": "string" },
+        "createdAt": { "type": "timestamp" }
+      }
+    },
+    "notifications": {
+      "description": "User notifications",
+      "fields": {
+        "userId": { "type": "string", "required": true },
+        "title": { "type": "string" },
+        "message": { "type": "string" },
+        "type": { "type": "string" },
+        "read": { "type": "boolean", "default": false },
+        "createdAt": { "type": "timestamp" }
+      },
+      "indexes": ["userId", "createdAt"]
+    },
+    "transactions": {
+      "description": "Wallet transactions",
+      "fields": {
+        "userId": { "type": "string", "required": true },
+        "type": { "type": "string", "enum": ["deposit", "withdrawal", "prize", "entry"] },
+        "amount": { "type": "number" },
+        "status": { "type": "string", "enum": ["pending", "completed", "failed"] },
+        "description": { "type": "string" },
+        "createdAt": { "type": "timestamp" }
+      },
+      "indexes": ["userId", "createdAt"]
+    },
+    "wallets": {
+      "description": "User wallets",
+      "fields": {
+        "userId": { "type": "string", "required": true },
+        "balance": { "type": "number", "default": 0 },
+        "bonus": { "type": "number", "default": 0 },
+        "withdrawable": { "type": "number", "default": 0 },
+        "updatedAt": { "type": "timestamp" }
+      }
+    },
+    "chat_messages": {
+      "description": "Group chat messages",
+      "fields": {
+        "groupId": { "type": "string" },
+        "senderId": { "type": "string" },
+        "senderName": { "type": "string" },
+        "message": { "type": "string" },
+        "timestamp": { "type": "timestamp" }
+      },
+      "indexes": ["groupId", "timestamp"]
+    },
+    "admins": {
+      "description": "Admin users",
+      "fields": {
+        "uid": { "type": "string", "required": true },
+        "email": { "type": "string" },
+        "role": { "type": "string", "enum": ["super_admin", "admin", "moderator"] },
+        "permissions": { "type": "array", "items": "string" },
+        "createdAt": { "type": "timestamp" }
+      }
+    }
+  }
+}

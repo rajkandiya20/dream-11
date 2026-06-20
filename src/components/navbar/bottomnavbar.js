@@ -5,42 +5,60 @@ import HomeOutlinedIcon from "@mui/icons-material/HomeOutlined";
 import MoreHorizOutlinedIcon from "@mui/icons-material/MoreHorizOutlined";
 import { useSelector } from "react-redux";
 import { useLocation, useNavigate } from "react-router-dom";
+import "./bottomnavbar.css";
 
 export function Bottomnav() {
-  const { user, isAuthenticated, error } = useSelector((state) => state.user);
+  const { user, isAuthenticated } = useSelector((state) => state.user);
   const navigate = useNavigate();
   const location = useLocation();
+  
+  // Get user ID safely
+  const userId = user?._id || user?.uid;
+  
   return (
     <div className="bottomnav">
       <div
         onClick={() => navigate("/")}
-        className={location.pathname == "/" ? "selectedrt" : "notselectedrt"}
+        className={location.pathname === "/" ? "selectedrt" : "notselectedrt"}
       >
         <HomeOutlinedIcon style={{ fontSize: "28px" }} />
-        Home
+        <span>Home</span>
       </div>
       <div
-        onClick={() => navigate(`/completed/${user?._id}`)}
+        onClick={() => userId && navigate(`/completed/${userId}`)}
         className={
-          location.pathname == `/completed/${user._id}`
-            ? "selectedrt"
-            : "notselectedrt"
+          location.pathname.includes("/completed") ? "selectedrt" : "notselectedrt"
         }
       >
         <EmojiEventsOutlinedIcon style={{ fontSize: "28px" }} />
-        My Matches
+        <span>My Matches</span>
       </div>
-      <div>
+      <div
+        onClick={() => navigate("/feed")}
+        className={
+          location.pathname === "/feed" ? "selectedrt" : "notselectedrt"
+        }
+      >
         <FeedOutlinedIcon style={{ fontSize: "28px" }} />
-        Feed
+        <span>Feed</span>
       </div>
-      <div>
-        <GroupsOutlinedIcon style={{ fontSize: "28x" }} />
-        Groups
+      <div
+        onClick={() => navigate("/groups")}
+        className={
+          location.pathname === "/groups" ? "selectedrt" : "notselectedrt"
+        }
+      >
+        <GroupsOutlinedIcon style={{ fontSize: "28px" }} />
+        <span>Groups</span>
       </div>
-      <div>
+      <div
+        onClick={() => navigate("/more")}
+        className={
+          location.pathname === "/more" ? "selectedrt" : "notselectedrt"
+        }
+      >
         <MoreHorizOutlinedIcon style={{ fontSize: "28px" }} />
-        More
+        <span>More</span>
       </div>
     </div>
   );
