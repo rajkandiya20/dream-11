@@ -30,12 +30,12 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
     _logoController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1200),
+      duration: const Duration(milliseconds: 800),
     );
 
     _textController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 800),
+      duration: const Duration(milliseconds: 600),
     );
 
     _logoScaleAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
@@ -56,16 +56,15 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   }
 
   Future<void> _startAnimation() async {
-    await Future.delayed(const Duration(milliseconds: 300));
     if (!mounted) return;
     _logoController.forward();
 
-    await Future.delayed(const Duration(milliseconds: 600));
+    await Future.delayed(const Duration(milliseconds: 400));
     if (!mounted) return;
     _textController.forward();
 
-    // Wait for animation to complete then attempt navigation
-    await Future.delayed(const Duration(milliseconds: 1500));
+    // Navigate after 1200ms total
+    await Future.delayed(const Duration(milliseconds: 800));
     if (!mounted) return;
     _tryNavigate();
   }
@@ -75,15 +74,26 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
     final authState = ref.read(authProvider);
 
-    // If auth is still loading or initial, wait and retry
+    // If auth is still loading or initial, wait max 2 seconds then default to login
     if (authState.status == AuthStatus.loading ||
         authState.status == AuthStatus.initial) {
-      Future.delayed(const Duration(milliseconds: 500), () {
-        if (mounted) _tryNavigate();
-      });
+      _waitForAuthOrTimeout();
       return;
     }
 
+    _navigate(authState);
+  }
+
+  void _waitForAuthOrTimeout() {
+    // Set a max 2 second timeout, then default to login
+    Future.delayed(const Duration(seconds: 2), () {
+      if (!mounted || _hasNavigated) return;
+      _hasNavigated = true;
+      context.go(AppRoutes.login);
+    });
+  }
+
+  void _navigate(AuthState authState) {
     _hasNavigated = true;
     if (authState.isAuthenticated) {
       context.go(AppRoutes.home);
@@ -106,7 +116,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       if (!_hasNavigated &&
           next.status != AuthStatus.loading &&
           next.status != AuthStatus.initial) {
-        _tryNavigate();
+        _navigate(next);
       }
     });
 
@@ -200,8 +210,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                 valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
               ),
             )
-                .animate(delay: 1200.ms)
-                .fadeIn(duration: 400.ms),
+                .animate(delay: 400.ms)
+                .fadeIn(duration: 300.ms),
           ],
         ),
       ),

@@ -42,8 +42,13 @@ void main() async {
   // Initialize Hive for local storage
   await HiveStorage.initialize();
 
-  // Initialize Supabase
-  await SupabaseClientHelper.initialize();
+  // Initialize Supabase (optional - may not have credentials)
+  try {
+    await SupabaseClientHelper.initialize();
+    debugPrint('✅ Supabase initialized successfully');
+  } catch (e) {
+    debugPrint('⚠️ Supabase initialization skipped: $e');
+  }
 
   runApp(
     const ProviderScope(
