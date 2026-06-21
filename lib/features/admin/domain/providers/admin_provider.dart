@@ -450,6 +450,39 @@ class AdminNotifier extends StateNotifier<AdminState> {
   Future<void> refresh() async {
     await loadDashboard();
   }
+
+  // ========== TEAMS BY TOURNAMENT ==========
+
+  /// Load teams filtered by tournament ID.
+  /// Returns the list directly (no state mutation needed).
+  Future<List<Map<String, dynamic>>> getTeamsByTournament(
+      String tournamentId) async {
+    try {
+      return await _repository.getTeamsByTournament(tournamentId);
+    } catch (_) {
+      return [];
+    }
+  }
+
+  // ========== PLAYERS BY TEAM ==========
+
+  /// Load players filtered by team ID.
+  /// Returns the list directly (no state mutation needed).
+  Future<List<Map<String, dynamic>>> getPlayersByTeam(String teamId) async {
+    try {
+      return await _repository.getPlayersByTeam(teamId);
+    } catch (_) {
+      return [];
+    }
+  }
+
+  // ========== MATCH PLAYERS ==========
+
+  /// Set match players for a given match and team.
+  Future<bool> setMatchPlayers(
+      String matchId, List<String> playerIds, String teamId) async {
+    return await _repository.setMatchPlayers(matchId, playerIds, teamId);
+  }
 }
 
 /// Provider for admin state.

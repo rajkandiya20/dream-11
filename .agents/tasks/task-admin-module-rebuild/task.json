@@ -1,0 +1,7 @@
+{
+  "task_id": "task-admin-module-rebuild",
+  "task_description": "Complete audit and rebuild of the Admin module. Fix duplicate create buttons (keep only body button), fix Riverpod build-time modification errors, fix load failures, add real image upload via Supabase Storage + image_picker, rebuild all CRUD screens with full field specifications (tournaments, teams, players, matches, contests, scoreboard), add cascading dropdowns, Playing XI selection, auto-calculations, proper empty states, and generate a new SQL file for missing columns/tables.",
+  "status": "in_progress",
+  "feature_order": ["FEAT-001", "FEAT-002"],
+  "blocked_reason": null
+}
