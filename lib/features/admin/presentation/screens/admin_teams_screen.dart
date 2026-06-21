@@ -303,7 +303,7 @@ class _AdminTeamsScreenState extends ConsumerState<AdminTeamsScreen> {
                         'team-logos',
                         path,
                         logoBytes!,
-                        'image/png',
+                        contentType: 'image/png',
                       );
                 }
 
@@ -445,7 +445,7 @@ class _AdminTeamsScreenState extends ConsumerState<AdminTeamsScreen> {
                         'team-logos',
                         path,
                         logoBytes!,
-                        'image/png',
+                        contentType: 'image/png',
                       );
                 }
 
