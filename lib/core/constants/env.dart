@@ -6,7 +6,7 @@ class Env {
   static const String supabaseUrl = 'https://rpgchcgjcfpfjppqtsdk.supabase.co';
 
   /// Supabase anonymous key
-  static const String supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJwZ2NoY2dqY2ZwZmpwcHF0c2RrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzQyMjcwOTksImV4cCI6MjA0OTgwMzA5OX0.rYSxVqNmirOOFrXLfIj7sz63LOkp7N2VDI5DC_EKnlg';
+  static const String supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJwZ2NoY2dqY2ZwZmpwcHF0c2RrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE5MTY3NDYsImV4cCI6MjA5NzQ5Mjc0Nn0.2Y11nIB1yFArSCFchgi298UXtVbulXfr1iaGg7jinVc';
 
   /// Firebase API key
   static const String firebaseApiKey = 'AIzaSyBlQ7Xg4MZPFWKONrPJE_piXg2B6VHiWHk';
