@@ -91,7 +91,7 @@ class _PlayerManagerScreenState extends ConsumerState<PlayerManagerScreen> {
               columns: const ['Name', 'Role', 'Points', 'Credits'],
               displayKeys: const ['name', 'role', 'points', 'credits'],
               rows: adminState.players,
-              isLoading: adminState.isLoading,
+              isLoading: adminState.playersLoading,
               errorMessage: adminState.playersError,
               emptyMessage: 'No players added yet',
               emptyActionText: 'Add Player',

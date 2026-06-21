@@ -122,7 +122,7 @@ class _AdminDataTableState extends State<AdminDataTable> {
             ),
           ),
         if (widget.onSearch != null) AppSpacing.gapH16,
-        // Table
+        // Table content — loading / error / empty / data
         if (widget.isLoading)
           Center(
             child: Padding(
@@ -130,9 +130,7 @@ class _AdminDataTableState extends State<AdminDataTable> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const CircularProgressIndicator(
-                    color: AppColors.primary,
-                  ),
+                  const CircularProgressIndicator(color: AppColors.primary),
                   AppSpacing.gapH16,
                   Text(
                     'Loading ${widget.title.toLowerCase()}...',
@@ -140,6 +138,30 @@ class _AdminDataTableState extends State<AdminDataTable> {
                       color: AppColors.textSecondary,
                     ),
                   ),
+                  AppSpacing.gapH24,
+                  // ALWAYS show create button even while loading
+                  if (widget.onAdd != null)
+                    ElevatedButton.icon(
+                      onPressed: widget.onAdd,
+                      icon: const Icon(Icons.add, color: Colors.white),
+                      label: Text(
+                        widget.emptyActionText,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 12,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: AppSpacing.borderRadiusSm,
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),

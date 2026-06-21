@@ -96,7 +96,7 @@ class _MatchManagerScreenState extends ConsumerState<MatchManagerScreen> {
                 'venue'
               ],
               rows: adminState.matches,
-              isLoading: adminState.isLoading,
+              isLoading: adminState.matchesLoading,
               errorMessage: adminState.matchesError,
               emptyMessage: 'No matches created yet',
               emptyActionText: 'Create Match',

@@ -45,9 +45,7 @@ class AdminDashboardScreen extends ConsumerWidget {
         ],
       ),
       drawer: const AdminNavDrawer(currentRoute: '/admin'),
-      body: adminState.isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
+      body: RefreshIndicator(
               onRefresh: () => ref.read(adminProvider.notifier).refresh(),
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
@@ -55,6 +53,13 @@ class AdminDashboardScreen extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Loading indicator — shows while data loads, doesn't block UI
+                    if (adminState.isLoading)
+                      const LinearProgressIndicator(
+                        backgroundColor: Colors.transparent,
+                        minHeight: 2,
+                      ),
+                    if (adminState.isLoading) AppSpacing.gapH8,
                     // KPI Cards Grid
                     GridView.count(
                       shrinkWrap: true,
@@ -155,7 +160,6 @@ class AdminDashboardScreen extends ConsumerWidget {
                   ],
                 ),
               ),
-            ),
     );
   }
 

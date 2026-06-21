@@ -61,7 +61,7 @@ class _AdminTournamentsScreenState
           columns: const ['Name', 'Status', 'Start Date', 'End Date'],
           displayKeys: const ['name', 'status', 'start_date', 'end_date'],
           rows: adminState.tournaments,
-          isLoading: adminState.isLoading,
+          isLoading: adminState.tournamentsLoading,
           errorMessage: adminState.tournamentsError,
           emptyMessage: 'No tournaments yet',
           emptyActionText: 'Create Tournament',
