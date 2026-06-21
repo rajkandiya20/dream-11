@@ -18,7 +18,8 @@ class AdminTeamsScreen extends ConsumerStatefulWidget {
 
 class _AdminTeamsScreenState extends ConsumerState<AdminTeamsScreen> {
   bool _loading = false;
-  List<Map<String, dynamic>> _items = [];
+  List<Map<String, dynamic>> _teams = [];
+  List<Map<String, dynamic>> _tournaments = [];
 
   @override
   void initState() {
@@ -30,57 +31,48 @@ class _AdminTeamsScreenState extends ConsumerState<AdminTeamsScreen> {
     setState(() => _loading = true);
     try {
       await ref.read(adminProvider.notifier).loadTeams();
+      await ref.read(adminProvider.notifier).loadTournaments();
       final s = ref.read(adminProvider);
       setState(() {
-        _items = s.teams;
+        _teams = s.teams;
+        _tournaments = s.tournaments;
         _loading = false;
       });
-    } catch (_) {
-      setState(() {
-        _items = [];
-        _loading = false;
-      });
+    } catch (e) {
+      setState(() => _loading = false);
     }
   }
 
-  Future<void> _deleteTeam(String id) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Delete Team'),
-        content: const Text('Are you sure you want to delete this team?'),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel')),
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child:
-                  const Text('Delete', style: TextStyle(color: Colors.red))),
-        ],
-      ),
-    );
-    if (confirmed == true) {
-      await ref.read(adminProvider.notifier).deleteTeam(id);
-      await _load();
-    }
-  }
-
-  void _showCreateDialog() {
-    showDialog(
-      context: context,
-      builder: (ctx) => _CreateTeamDialog(onCreated: () => _load()),
-    );
+  void _snack(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF8FAFC),
       drawer: const AdminNavDrawer(currentRoute: '/admin/teams'),
       appBar: AppBar(
-        title: const Text('Teams'),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: Builder(
+          builder: (ctx) => IconButton(
+            icon: const Icon(Icons.menu, color: Color(0xFF0F172A)),
+            onPressed: () => Scaffold.of(ctx).openDrawer(),
+          ),
+        ),
+        title: const Text(
+          'Teams',
+          style:
+              TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.w700),
+        ),
         actions: [
-          IconButton(icon: const Icon(Icons.refresh), onPressed: _load),
+          IconButton(
+            icon: const Icon(Icons.refresh, color: Color(0xFF0F172A)),
+            onPressed: _load,
+          ),
+          const SizedBox(width: 4),
         ],
       ),
       body: Column(
@@ -90,22 +82,30 @@ class _AdminTeamsScreenState extends ConsumerState<AdminTeamsScreen> {
             padding: const EdgeInsets.all(16),
             child: ElevatedButton.icon(
               onPressed: _showCreateDialog,
-              icon: const Icon(Icons.add),
-              label: const Text('Create Team'),
+              icon: const Icon(Icons.group_add, color: Colors.white),
+              label: const Text(
+                '+ Add New Team',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 16,
+                ),
+              ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(8),
                 ),
               ),
             ),
           ),
           Expanded(
             child: _loading
-                ? const Center(child: CircularProgressIndicator())
-                : _items.isEmpty
+                ? const Center(
+                    child:
+                        CircularProgressIndicator(color: Color(0xFFE11D48)))
+                : _teams.isEmpty
                     ? _buildEmpty()
                     : _buildList(),
           ),
@@ -114,292 +114,398 @@ class _AdminTeamsScreenState extends ConsumerState<AdminTeamsScreen> {
     );
   }
 
-  Widget _buildEmpty() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.groups_outlined, size: 64, color: Colors.grey.shade400),
-          const SizedBox(height: 16),
-          Text('No teams yet',
-              style: TextStyle(fontSize: 18, color: Colors.grey.shade600)),
-          const SizedBox(height: 8),
-          Text('Create your first team to get started',
-              style: TextStyle(color: Colors.grey.shade500)),
-        ],
-      ),
-    );
-  }
+  Widget _buildEmpty() => Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: const [
+              Icon(Icons.groups, size: 64, color: Color(0xFFE11D48)),
+              SizedBox(height: 16),
+              Text(
+                'No Teams Found',
+                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 20),
+              ),
+            ],
+          ),
+        ),
+      );
 
-  Widget _buildList() {
-    return RefreshIndicator(
-      onRefresh: _load,
-      child: ListView.builder(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        itemCount: _items.length,
-        itemBuilder: (context, index) {
-          final item = _items[index];
-          final logo = item['logo'] as String?;
-          final name = item['name'] as String? ?? 'Unnamed';
-          final captain = item['captain'] as String? ?? '';
-
+  Widget _buildList() => ListView.builder(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        itemCount: _teams.length,
+        itemBuilder: (ctx, i) {
+          final t = _teams[i];
           return Card(
-            margin: const EdgeInsets.only(bottom: 12),
+            margin: const EdgeInsets.only(bottom: 8),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             child: ListTile(
               leading: CircleAvatar(
-                backgroundImage: logo != null && logo.isNotEmpty
-                    ? NetworkImage(logo)
+                backgroundColor: AppColors.primary,
+                backgroundImage: t['logo'] != null &&
+                        (t['logo'] as String).isNotEmpty
+                    ? NetworkImage(t['logo'] as String)
                     : null,
-                child: logo == null || logo.isEmpty
-                    ? const Icon(Icons.groups)
+                child: t['logo'] == null || (t['logo'] as String).isEmpty
+                    ? Text(
+                        (t['code'] ?? '?').toString().substring(0, 1),
+                        style: const TextStyle(
+                            color: Colors.white, fontWeight: FontWeight.w700),
+                      )
                     : null,
               ),
-              title: Text(name,
+              title: Text(t['name'] ?? '-',
                   style: const TextStyle(fontWeight: FontWeight.w600)),
-              subtitle: captain.isNotEmpty
-                  ? Text('Captain: $captain')
-                  : null,
-              trailing: PopupMenuButton<String>(
-                onSelected: (value) {
-                  if (value == 'delete') {
-                    _deleteTeam(item['id'] as String);
-                  }
-                },
-                itemBuilder: (ctx) => [
-                  const PopupMenuItem(value: 'delete', child: Text('Delete')),
+              subtitle: Text(
+                  'Code: ${t['code'] ?? '-'} | Tournament: ${_getTournamentName(t['tournament_id'])}'),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.edit, color: Color(0xFF3B82F6)),
+                    onPressed: () => _showEditDialog(t),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.delete, color: Color(0xFFEF4444)),
+                    onPressed: () => _confirmDelete(t),
+                  ),
                 ],
               ),
             ),
           );
         },
-      ),
-    );
-  }
-}
-
-class _CreateTeamDialog extends ConsumerStatefulWidget {
-  final VoidCallback onCreated;
-
-  const _CreateTeamDialog({required this.onCreated});
-
-  @override
-  ConsumerState<_CreateTeamDialog> createState() =>
-      _CreateTeamDialogState();
-}
-
-class _CreateTeamDialogState extends ConsumerState<_CreateTeamDialog> {
-  final _formKey = GlobalKey<FormState>();
-  final _nameCtrl = TextEditingController();
-  final _captainCtrl = TextEditingController();
-  final _viceCaptainCtrl = TextEditingController();
-  final _maxSquadCtrl = TextEditingController(text: '16');
-  final _minSquadCtrl = TextEditingController(text: '11');
-
-  List<Map<String, dynamic>> _tournaments = [];
-  String? _selectedTournamentId;
-  Uint8List? _imageBytes;
-  bool _submitting = false;
-  bool _loadingTournaments = true;
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _loadTournaments());
-  }
-
-  @override
-  void dispose() {
-    _nameCtrl.dispose();
-    _captainCtrl.dispose();
-    _viceCaptainCtrl.dispose();
-    _maxSquadCtrl.dispose();
-    _minSquadCtrl.dispose();
-    super.dispose();
-  }
-
-  Future<void> _loadTournaments() async {
-    await ref.read(adminProvider.notifier).loadTournaments();
-    final s = ref.read(adminProvider);
-    setState(() {
-      _tournaments = s.tournaments;
-      _loadingTournaments = false;
-    });
-  }
-
-  Future<void> _pickImage() async {
-    final picker = ImagePicker();
-    final picked =
-        await picker.pickImage(source: ImageSource.gallery, maxWidth: 800);
-    if (picked != null) {
-      final bytes = await picked.readAsBytes();
-      setState(() => _imageBytes = bytes);
-    }
-  }
-
-  Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
-    if (_selectedTournamentId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a tournament')),
       );
-      return;
-    }
 
-    setState(() => _submitting = true);
-
-    String? imageUrl;
-    if (_imageBytes != null) {
-      final storageService = ref.read(storageServiceProvider);
-      imageUrl = await storageService.uploadImage(
-        'team-logos',
-        'teams/${DateTime.now().millisecondsSinceEpoch}.png',
-        _imageBytes!,
-      );
-    }
-
-    final data = <String, dynamic>{
-      'name': _nameCtrl.text.trim(),
-      'tournament_id': _selectedTournamentId,
-      'captain': _captainCtrl.text.trim(),
-      'vice_captain': _viceCaptainCtrl.text.trim(),
-      'max_squad_size': int.tryParse(_maxSquadCtrl.text) ?? 16,
-      'min_squad_size': int.tryParse(_minSquadCtrl.text) ?? 11,
-      if (imageUrl != null) 'logo': imageUrl,
-    };
-
-    final success =
-        await ref.read(adminProvider.notifier).createTeam(data);
-
-    setState(() => _submitting = false);
-
-    if (success && mounted) {
-      Navigator.pop(context);
-      widget.onCreated();
-    }
+  String _getTournamentName(String? id) {
+    if (id == null) return '-';
+    final t = _tournaments.where((t) => t['id'] == id).toList();
+    return t.isNotEmpty ? (t.first['name'] ?? '-') : '-';
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Dialog(
-      insetPadding: const EdgeInsets.all(16),
-      child: Container(
-        constraints: const BoxConstraints(maxWidth: 500),
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Form(
-            key: _formKey,
+  void _showCreateDialog() {
+    final nameCtrl = TextEditingController();
+    final codeCtrl = TextEditingController();
+    final captainCtrl = TextEditingController();
+    final viceCaptainCtrl = TextEditingController();
+    String? selectedTournamentId;
+    Uint8List? logoBytes;
+    String? logoFileName;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setS) => AlertDialog(
+          title: const Text('Add Team',
+              style: TextStyle(fontWeight: FontWeight.w700)),
+          content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Text('Create Team',
-                    style:
-                        TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 20),
-                if (_loadingTournaments)
-                  const Center(child: CircularProgressIndicator())
-                else
-                  DropdownButtonFormField<String>(
-                    value: _selectedTournamentId,
-                    decoration:
-                        const InputDecoration(labelText: 'Select Tournament'),
-                    items: _tournaments
-                        .map((t) => DropdownMenuItem(
+                TextField(
+                  controller: nameCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Team Name',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: codeCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Team Code (e.g. IND)',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  value: selectedTournamentId,
+                  decoration: const InputDecoration(
+                    labelText: 'Tournament',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: _tournaments
+                      .map((t) => DropdownMenuItem<String>(
                             value: t['id'] as String,
-                            child:
-                                Text(t['name'] as String? ?? 'Unnamed')))
-                        .toList(),
-                    onChanged: (v) =>
-                        setState(() => _selectedTournamentId = v),
-                    validator: (v) => v == null ? 'Required' : null,
-                  ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: _nameCtrl,
-                  decoration: const InputDecoration(labelText: 'Team Name'),
-                  validator: (v) =>
-                      v == null || v.trim().isEmpty ? 'Required' : null,
+                            child: Text(t['name'] ?? '-'),
+                          ))
+                      .toList(),
+                  onChanged: (v) => setS(() => selectedTournamentId = v),
                 ),
                 const SizedBox(height: 12),
-                GestureDetector(
-                  onTap: _pickImage,
-                  child: Container(
-                    height: 100,
-                    decoration: BoxDecoration(
-                      border: Border.all(color: AppColors.border),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: _imageBytes != null
-                        ? ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: Image.memory(_imageBytes!,
-                                fit: BoxFit.cover,
-                                width: double.infinity))
-                        : const Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.add_photo_alternate,
-                                  size: 32, color: Colors.grey),
-                              SizedBox(height: 4),
-                              Text('Tap to select team logo',
-                                  style: TextStyle(color: Colors.grey)),
-                            ],
-                          ),
+                TextField(
+                  controller: captainCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Captain',
+                    border: OutlineInputBorder(),
                   ),
                 ),
                 const SizedBox(height: 12),
-                TextFormField(
-                  controller: _captainCtrl,
-                  decoration: const InputDecoration(labelText: 'Captain'),
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: _viceCaptainCtrl,
-                  decoration:
-                      const InputDecoration(labelText: 'Vice Captain'),
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextFormField(
-                        controller: _maxSquadCtrl,
-                        decoration: const InputDecoration(
-                            labelText: 'Max Squad Size'),
-                        keyboardType: TextInputType.number,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: TextFormField(
-                        controller: _minSquadCtrl,
-                        decoration: const InputDecoration(
-                            labelText: 'Min Squad Size'),
-                        keyboardType: TextInputType.number,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 24),
-                ElevatedButton(
-                  onPressed: _submitting ? null : _submit,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
+                TextField(
+                  controller: viceCaptainCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Vice Captain',
+                    border: OutlineInputBorder(),
                   ),
-                  child: _submitting
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                              strokeWidth: 2, color: Colors.white))
-                      : const Text('Create'),
                 ),
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: () async {
+                    final picker = ImagePicker();
+                    final file = await picker.pickImage(
+                        source: ImageSource.gallery);
+                    if (file != null) {
+                      final bytes = await file.readAsBytes();
+                      setS(() {
+                        logoBytes = bytes;
+                        logoFileName = file.name;
+                      });
+                    }
+                  },
+                  icon: const Icon(Icons.image),
+                  label: Text(logoFileName ?? 'Pick Team Logo'),
+                ),
+                if (logoBytes != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Image.memory(logoBytes!,
+                        height: 60, fit: BoxFit.contain),
+                  ),
               ],
             ),
           ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary),
+              onPressed: () async {
+                if (nameCtrl.text.trim().isEmpty) return;
+                if (selectedTournamentId == null) {
+                  ScaffoldMessenger.of(ctx).showSnackBar(
+                    const SnackBar(
+                        content: Text('Please select a tournament')),
+                  );
+                  return;
+                }
+                Navigator.pop(ctx);
+
+                String? logoUrl;
+                if (logoBytes != null) {
+                  final path =
+                      '${DateTime.now().millisecondsSinceEpoch}_${logoFileName ?? 'logo.png'}';
+                  logoUrl = await ref
+                      .read(storageServiceProvider)
+                      .uploadImage(
+                        'team-logos',
+                        path,
+                        logoBytes!,
+                        'image/png',
+                      );
+                }
+
+                final ok =
+                    await ref.read(adminProvider.notifier).createTeam({
+                  'name': nameCtrl.text.trim(),
+                  'code': codeCtrl.text.trim().toUpperCase(),
+                  'tournament_id': selectedTournamentId,
+                  'captain': captainCtrl.text.trim(),
+                  'vice_captain': viceCaptainCtrl.text.trim(),
+                  if (logoUrl != null) 'logo': logoUrl,
+                });
+                if (ok) {
+                  _load();
+                  _snack('Team added!');
+                } else {
+                  _snack('Failed to add team');
+                }
+              },
+              child:
+                  const Text('Add', style: TextStyle(color: Colors.white)),
+            ),
+          ],
         ),
+      ),
+    );
+  }
+
+  void _showEditDialog(Map<String, dynamic> t) {
+    final nameCtrl = TextEditingController(text: t['name'] ?? '');
+    final codeCtrl = TextEditingController(text: t['code'] ?? '');
+    final captainCtrl = TextEditingController(text: t['captain'] ?? '');
+    final viceCaptainCtrl =
+        TextEditingController(text: t['vice_captain'] ?? '');
+    String? selectedTournamentId = t['tournament_id'] as String?;
+    Uint8List? logoBytes;
+    String? logoFileName;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setS) => AlertDialog(
+          title: const Text('Edit Team',
+              style: TextStyle(fontWeight: FontWeight.w700)),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Team Name',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: codeCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Team Code',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  value: selectedTournamentId,
+                  decoration: const InputDecoration(
+                    labelText: 'Tournament',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: _tournaments
+                      .map((tr) => DropdownMenuItem<String>(
+                            value: tr['id'] as String,
+                            child: Text(tr['name'] ?? '-'),
+                          ))
+                      .toList(),
+                  onChanged: (v) => setS(() => selectedTournamentId = v),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: captainCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Captain',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: viceCaptainCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Vice Captain',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: () async {
+                    final picker = ImagePicker();
+                    final file = await picker.pickImage(
+                        source: ImageSource.gallery);
+                    if (file != null) {
+                      final bytes = await file.readAsBytes();
+                      setS(() {
+                        logoBytes = bytes;
+                        logoFileName = file.name;
+                      });
+                    }
+                  },
+                  icon: const Icon(Icons.image),
+                  label: Text(logoFileName ?? 'Change Logo'),
+                ),
+                if (logoBytes != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Image.memory(logoBytes!,
+                        height: 60, fit: BoxFit.contain),
+                  ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary),
+              onPressed: () async {
+                Navigator.pop(ctx);
+
+                String? logoUrl;
+                if (logoBytes != null) {
+                  final path =
+                      '${DateTime.now().millisecondsSinceEpoch}_${logoFileName ?? 'logo.png'}';
+                  logoUrl = await ref
+                      .read(storageServiceProvider)
+                      .uploadImage(
+                        'team-logos',
+                        path,
+                        logoBytes!,
+                        'image/png',
+                      );
+                }
+
+                final data = <String, dynamic>{
+                  'name': nameCtrl.text.trim(),
+                  'code': codeCtrl.text.trim().toUpperCase(),
+                  'tournament_id': selectedTournamentId,
+                  'captain': captainCtrl.text.trim(),
+                  'vice_captain': viceCaptainCtrl.text.trim(),
+                };
+                if (logoUrl != null) data['logo'] = logoUrl;
+
+                final ok = await ref
+                    .read(adminProvider.notifier)
+                    .updateTeam(t['id'] as String, data);
+                if (ok) {
+                  _load();
+                  _snack('Team updated!');
+                } else {
+                  _snack('Failed to update');
+                }
+              },
+              child: const Text('Update',
+                  style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _confirmDelete(Map<String, dynamic> t) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Team'),
+        content: Text('Delete "${t['name']}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              final ok = await ref
+                  .read(adminProvider.notifier)
+                  .deleteTeam(t['id'] as String);
+              if (ok) {
+                _load();
+                _snack('Team deleted');
+              } else {
+                _snack('Failed to delete');
+              }
+            },
+            child:
+                const Text('Delete', style: TextStyle(color: Colors.white)),
+          ),
+        ],
       ),
     );
   }
