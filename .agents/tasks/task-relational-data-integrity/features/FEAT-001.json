@@ -1,0 +1,41 @@
+{
+  "id": "FEAT-001",
+  "type": "fix",
+  "description": "Rewrite all 6 admin screen files to fix relational data integrity: pass foreign keys (tournament_id, team_id, team_a_id, team_b_id, match_id) in create operations, add cascading dropdowns, remove duplicate create buttons, fix Riverpod lifecycle exception, implement gallery image upload, add Playing XI selection, and ensure proper empty states.",
+  "status": "completed",
+  "steps": [
+    "REWRITE lib/features/admin/presentation/screens/admin_tournaments_screen.dart: Remove FloatingActionButton and AppBar create button. Keep only ONE ElevatedButton.icon at top of body. Use WidgetsBinding.instance.addPostFrameCallback in initState. Empty state shows icon + 'No Tournaments Found'. Full CRUD with name, description, status, start_date, end_date. After create/edit/delete call _load() and show SnackBar.",
+    "REWRITE lib/features/admin/presentation/screens/admin_teams_screen.dart: Remove FloatingActionButton and AppBar create button. Keep only ONE ElevatedButton.icon at top of body. Use WidgetsBinding.instance.addPostFrameCallback in initState. Load tournaments list for dropdown. Create dialog must include: team name, team code, tournament dropdown (stores tournament_id), captain, vice_captain fields, and gallery image picker for logo (using image_picker + StorageService.uploadImage to 'team-logos' bucket). Empty state shows icon + 'No Teams Found'. Pass tournament_id in createTeam data map.",
+    "REWRITE lib/features/admin/presentation/screens/admin_players_screen.dart: Remove FloatingActionButton and AppBar create button. Keep only ONE ElevatedButton.icon at top of body. Use WidgetsBinding.instance.addPostFrameCallback in initState. Load teams list for dropdown. Create dialog must include: player name, role dropdown (WK/Batsman/Bowler/All-rounder), team dropdown (stores team_id), credits, points, jersey_number, age, and optional gallery image picker for player photo (using image_picker + StorageService.uploadImage to 'player-photos' bucket). Empty state shows icon + 'No Players Found'. Pass team_id in createPlayer data map.",
+    "REWRITE lib/features/admin/presentation/screens/admin_matches_screen.dart: Remove FloatingActionButton and AppBar create button. Keep only ONE ElevatedButton.icon at top of body. Use WidgetsBinding.instance.addPostFrameCallback in initState. Create dialog must include: tournament dropdown, then cascading team A dropdown (filtered by tournament via getTeamsByTournament), team B dropdown (filtered by tournament, must differ from team A), date picker, time picker, venue, overs, status. Store tournament_id, team_a_id, team_b_id, team_a_name, team_b_name in createMatch data. After match creation, show Playing XI dialog: for each team load players via getPlayersByTeam, allow selecting exactly 11 players (at least 1 WK), then call setMatchPlayers(matchId, playerIds, teamId) for each team. Empty state shows icon + 'No Matches Found'.",
+    "REWRITE lib/features/admin/presentation/screens/admin_contests_screen.dart: Remove FloatingActionButton and AppBar create button. Keep only ONE ElevatedButton.icon at top of body. Use WidgetsBinding.instance.addPostFrameCallback in initState. Load matches list for dropdown. Create dialog must include: match dropdown (stores match_id), contest name, entry fee, prize pool, max spots (total_spots), max_teams_per_user, contest_type, status. Pass match_id in createContest data map. Empty state shows icon + 'No Contests Found'.",
+    "REWRITE lib/features/admin/presentation/screens/admin_scoreboard_screen.dart: Keep existing functionality but fix: use WidgetsBinding.instance.addPostFrameCallback in initState. Remove any FloatingActionButton. Keep the ElevatedButton.icon for adding score entries. Ensure empty state shows icon + 'No Scoreboard Entries Found' (not error messages). After save call _loadScoreboard() and show SnackBar."
+  ],
+  "acceptance_criteria": [
+    "admin_teams_screen.dart createTeam data map includes 'tournament_id' field from dropdown selection",
+    "admin_players_screen.dart createPlayer data map includes 'team_id' field from dropdown selection",
+    "admin_matches_screen.dart createMatch data map includes 'tournament_id', 'team_a_id', 'team_b_id' from dropdown selections",
+    "admin_contests_screen.dart createContest data map includes 'match_id' field from dropdown selection",
+    "No FloatingActionButton in any of the 6 screen files",
+    "No create button in AppBar actions (only refresh icon) in any of the 6 screen files",
+    "All screens use WidgetsBinding.instance.addPostFrameCallback in initState",
+    "Empty states show 'No X Found' text (never 'Failed to load' or error messages)",
+    "Team and player creation dialogs include image_picker gallery upload",
+    "Match creation includes Playing XI selection (exactly 11 per team, at least 1 WK) using setMatchPlayers",
+    "Match creation validates team_a_id != team_b_id",
+    "All screens import required packages: image_picker, intl, dart:typed_data, storage_service"
+  ],
+  "verification": [
+    "Run: grep -c 'FloatingActionButton' lib/features/admin/presentation/screens/admin_*_screen.dart - should return 0 for all files",
+    "Run: grep -l 'tournament_id' lib/features/admin/presentation/screens/admin_teams_screen.dart - confirms teams pass FK",
+    "Run: grep -l 'team_id' lib/features/admin/presentation/screens/admin_players_screen.dart - confirms players pass FK",
+    "Run: grep -l 'team_a_id' lib/features/admin/presentation/screens/admin_matches_screen.dart - confirms matches pass FK",
+    "Run: grep -l 'match_id' lib/features/admin/presentation/screens/admin_contests_screen.dart - confirms contests pass FK",
+    "Run: grep -l 'addPostFrameCallback' lib/features/admin/presentation/screens/admin_*_screen.dart - confirms lifecycle fix in all",
+    "Run: grep -l 'setMatchPlayers' lib/features/admin/presentation/screens/admin_matches_screen.dart - confirms Playing XI",
+    "Run: grep -c 'ImagePicker' lib/features/admin/presentation/screens/admin_teams_screen.dart - should be >= 1",
+    "Run: grep 'No.*Found' lib/features/admin/presentation/screens/admin_*_screen.dart - confirms empty state text"
+  ],
+  "blocked_reason": null,
+  "findings": "All 6 admin screen files rewritten successfully. Verification confirmed: no FloatingActionButton, no AppBar create buttons, all addPostFrameCallback present, all FK fields passed (tournament_id, team_id, team_a_id, team_b_id, match_id), ImagePicker used for gallery upload, setMatchPlayers called for Playing XI, and proper empty state text in all screens. Flutter SDK not available so no build/test was run - verification was code-review based per context.json instructions."
+}
