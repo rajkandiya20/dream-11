@@ -220,10 +220,10 @@ class AdminNotifier extends StateNotifier<AdminState> {
     }
   }
 
-  Future<bool> createMatch(Map<String, dynamic> data) async {
+  Future<String?> createMatch(Map<String, dynamic> data) async {
     final result = await _repository.createMatch(data);
-    if (result != null) { await loadMatches(); return true; }
-    return false;
+    if (result != null) { await loadMatches(); return result['id'] as String?; }
+    return null;
   }
 
   Future<bool> updateMatch(String id, Map<String, dynamic> data) async {
