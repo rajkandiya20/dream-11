@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../data/repositories/admin_repository.dart';
 import '../../domain/providers/admin_provider.dart';
 import '../widgets/admin_nav_drawer.dart';
 
@@ -378,7 +379,8 @@ class _AdminMatchesScreenState extends ConsumerState<AdminMatchesScreen> {
                     teamB['name'] ?? 'Team B',
                   );
                 } else {
-                  _snack('Failed to create match');
+                  final error = ref.read(adminRepositoryProvider).lastError ?? 'Unknown error';
+                  _snack('Failed: $error');
                 }
               },
               child: const Text('Create', style: TextStyle(color: Colors.white)),
