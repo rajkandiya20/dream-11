@@ -108,7 +108,7 @@ class AdminDashboardScreen extends ConsumerWidget {
                     // Quick Actions (ALL admin features)
                     Text('Manage', style: AppTypography.titleLarge),
                     AppSpacing.gapH12,
-                    _QuickActionsGrid(context: context),
+                    _QuickActionsGrid(),
                     AppSpacing.gapH24,
                     // Revenue Chart
                     RevenueLineChart(
@@ -236,12 +236,10 @@ class _PendingActionsCard extends StatelessWidget {
 
 /// Quick actions grid with ALL admin features as large cards in 2 columns.
 class _QuickActionsGrid extends StatelessWidget {
-  final BuildContext context;
-
-  const _QuickActionsGrid({required this.context});
+  const _QuickActionsGrid();
 
   @override
-  Widget build(BuildContext _) {
+  Widget build(BuildContext context) {
     final actions = [
       _QuickActionData(
         icon: Icons.emoji_events_outlined,
@@ -321,7 +319,7 @@ class _QuickActionsGrid extends StatelessWidget {
           icon: action.icon,
           label: action.label,
           color: action.color,
-          onTap: () => context.push(action.route),
+          onTap: () => ctx.push(action.route),
         );
       },
     );
