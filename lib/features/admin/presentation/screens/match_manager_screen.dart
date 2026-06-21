@@ -47,10 +47,17 @@ class _MatchManagerScreenState extends ConsumerState<MatchManagerScreen> {
         title: const Text('Match Manager',
             style: TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.w700)),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh, color: Color(0xFF0F172A)),
-            onPressed: _loadMatches,
+          TextButton.icon(
+            onPressed: _showCreateDialog,
+            icon: const Icon(Icons.add, color: Colors.white, size: 18),
+            label: const Text('Create', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+            style: TextButton.styleFrom(backgroundColor: const Color(0xFFE11D48),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6))),
           ),
+          const SizedBox(width: 8),
+          IconButton(icon: const Icon(Icons.refresh, color: Color(0xFF0F172A)), onPressed: _loadMatches),
+          const SizedBox(width: 4),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
