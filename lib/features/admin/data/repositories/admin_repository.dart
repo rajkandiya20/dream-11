@@ -185,11 +185,14 @@ class AdminRepository {
   /// Create a match.
   Future<Map<String, dynamic>?> createMatch(Map<String, dynamic> data) async {
     try {
+      debugPrint('AdminRepo createMatch data: $data');
       final response =
           await _client.from('matches').insert(data).select().single();
+      debugPrint('AdminRepo createMatch OK');
       return response;
     } catch (e) {
-      debugPrint('AdminRepo error: $e');
+      debugPrint('AdminRepo createMatch ERROR: $e');
+      lastError = e.toString();
       return null;
     }
   }
