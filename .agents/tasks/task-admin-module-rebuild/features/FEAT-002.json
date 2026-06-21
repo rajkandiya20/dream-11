@@ -1,0 +1,37 @@
+{
+  "id": "FEAT-002",
+  "type": "feat",
+  "description": "Rebuild all admin CRUD screens (Tournaments, Teams, Players, Matches, Contests, Scoreboard) with the complete field sets from the user specification. Remove duplicate create buttons (keep ONLY the large body button). Remove header create button and FloatingActionButton. Use image_picker for gallery-based image uploads. Use Supabase Storage for storing images. Show empty states (never show 'Failed to load'). Use local setState for loading. Add all validation rules. Add cascading dropdowns (tournament -> teams -> players). Add Playing XI selection after match creation.",
+  "status": "completed",
+  "steps": [
+    "Rewrite lib/features/admin/presentation/screens/admin_tournaments_screen.dart - Full form with fields: Tournament Name, Tournament Logo (gallery picker using image_picker), Tournament Type dropdown (League/Knockout/Practice), Start Date (date picker), End Date (date picker), Total Teams (number), Total Matches (number), Location (text), Description (text), Status dropdown (Upcoming/Live/Completed). Validation: End Date >= Start Date. List shows: logo thumbnail, name, status, start date. Actions: View, Edit, Delete. Empty state with icon and message. Remove header create button and FAB - keep only the large body button. Use AdminNavDrawer.",
+    "Rewrite lib/features/admin/presentation/screens/admin_teams_screen.dart - Add tournament dropdown at top to filter/select tournament. Form fields: Team Name, Team Logo (gallery picker), Captain (text), Vice Captain (text), Maximum Squad Size (default 16), Minimum Squad Size (default 11). List shows: logo thumbnail, team name, captain. Actions: View, Edit, Delete. Empty state. Remove header create button and FAB - keep only the large body button. Use AdminNavDrawer.",
+    "Rewrite lib/features/admin/presentation/screens/admin_players_screen.dart - Add tournament dropdown then team dropdown (cascading). Form fields: Player Name, Role dropdown (WK/BAT/AR/BOWL), Jersey Number, Age, Profile Image (gallery picker, default avatar if not selected). Validation: team must have between min_squad_size and max_squad_size players. List shows: photo/avatar, name, role. Actions: View, Edit, Delete. Empty state. Remove header create button and FAB - keep only the large body button. Use AdminNavDrawer.",
+    "Rewrite lib/features/admin/presentation/screens/admin_matches_screen.dart - Select Tournament dropdown, Select Team A dropdown (from tournament's teams), Select Team B dropdown (from tournament's teams). Validation: Team A != Team B. Auto-generate match name: 'Team A vs Team B'. Additional fields: Date (date picker), Time (time picker), Venue (text), Overs dropdown (5/10/20/50), Status dropdown (Upcoming/Live/Completed). After match creation, show a Playing XI selection screen/dialog to select exactly 11 players per team (with at least 1 WK). List shows: teams, date, status. Actions: View, Edit, Delete. Remove header create button and FAB. Use AdminNavDrawer.",
+    "Rewrite lib/features/admin/presentation/screens/admin_contests_screen.dart - Select Existing Match dropdown at top. Form fields: Contest Name, Entry Fee (number), Prize Pool (number), Total Spots (number), Maximum Teams Per User (number), Contest Type dropdown (Mega/HeadToHead/SmallLeague/WinnerTakesAll). Auto-calculate: Collected Amount (entry_fee * total_spots), Profit (collected - prize_pool), Winning Distribution (show calculated). List shows: name, prize pool, entry fee. Actions: View, Edit, Delete. Remove header create button and FAB. Use AdminNavDrawer.",
+    "Rewrite lib/features/admin/presentation/screens/admin_scoreboard_screen.dart - Select Match dropdown. Full scoring interface: Toss Winner selection, Choose Bat First, Live Scoring fields: Runs, Wickets, Overs, Balls, Extras, Boundaries (4s/6s), Strike Rate (auto-calc), Economy (auto-calc), Current Run Rate (auto-calc), Required Run Rate (auto-calc if chasing), Target, Partnership. Player Statistics per player. Auto Fantasy Points calculation based on runs/wickets/catches/etc. Remove header create button and FAB (keep only body button for 'Add Score Entry'). Use AdminNavDrawer.",
+    "Remove the duplicate manager screens that are now redundant: Delete match_manager_screen.dart, contest_manager_screen.dart, player_manager_screen.dart. Update lib/core/router/app_router.dart to point /admin/matches to AdminMatchesScreen, /admin/contests to AdminContestsScreen, /admin/players to AdminPlayersScreen (they already do, but remove the imports of the deleted files)."
+  ],
+  "acceptance_criteria": [
+    "All 6 admin screens (tournaments, teams, players, matches, contests, scoreboard) have complete field forms matching the specification",
+    "No screen has a FloatingActionButton or AppBar create button - only the large body button remains",
+    "All screens use local setState for loading state, not global isLoading",
+    "image_picker is used for logo/photo selection (import present, ImagePicker().pickImage called)",
+    "Cascading dropdowns work: tournament -> teams -> players",
+    "Match creation auto-generates match name from Team A vs Team B",
+    "Contest creation auto-calculates collected amount and profit",
+    "Empty states shown instead of 'Failed to load' errors",
+    "All screens show proper list items with the specified fields (logo/photo, name, status, etc.)",
+    "match_manager_screen.dart, contest_manager_screen.dart, player_manager_screen.dart are deleted",
+    "app_router.dart no longer imports the deleted manager screen files"
+  ],
+  "verification": [
+    "Verify admin_tournaments_screen.dart has no FloatingActionButton and no AppBar create button",
+    "Verify admin_matches_screen.dart has tournament and team dropdowns",
+    "Verify admin_players_screen.dart has image_picker import and gallery upload",
+    "Verify match_manager_screen.dart does not exist",
+    "Verify app_router.dart does not import match_manager_screen.dart"
+  ],
+  "blocked_reason": null,
+  "findings": "All 6 admin screens rewritten with complete forms, image upload via image_picker + StorageService, cascading dropdowns, Playing XI selection, auto-calculated fields, and proper empty states. No FloatingActionButton, no AppBar create button, no Failed to load text. Three redundant manager screens deleted. Router updated. All bracket counts balanced. No Flutter SDK available for static analysis - verified by syntax review only."
+}
