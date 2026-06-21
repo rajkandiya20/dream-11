@@ -32,9 +32,9 @@ import '../../features/admin/presentation/screens/admin_wallet_screen.dart';
 import '../../features/admin/presentation/screens/admin_reports_screen.dart';
 import '../../features/admin/presentation/screens/admin_settings_screen.dart';
 import '../../features/admin/presentation/screens/admin_payment_methods_screen.dart';
-import '../../features/admin/presentation/screens/match_manager_screen.dart';
-import '../../features/admin/presentation/screens/contest_manager_screen.dart';
-import '../../features/admin/presentation/screens/player_manager_screen.dart';
+import '../../features/admin/presentation/screens/admin_matches_screen.dart';
+import '../../features/admin/presentation/screens/admin_contests_screen.dart';
+import '../../features/admin/presentation/screens/admin_players_screen.dart';
 import '../../shared/widgets/main_scaffold.dart';
 
 /// Route names for type-safe navigation.
@@ -293,17 +293,17 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.adminMatches,
         name: 'adminMatches',
-        builder: (context, state) => const MatchManagerScreen(),
+        builder: (context, state) => const AdminMatchesScreen(),
       ),
       GoRoute(
         path: AppRoutes.adminContests,
         name: 'adminContests',
-        builder: (context, state) => const ContestManagerScreen(),
+        builder: (context, state) => const AdminContestsScreen(),
       ),
       GoRoute(
         path: AppRoutes.adminPlayers,
         name: 'adminPlayers',
-        builder: (context, state) => const PlayerManagerScreen(),
+        builder: (context, state) => const AdminPlayersScreen(),
       ),
       GoRoute(
         path: AppRoutes.adminUsers,
