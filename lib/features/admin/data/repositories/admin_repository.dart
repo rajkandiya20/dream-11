@@ -376,6 +376,84 @@ class AdminRepository {
     }
   }
 
+  // ========== TEAMS BY TOURNAMENT ==========
+
+  /// Get teams filtered by tournament ID.
+  Future<List<Map<String, dynamic>>> getTeamsByTournament(
+      String tournamentId) async {
+    try {
+      final response = await _client
+          .from('teams')
+          .select('*')
+          .eq('tournament_id', tournamentId)
+          .order('name', ascending: true);
+      return List<Map<String, dynamic>>.from(response as List);
+    } catch (e) {
+      return [];
+    }
+  }
+
+  // ========== PLAYERS BY TEAM ==========
+
+  /// Get players filtered by team ID.
+  Future<List<Map<String, dynamic>>> getPlayersByTeam(String teamId) async {
+    try {
+      final response = await _client
+          .from('players')
+          .select('*')
+          .eq('team_id', teamId)
+          .order('name', ascending: true);
+      return List<Map<String, dynamic>>.from(response as List);
+    } catch (e) {
+      return [];
+    }
+  }
+
+  // ========== MATCH PLAYERS (Playing XI) ==========
+
+  /// Get match players for a given match with player details.
+  Future<List<Map<String, dynamic>>> getMatchPlayers(String matchId) async {
+    try {
+      final response = await _client
+          .from('match_players')
+          .select('*, player:players(*)')
+          .eq('match_id', matchId);
+      return List<Map<String, dynamic>>.from(response as List);
+    } catch (e) {
+      return [];
+    }
+  }
+
+  /// Set match players for a match and team.
+  /// Deletes existing entries for the match+team and inserts new ones.
+  Future<bool> setMatchPlayers(
+      String matchId, List<String> playerIds, String teamId) async {
+    try {
+      // Delete existing match_players for this match and team
+      await _client
+          .from('match_players')
+          .delete()
+          .eq('match_id', matchId)
+          .eq('team_id', teamId);
+
+      // Insert new match players
+      if (playerIds.isNotEmpty) {
+        final rows = playerIds
+            .map((playerId) => {
+                  'match_id': matchId,
+                  'player_id': playerId,
+                  'team_id': teamId,
+                })
+            .toList();
+        await _client.from('match_players').insert(rows);
+      }
+
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
   // ========== DEPOSITS & WITHDRAWALS (Admin Wallet) ==========
 
   // ========== PAYMENT METHODS (Admin) ==========

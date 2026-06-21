@@ -1,0 +1,26 @@
+{
+  "id": "FEAT-001",
+  "type": "feat",
+  "description": "Rebuild the admin repository, provider, and add a Supabase Storage service for image uploads. Update the SQL schema with new/missing columns. Create a storage_service.dart that uses Supabase Storage buckets for uploading tournament logos, team logos, and player photos via image_picker. Update admin_repository.dart to add missing fields (tournament_type, total_teams, total_matches, location for tournaments; captain, vice_captain, max_squad_size, min_squad_size for teams; jersey_number, age, profile_image for players; overs, time for matches; total_spots, max_teams_per_user, contest_type options for contests). Create a new SQL file sql/part4-admin-module-updates.sql with ALTER TABLE statements for any new columns. Ensure admin_payment_methods table is also in the SQL.",
+  "status": "in_progress",
+  "steps": [
+    "Create lib/features/admin/data/services/storage_service.dart - A Supabase Storage upload service that: uses Supabase.instance.client.storage, has uploadImage(String bucket, String path, Uint8List bytes) method returning the public URL, supports buckets: 'tournament-logos', 'team-logos', 'player-photos'. Provider: storageServiceProvider.",
+    "Update lib/features/admin/data/repositories/admin_repository.dart - Ensure all CRUD methods handle the full field set. For createMatch: add tournament_id, team_a_id, team_b_id, date_time, overs fields. For createTournament: add tournament_type, start_date, end_date, total_teams, total_matches, location, logo fields. For createTeam: add tournament_id, captain, vice_captain, max_squad_size, min_squad_size fields. For createPlayer: add team_id, jersey_number, age, image fields. For createContest: add total_spots, max_teams_per_user, contest_type (Mega/HeadToHead/SmallLeague/WinnerTakesAll) fields. Add getTeamsByTournament(tournamentId) and getPlayersByTeam(teamId) methods. Add getMatchPlayers(matchId) and setMatchPlayers(matchId, playerIds) methods for Playing XI selection.",
+    "Update lib/features/admin/domain/providers/admin_provider.dart - Add methods: loadTeamsByTournament(tournamentId), loadPlayersByTeam(teamId), setMatchPlayers(matchId, playerIds). Keep existing pattern but ensure no provider modifications happen during widget build (the provider methods are async and called from button handlers or initState via WidgetsBinding.instance.addPostFrameCallback, so they are safe).",
+    "Create sql/part4-admin-module-updates.sql - Add columns: tournaments table (tournament_type TEXT, total_teams INT, total_matches INT, location TEXT); teams table (captain TEXT, vice_captain TEXT, max_squad_size INT DEFAULT 16, min_squad_size INT DEFAULT 11); players table (jersey_number INT, age INT); matches table (overs INT, time TIMESTAMPTZ); contests table (total_spots INT, max_teams_per_user INT DEFAULT 1, winning_distribution JSONB). Create admin_payment_methods table. Create Supabase storage buckets (as comments with instructions). Add match_players unique constraint on (match_id, player_id)."
+  ],
+  "acceptance_criteria": [
+    "storage_service.dart exists with uploadImage method and storageServiceProvider",
+    "admin_repository.dart has getTeamsByTournament, getPlayersByTeam, getMatchPlayers, setMatchPlayers methods",
+    "admin_provider.dart has loadTeamsByTournament, loadPlayersByTeam, setMatchPlayers methods",
+    "sql/part4-admin-module-updates.sql exists with ALTER TABLE statements for new columns",
+    "No Dart syntax errors in the modified files"
+  ],
+  "verification": [
+    "Read storage_service.dart and confirm it imports supabase_flutter and has uploadImage method",
+    "Read admin_repository.dart and confirm new methods exist",
+    "Read sql/part4-admin-module-updates.sql and confirm it has ALTER TABLE statements"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}
