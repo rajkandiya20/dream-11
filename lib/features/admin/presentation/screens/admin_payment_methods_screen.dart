@@ -165,8 +165,8 @@ class _AdminPaymentMethodsScreenState
                 await ref
                     .read(adminProvider.notifier)
                     .createPaymentMethod({
-                  'method_type': selectedType,
-                  'display_name': nameController.text.trim(),
+                  'type': selectedType,
+                  'label': nameController.text.trim(),
                   'details': _buildDetails(
                     selectedType,
                     detailsController.text.trim(),
@@ -311,8 +311,8 @@ class _PaymentMethodCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final methodType = method['method_type'] as String? ?? 'upi';
-    final displayName = method['display_name'] as String? ?? 'Payment Method';
+    final methodType = method['type'] as String? ?? 'upi';
+    final displayName = method['label'] as String? ?? 'Payment Method';
     final details = method['details'] as Map<String, dynamic>? ?? {};
     final isActive = method['is_active'] as bool? ?? true;
 
