@@ -235,7 +235,7 @@ final walletProvider =
     StateNotifierProvider<WalletNotifier, WalletState>((ref) {
   final repository = ref.watch(walletRepositoryProvider);
   final authState = ref.watch(authProvider);
-  final userId = authState.user?.id;
+  final userId = authState.user?.uid;
   return WalletNotifier(repository, userId);
 });
 
@@ -245,7 +245,7 @@ final transactionHistoryProvider =
         (ref, type) async {
   final repository = ref.watch(walletRepositoryProvider);
   final authState = ref.watch(authProvider);
-  final userId = authState.user?.id;
+  final userId = authState.user?.uid;
   if (userId == null) return [];
   return repository.getTransactions(userId, type: type);
 });
