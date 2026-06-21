@@ -47,6 +47,12 @@ class _AdminPlayersScreenState extends ConsumerState<AdminPlayersScreen> {
         ),
       ),
       drawer: const AdminNavDrawer(currentRoute: '/admin/players'),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => _showFormDialog(null),
+        backgroundColor: AppColors.primary,
+        icon: const Icon(Icons.add, color: Colors.white),
+        label: const Text('Create', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: AdminDataTable(
