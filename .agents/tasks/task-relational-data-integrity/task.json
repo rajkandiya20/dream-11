@@ -1,0 +1,7 @@
+{
+  "task_id": "task-relational-data-integrity",
+  "task_description": "Fix relational data integrity in admin screens by rewriting all 6 admin screen files to properly pass foreign keys (tournament_id, team_id, team_a_id, team_b_id, match_id) in CRUD operations, add cascading dropdowns, remove duplicate create buttons, fix Riverpod lifecycle exception, implement gallery image upload, add Playing XI selection, and create SQL migration for constraints and logging.",
+  "status": "in_progress",
+  "feature_order": ["FEAT-001", "FEAT-002"],
+  "blocked_reason": null
+}

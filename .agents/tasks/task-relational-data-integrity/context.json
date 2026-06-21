@@ -1,0 +1,29 @@
+{
+  "project_type": "Flutter Android app with Riverpod state management and Supabase backend",
+  "language": "Dart",
+  "build_system": "Flutter CLI (flutter pub get, flutter build apk) - Flutter SDK NOT available in sandbox",
+  "test_framework": "flutter_test (SDK-based, not available in sandbox)",
+  "build_command": "Not available - Flutter SDK not installed in sandbox",
+  "test_command": "Not available - Flutter SDK not installed in sandbox",
+  "verification_instructions": "Since Flutter is not available, verify by: 1) checking Dart syntax validity using dart analyze or manual code review, 2) confirming all required imports exist, 3) ensuring foreign key fields are passed in all create/update operations",
+  "snapshot_or_generated_files": null,
+  "setup_instructions": "flutter pub get (not available in sandbox)",
+  "environment_constraints": "INTEGRATIONS_ONLY network mode. No Flutter SDK available. No external packages installable. Validation must be done via code review and AST analysis only. Supabase connectivity is runtime-only (not build time).",
+  "contribution_requirements": "Commit all changes on fix/relational-data-integrity branch. Do NOT push.",
+  "key_patterns": "ConsumerStatefulWidget pattern with local _loading bool for spinner. WidgetsBinding.instance.addPostFrameCallback for initState loads. ref.read(adminProvider.notifier).methodName() for CRUD. Single ElevatedButton.icon at top of body for create. No FloatingActionButton. No AppBar create button. Only refresh icon in AppBar actions. AdminNavDrawer with currentRoute parameter. AlertDialog with StatefulBuilder for create/edit forms. _snack helper for SnackBar. _load() refresh after CRUD. Provider methods: createTeam(Map)->bool, createPlayer(Map)->bool, createMatch(Map)->String?, createContest(Map)->bool, getTeamsByTournament(id)->List, getPlayersByTeam(id)->List, setMatchPlayers(matchId, playerIds, teamId)->bool.",
+  "relevant_files": [
+    "lib/features/admin/presentation/screens/admin_tournaments_screen.dart",
+    "lib/features/admin/presentation/screens/admin_teams_screen.dart",
+    "lib/features/admin/presentation/screens/admin_players_screen.dart",
+    "lib/features/admin/presentation/screens/admin_matches_screen.dart",
+    "lib/features/admin/presentation/screens/admin_contests_screen.dart",
+    "lib/features/admin/presentation/screens/admin_scoreboard_screen.dart",
+    "lib/features/admin/domain/providers/admin_provider.dart",
+    "lib/features/admin/data/repositories/admin_repository.dart",
+    "lib/features/admin/data/services/storage_service.dart",
+    "lib/features/admin/presentation/widgets/admin_nav_drawer.dart",
+    "lib/core/theme/app_colors.dart",
+    "sql/part4-admin-module-updates.sql"
+  ],
+  "directory_structure": "lib/features/admin/ contains data/ (repositories, services), domain/ (providers), presentation/ (screens, widgets). sql/ contains schema migration files. Standard Flutter clean architecture."
+}
