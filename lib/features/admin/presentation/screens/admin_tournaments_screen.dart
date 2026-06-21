@@ -59,6 +59,7 @@ class _AdminTournamentsScreenState extends ConsumerState<AdminTournamentsScreen>
           IconButton(icon: const Icon(Icons.refresh, color: Color(0xFF0F172A)), onPressed: _load),
           const SizedBox(width: 4),
         ],
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _showCreateDialog,
         backgroundColor: const Color(0xFFE11D48),
