@@ -59,11 +59,11 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     if (!mounted) return;
     _logoController.forward();
 
-    await Future.delayed(const Duration(milliseconds: 300));
+    await Future.delayed(const Duration(milliseconds: 200));
     if (!mounted) return;
     _textController.forward();
 
-    await Future.delayed(const Duration(milliseconds: 500));
+    await Future.delayed(const Duration(milliseconds: 300));
     if (!mounted) return;
     _tryNavigate();
   }
@@ -111,29 +111,21 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                 );
               },
               child: Container(
-                width: 100,
-                height: 100,
+                width: 120,
+                height: 120,
                 decoration: BoxDecoration(
-                  gradient: AppColors.primaryGradient,
                   borderRadius: BorderRadius.circular(24),
                   boxShadow: [
                     BoxShadow(
-                      color: AppColors.primary.withOpacity(0.4),
-                      blurRadius: 24,
-                      offset: const Offset(0, 12),
+                      color: AppColors.primary.withOpacity(0.3),
+                      blurRadius: 20,
+                      offset: const Offset(0, 10),
                     ),
                   ],
                 ),
-                child: const Center(
-                  child: Text(
-                    'D11',
-                    style: TextStyle(
-                      fontSize: 36,
-                      fontWeight: FontWeight.w800,
-                      color: Colors.white,
-                      letterSpacing: -1,
-                    ),
-                  ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(24),
+                  child: Image.asset('assets/logo.png', fit: BoxFit.cover),
                 ),
               ),
             ),
@@ -152,7 +144,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                 child: Column(
                   children: [
                     Text(
-                      'Dream Team',
+                      'Local 11',
                       style: AppTypography.displayMedium.copyWith(
                         fontWeight: FontWeight.w800,
                         color: AppColors.textPrimary,
@@ -161,7 +153,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Fantasy Cricket',
+                      'Fantasy Cricket at its Best',
                       style: AppTypography.bodyLarge.copyWith(
                         color: AppColors.textSecondary,
                         letterSpacing: 2,

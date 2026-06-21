@@ -72,7 +72,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 // Header
                 const AuthHeader(
                   title: 'Welcome Back',
-                  subtitle: 'Sign in to continue building your dream team',
+                  subtitle: 'Sign in to your Local 11 account',
                 ),
                 const SizedBox(height: 40),
 

@@ -67,7 +67,7 @@ class DreamTeamApp extends ConsumerWidget {
     final router = ref.watch(appRouterProvider);
 
     return MaterialApp.router(
-      title: 'Dream Team Fantasy',
+      title: 'Local 11',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       routerConfig: router,
