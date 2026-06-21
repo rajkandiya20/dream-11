@@ -66,9 +66,13 @@ class _AdminContestsScreenState extends ConsumerState<AdminContestsScreen> {
           ],
           rows: adminState.contests,
           isLoading: adminState.isLoading,
+          errorMessage: adminState.contestsError,
+          emptyMessage: 'No contests created yet',
+          emptyActionText: 'Create Contest',
           onAdd: () => _showFormDialog(null),
           onEdit: (contest) => _showFormDialog(contest),
           onDelete: (contest) => _confirmDelete(contest),
+          onRetry: () => ref.read(adminProvider.notifier).loadContests(),
         ),
       ),
     );

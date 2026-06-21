@@ -62,9 +62,13 @@ class _AdminTournamentsScreenState
           displayKeys: const ['name', 'status', 'start_date', 'end_date'],
           rows: adminState.tournaments,
           isLoading: adminState.isLoading,
+          errorMessage: adminState.tournamentsError,
+          emptyMessage: 'No tournaments yet',
+          emptyActionText: 'Create Tournament',
           onAdd: () => _showFormDialog(null),
           onEdit: (tournament) => _showFormDialog(tournament),
           onDelete: (tournament) => _confirmDelete(tournament),
+          onRetry: () => ref.read(adminProvider.notifier).loadTournaments(),
         ),
       ),
     );

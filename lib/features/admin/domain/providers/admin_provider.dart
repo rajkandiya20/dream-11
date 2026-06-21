@@ -17,6 +17,12 @@ class AdminState {
   final List<Map<String, dynamic>> paymentMethods;
   final bool isLoading;
   final String? errorMessage;
+  final String? tournamentsError;
+  final String? matchesError;
+  final String? teamsError;
+  final String? playersError;
+  final String? contestsError;
+  final String? scoreboardError;
 
   const AdminState({
     this.analytics = const AdminAnalytics(),
@@ -32,6 +38,12 @@ class AdminState {
     this.paymentMethods = const [],
     this.isLoading = false,
     this.errorMessage,
+    this.tournamentsError,
+    this.matchesError,
+    this.teamsError,
+    this.playersError,
+    this.contestsError,
+    this.scoreboardError,
   });
 
   AdminState copyWith({
@@ -48,6 +60,18 @@ class AdminState {
     List<Map<String, dynamic>>? paymentMethods,
     bool? isLoading,
     String? errorMessage,
+    String? tournamentsError,
+    String? matchesError,
+    String? teamsError,
+    String? playersError,
+    String? contestsError,
+    String? scoreboardError,
+    bool clearTournamentsError = false,
+    bool clearMatchesError = false,
+    bool clearTeamsError = false,
+    bool clearPlayersError = false,
+    bool clearContestsError = false,
+    bool clearScoreboardError = false,
   }) {
     return AdminState(
       analytics: analytics ?? this.analytics,
@@ -63,6 +87,12 @@ class AdminState {
       paymentMethods: paymentMethods ?? this.paymentMethods,
       isLoading: isLoading ?? this.isLoading,
       errorMessage: errorMessage,
+      tournamentsError: clearTournamentsError ? null : (tournamentsError ?? this.tournamentsError),
+      matchesError: clearMatchesError ? null : (matchesError ?? this.matchesError),
+      teamsError: clearTeamsError ? null : (teamsError ?? this.teamsError),
+      playersError: clearPlayersError ? null : (playersError ?? this.playersError),
+      contestsError: clearContestsError ? null : (contestsError ?? this.contestsError),
+      scoreboardError: clearScoreboardError ? null : (scoreboardError ?? this.scoreboardError),
     );
   }
 }
@@ -99,9 +129,17 @@ class AdminNotifier extends StateNotifier<AdminState> {
   // ========== TOURNAMENTS ==========
 
   Future<void> loadTournaments() async {
-    state = state.copyWith(isLoading: true);
-    final tournaments = await _repository.getTournaments();
-    state = state.copyWith(tournaments: tournaments, isLoading: false);
+    state = state.copyWith(isLoading: true, clearTournamentsError: true);
+    try {
+      final tournaments = await _repository.getTournaments();
+      state = state.copyWith(tournaments: tournaments, isLoading: false);
+    } catch (e) {
+      state = state.copyWith(
+        tournaments: [],
+        isLoading: false,
+        tournamentsError: 'Failed to load tournaments. Please check your connection.',
+      );
+    }
   }
 
   Future<bool> createTournament(Map<String, dynamic> data) async {
@@ -128,9 +166,17 @@ class AdminNotifier extends StateNotifier<AdminState> {
   // ========== MATCHES ==========
 
   Future<void> loadMatches({String? status}) async {
-    state = state.copyWith(isLoading: true);
-    final matches = await _repository.getMatches(status: status);
-    state = state.copyWith(matches: matches, isLoading: false);
+    state = state.copyWith(isLoading: true, clearMatchesError: true);
+    try {
+      final matches = await _repository.getMatches(status: status);
+      state = state.copyWith(matches: matches, isLoading: false);
+    } catch (e) {
+      state = state.copyWith(
+        matches: [],
+        isLoading: false,
+        matchesError: 'Failed to load matches. Please check your connection.',
+      );
+    }
   }
 
   Future<bool> createMatch(Map<String, dynamic> data) async {
@@ -157,9 +203,17 @@ class AdminNotifier extends StateNotifier<AdminState> {
   // ========== TEAMS ==========
 
   Future<void> loadTeams() async {
-    state = state.copyWith(isLoading: true);
-    final teams = await _repository.getTeams();
-    state = state.copyWith(teams: teams, isLoading: false);
+    state = state.copyWith(isLoading: true, clearTeamsError: true);
+    try {
+      final teams = await _repository.getTeams();
+      state = state.copyWith(teams: teams, isLoading: false);
+    } catch (e) {
+      state = state.copyWith(
+        teams: [],
+        isLoading: false,
+        teamsError: 'Failed to load teams. Please check your connection.',
+      );
+    }
   }
 
   Future<bool> createTeam(Map<String, dynamic> data) async {
@@ -186,9 +240,17 @@ class AdminNotifier extends StateNotifier<AdminState> {
   // ========== PLAYERS ==========
 
   Future<void> loadPlayers({String? teamId}) async {
-    state = state.copyWith(isLoading: true);
-    final players = await _repository.getPlayers(teamId: teamId);
-    state = state.copyWith(players: players, isLoading: false);
+    state = state.copyWith(isLoading: true, clearPlayersError: true);
+    try {
+      final players = await _repository.getPlayers(teamId: teamId);
+      state = state.copyWith(players: players, isLoading: false);
+    } catch (e) {
+      state = state.copyWith(
+        players: [],
+        isLoading: false,
+        playersError: 'Failed to load players. Please check your connection.',
+      );
+    }
   }
 
   Future<bool> createPlayer(Map<String, dynamic> data) async {
@@ -215,9 +277,17 @@ class AdminNotifier extends StateNotifier<AdminState> {
   // ========== CONTESTS ==========
 
   Future<void> loadContests({String? matchId}) async {
-    state = state.copyWith(isLoading: true);
-    final contests = await _repository.getContests(matchId: matchId);
-    state = state.copyWith(contests: contests, isLoading: false);
+    state = state.copyWith(isLoading: true, clearContestsError: true);
+    try {
+      final contests = await _repository.getContests(matchId: matchId);
+      state = state.copyWith(contests: contests, isLoading: false);
+    } catch (e) {
+      state = state.copyWith(
+        contests: [],
+        isLoading: false,
+        contestsError: 'Failed to load contests. Please check your connection.',
+      );
+    }
   }
 
   Future<bool> createContest(Map<String, dynamic> data) async {
@@ -244,9 +314,17 @@ class AdminNotifier extends StateNotifier<AdminState> {
   // ========== SCOREBOARD ==========
 
   Future<void> loadScoreboard(String matchId) async {
-    state = state.copyWith(isLoading: true);
-    final scoreboard = await _repository.getScoreboard(matchId);
-    state = state.copyWith(scoreboard: scoreboard, isLoading: false);
+    state = state.copyWith(isLoading: true, clearScoreboardError: true);
+    try {
+      final scoreboard = await _repository.getScoreboard(matchId);
+      state = state.copyWith(scoreboard: scoreboard, isLoading: false);
+    } catch (e) {
+      state = state.copyWith(
+        scoreboard: [],
+        isLoading: false,
+        scoreboardError: 'Failed to load scoreboard. Please check your connection.',
+      );
+    }
   }
 
   Future<bool> upsertScoreboard(Map<String, dynamic> data) async {
