@@ -176,7 +176,7 @@ class _AdminMatchesScreenState extends ConsumerState<AdminMatchesScreen> {
                 'team_a_name': teamA.text.trim(), 'team_b_name': teamB.text.trim(),
                 'venue': venue.text.trim(), 'status': status,
               });
-              if (ok) { _load(); _snack('Match created!'); } else _snack('Failed');
+              if (ok != null) { _load(); _snack('Match created!'); } else _snack('Failed');
             },
             child: const Text('Create', style: TextStyle(color: Colors.white)),
           ),
