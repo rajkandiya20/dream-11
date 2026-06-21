@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/theme/app_colors.dart';
 import '../../domain/providers/admin_provider.dart';
 import '../widgets/admin_nav_drawer.dart';
 
@@ -8,64 +9,77 @@ class AdminContestsScreen extends ConsumerStatefulWidget {
   const AdminContestsScreen({super.key});
 
   @override
-  ConsumerState<AdminContestsScreen> createState() => _AdminContestsScreenState();
+  ConsumerState<AdminContestsScreen> createState() =>
+      _AdminContestsScreenState();
 }
 
 class _AdminContestsScreenState extends ConsumerState<AdminContestsScreen> {
   bool _loading = false;
-  List<Map<String, dynamic>> _contests = [];
-  String? _error;
+  List<Map<String, dynamic>> _items = [];
 
   @override
   void initState() {
     super.initState();
-    _load();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _load());
   }
 
   Future<void> _load() async {
-    setState(() { _loading = true; _error = null; });
+    setState(() => _loading = true);
     try {
       await ref.read(adminProvider.notifier).loadContests();
       final s = ref.read(adminProvider);
-      setState(() { _contests = s.contests; _loading = false; });
-    } catch (e) {
-      setState(() { _loading = false; _error = e.toString(); });
+      setState(() {
+        _items = s.contests;
+        _loading = false;
+      });
+    } catch (_) {
+      setState(() {
+        _items = [];
+        _loading = false;
+      });
     }
+  }
+
+  Future<void> _deleteContest(String id) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Contest'),
+        content:
+            const Text('Are you sure you want to delete this contest?'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child:
+                  const Text('Delete', style: TextStyle(color: Colors.red))),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      await ref.read(adminProvider.notifier).deleteContest(id);
+      await _load();
+    }
+  }
+
+  void _showCreateDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => _CreateContestDialog(onCreated: () => _load()),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      drawer: const AdminNavDrawer(currentRoute: '/admin/contests'),
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: Builder(builder: (ctx) => IconButton(
-          icon: const Icon(Icons.menu, color: Color(0xFF0F172A)),
-          onPressed: () => Scaffold.of(ctx).openDrawer(),
-        )),
-        title: const Text('Contests',
-            style: TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.w700)),
+        title: const Text('Contests'),
         actions: [
-          TextButton.icon(
-            onPressed: _showCreateDialog,
-            icon: const Icon(Icons.add, color: Colors.white, size: 18),
-            label: const Text('Create', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
-            style: TextButton.styleFrom(backgroundColor: const Color(0xFFE11D48),
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6))),
-          ),
-          const SizedBox(width: 8),
-          IconButton(icon: const Icon(Icons.refresh, color: Color(0xFF0F172A)), onPressed: _load),
-          const SizedBox(width: 4),
+          IconButton(icon: const Icon(Icons.refresh), onPressed: _load),
         ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _showCreateDialog,
-        backgroundColor: const Color(0xFFE11D48),
-        icon: const Icon(Icons.add, color: Colors.white),
-        label: const Text('Create Contest',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
       ),
       body: Column(
         children: [
@@ -74,193 +88,378 @@ class _AdminContestsScreenState extends ConsumerState<AdminContestsScreen> {
             padding: const EdgeInsets.all(16),
             child: ElevatedButton.icon(
               onPressed: _showCreateDialog,
-              icon: const Icon(Icons.add, color: Colors.white),
-              label: const Text('+ Create New Contest',
-                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 16)),
+              icon: const Icon(Icons.add),
+              label: const Text('Create Contest'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFE11D48),
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
             ),
           ),
           Expanded(
             child: _loading
-                ? const Center(child: CircularProgressIndicator(color: Color(0xFFE11D48)))
-                : _error != null ? _buildError()
-                : _contests.isEmpty ? _buildEmpty()
-                : _buildList(),
+                ? const Center(child: CircularProgressIndicator())
+                : _items.isEmpty
+                    ? _buildEmpty()
+                    : _buildList(),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildError() => Center(child: Padding(padding: const EdgeInsets.all(24),
-    child: Column(mainAxisSize: MainAxisSize.min, children: [
-      const Icon(Icons.error_outline, size: 48, color: Colors.red),
-      const SizedBox(height: 12),
-      const Text('Failed to load contests', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
-      const SizedBox(height: 16),
-      ElevatedButton(onPressed: _load,
-          style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFE11D48)),
-          child: const Text('Retry', style: TextStyle(color: Colors.white))),
-    ]),
-  ));
+  Widget _buildEmpty() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.sports_esports_outlined,
+              size: 64, color: Colors.grey.shade400),
+          const SizedBox(height: 16),
+          Text('No contests yet',
+              style: TextStyle(fontSize: 18, color: Colors.grey.shade600)),
+          const SizedBox(height: 8),
+          Text('Create your first contest to get started',
+              style: TextStyle(color: Colors.grey.shade500)),
+        ],
+      ),
+    );
+  }
 
-  Widget _buildEmpty() => Center(child: Padding(padding: const EdgeInsets.all(24),
-    child: Column(mainAxisSize: MainAxisSize.min, children: [
-      const Icon(Icons.emoji_events, size: 64, color: Color(0xFFE11D48)),
-      const SizedBox(height: 16),
-      const Text('No contests yet', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 20)),
-      const SizedBox(height: 8),
-      const Text('Tap the button above to create your first contest',
-          textAlign: TextAlign.center, style: TextStyle(color: Color(0xFF64748B))),
-    ]),
-  ));
+  Widget _buildList() {
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: ListView.builder(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        itemCount: _items.length,
+        itemBuilder: (context, index) {
+          final item = _items[index];
+          final name = item['name'] as String? ?? 'Unnamed';
+          final prizePool = item['prize_pool'];
+          final entryFee = item['entry_fee'];
 
-  Widget _buildList() => ListView.builder(
-    padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
-    itemCount: _contests.length,
-    itemBuilder: (ctx, i) {
-      final c = _contests[i];
-      return Card(
-        margin: const EdgeInsets.only(bottom: 8),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        child: ListTile(
-          leading: const Icon(Icons.emoji_events, color: Color(0xFFE11D48)),
-          title: Text(c['name'] ?? '-', style: const TextStyle(fontWeight: FontWeight.w600)),
-          subtitle: Text('Entry: ₹${c['entry_fee'] ?? 0} • Prize: ₹${c['prize_pool'] ?? 0} • ${c['status'] ?? '-'}'),
-          trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-            IconButton(icon: const Icon(Icons.edit, color: Color(0xFF3B82F6)), onPressed: () => _showEditDialog(c)),
-            IconButton(icon: const Icon(Icons.delete, color: Color(0xFFEF4444)), onPressed: () => _confirmDelete(c)),
-          ]),
-        ),
+          return Card(
+            margin: const EdgeInsets.only(bottom: 12),
+            child: ListTile(
+              leading: const CircleAvatar(
+                backgroundColor: AppColors.primary,
+                child: Icon(Icons.emoji_events, color: Colors.white),
+              ),
+              title: Text(name,
+                  style: const TextStyle(fontWeight: FontWeight.w600)),
+              subtitle: Text(
+                  'Prize: ${_formatCurrency(prizePool)} | Entry: ${_formatCurrency(entryFee)}'),
+              trailing: PopupMenuButton<String>(
+                onSelected: (value) {
+                  if (value == 'delete') {
+                    _deleteContest(item['id'] as String);
+                  }
+                },
+                itemBuilder: (ctx) => [
+                  const PopupMenuItem(
+                      value: 'delete', child: Text('Delete')),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  String _formatCurrency(dynamic value) {
+    if (value == null) return '0';
+    final num amount = value is num ? value : num.tryParse(value.toString()) ?? 0;
+    return amount.toStringAsFixed(0);
+  }
+}
+
+class _CreateContestDialog extends ConsumerStatefulWidget {
+  final VoidCallback onCreated;
+
+  const _CreateContestDialog({required this.onCreated});
+
+  @override
+  ConsumerState<_CreateContestDialog> createState() =>
+      _CreateContestDialogState();
+}
+
+class _CreateContestDialogState
+    extends ConsumerState<_CreateContestDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final _nameCtrl = TextEditingController();
+  final _entryFeeCtrl = TextEditingController();
+  final _prizePoolCtrl = TextEditingController();
+  final _totalSpotsCtrl = TextEditingController();
+  final _maxTeamsPerUserCtrl = TextEditingController(text: '1');
+
+  List<Map<String, dynamic>> _matches = [];
+  String? _selectedMatchId;
+  String _contestType = 'Mega';
+  bool _submitting = false;
+  bool _loadingMatches = true;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadMatches());
+  }
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    _entryFeeCtrl.dispose();
+    _prizePoolCtrl.dispose();
+    _totalSpotsCtrl.dispose();
+    _maxTeamsPerUserCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadMatches() async {
+    await ref.read(adminProvider.notifier).loadMatches();
+    final s = ref.read(adminProvider);
+    setState(() {
+      _matches = s.matches;
+      _loadingMatches = false;
+    });
+  }
+
+  double get _collectedAmount {
+    final entryFee = double.tryParse(_entryFeeCtrl.text) ?? 0;
+    final totalSpots = int.tryParse(_totalSpotsCtrl.text) ?? 0;
+    return entryFee * totalSpots;
+  }
+
+  double get _profit {
+    return _collectedAmount - (double.tryParse(_prizePoolCtrl.text) ?? 0);
+  }
+
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
+    if (_selectedMatchId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select a match')),
       );
-    },
-  );
+      return;
+    }
 
-  void _showCreateDialog() {
-    final name = TextEditingController();
-    final entryFee = TextEditingController(text: '0');
-    final prizePool = TextEditingController(text: '0');
-    final maxTeams = TextEditingController(text: '100');
-    String status = 'open';
-    String type = 'paid';
-    showDialog(context: context,
-      builder: (ctx) => StatefulBuilder(builder: (ctx, setS) => AlertDialog(
-        title: const Text('Create Contest', style: TextStyle(fontWeight: FontWeight.w700)),
-        content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
-          TextField(controller: name, decoration: const InputDecoration(labelText: 'Contest Name', border: OutlineInputBorder())),
-          const SizedBox(height: 12),
-          Row(children: [
-            Expanded(child: TextField(controller: entryFee, keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'Entry Fee (₹)', border: OutlineInputBorder()))),
-            const SizedBox(width: 12),
-            Expanded(child: TextField(controller: prizePool, keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'Prize Pool (₹)', border: OutlineInputBorder()))),
-          ]),
-          const SizedBox(height: 12),
-          TextField(controller: maxTeams, keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: 'Max Teams', border: OutlineInputBorder())),
-          const SizedBox(height: 12),
-          DropdownButtonFormField<String>(value: type,
-            decoration: const InputDecoration(labelText: 'Type', border: OutlineInputBorder()),
-            items: ['paid','free'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
-            onChanged: (v) => setS(() => type = v!),
-          ),
-          const SizedBox(height: 12),
-          DropdownButtonFormField<String>(value: status,
-            decoration: const InputDecoration(labelText: 'Status', border: OutlineInputBorder()),
-            items: ['open','closed','completed'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
-            onChanged: (v) => setS(() => status = v!),
-          ),
-        ])),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFE11D48)),
-            onPressed: () async {
-              if (name.text.trim().isEmpty) return;
-              Navigator.pop(ctx);
-              final ok = await ref.read(adminProvider.notifier).createContest({
-                'name': name.text.trim(),
-                'entry_fee': double.tryParse(entryFee.text) ?? 0,
-                'prize_pool': double.tryParse(prizePool.text) ?? 0,
-                'max_teams': int.tryParse(maxTeams.text) ?? 100,
-                'contest_type': type, 'status': status, 'joined_teams': 0,
-              });
-              if (ok) { _load(); _snack('Contest created!'); } else _snack('Failed');
-            },
-            child: const Text('Create', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      )),
-    );
+    setState(() => _submitting = true);
+
+    final data = <String, dynamic>{
+      'match_id': _selectedMatchId,
+      'name': _nameCtrl.text.trim(),
+      'entry_fee': double.tryParse(_entryFeeCtrl.text) ?? 0,
+      'prize_pool': double.tryParse(_prizePoolCtrl.text) ?? 0,
+      'total_spots': int.tryParse(_totalSpotsCtrl.text) ?? 0,
+      'max_teams_per_user': int.tryParse(_maxTeamsPerUserCtrl.text) ?? 1,
+      'contest_type': _contestType.toLowerCase().replaceAll(' ', '_'),
+      'status': 'upcoming',
+      'joined_teams': 0,
+      'max_teams': int.tryParse(_totalSpotsCtrl.text) ?? 0,
+      'winning_distribution': _profit > 0
+          ? '{"1st": ${(_collectedAmount * 0.5).toStringAsFixed(0)}, "2nd": ${(_collectedAmount * 0.3).toStringAsFixed(0)}, "3rd": ${(_collectedAmount * 0.2).toStringAsFixed(0)}}'
+          : '{}',
+    };
+
+    final success =
+        await ref.read(adminProvider.notifier).createContest(data);
+
+    setState(() => _submitting = false);
+
+    if (success && mounted) {
+      Navigator.pop(context);
+      widget.onCreated();
+    }
   }
 
-  void _showEditDialog(Map<String, dynamic> c) {
-    final name = TextEditingController(text: c['name'] ?? '');
-    final entryFee = TextEditingController(text: '${c['entry_fee'] ?? 0}');
-    final prizePool = TextEditingController(text: '${c['prize_pool'] ?? 0}');
-    String status = c['status'] ?? 'open';
-    showDialog(context: context,
-      builder: (ctx) => StatefulBuilder(builder: (ctx, setS) => AlertDialog(
-        title: const Text('Edit Contest', style: TextStyle(fontWeight: FontWeight.w700)),
-        content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
-          TextField(controller: name, decoration: const InputDecoration(labelText: 'Contest Name', border: OutlineInputBorder())),
-          const SizedBox(height: 12),
-          TextField(controller: entryFee, keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: 'Entry Fee (₹)', border: OutlineInputBorder())),
-          const SizedBox(height: 12),
-          TextField(controller: prizePool, keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: 'Prize Pool (₹)', border: OutlineInputBorder())),
-          const SizedBox(height: 12),
-          DropdownButtonFormField<String>(value: status,
-            decoration: const InputDecoration(labelText: 'Status', border: OutlineInputBorder()),
-            items: ['open','closed','completed'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
-            onChanged: (v) => setS(() => status = v!),
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      insetPadding: const EdgeInsets.all(16),
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 500),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text('Create Contest',
+                    style:
+                        TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 20),
+                if (_loadingMatches)
+                  const Center(child: CircularProgressIndicator())
+                else
+                  DropdownButtonFormField<String>(
+                    value: _selectedMatchId,
+                    decoration: const InputDecoration(
+                        labelText: 'Select Match'),
+                    items: _matches
+                        .map((m) => DropdownMenuItem(
+                            value: m['id'] as String,
+                            child: Text(
+                                '${m['team_a_name'] ?? ''} vs ${m['team_b_name'] ?? ''}')))
+                        .toList(),
+                    onChanged: (v) =>
+                        setState(() => _selectedMatchId = v),
+                    validator: (v) => v == null ? 'Required' : null,
+                  ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _nameCtrl,
+                  decoration:
+                      const InputDecoration(labelText: 'Contest Name'),
+                  validator: (v) =>
+                      v == null || v.trim().isEmpty ? 'Required' : null,
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        controller: _entryFeeCtrl,
+                        decoration:
+                            const InputDecoration(labelText: 'Entry Fee'),
+                        keyboardType: TextInputType.number,
+                        onChanged: (_) => setState(() {}),
+                        validator: (v) =>
+                            v == null || v.trim().isEmpty
+                                ? 'Required'
+                                : null,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextFormField(
+                        controller: _prizePoolCtrl,
+                        decoration:
+                            const InputDecoration(labelText: 'Prize Pool'),
+                        keyboardType: TextInputType.number,
+                        onChanged: (_) => setState(() {}),
+                        validator: (v) =>
+                            v == null || v.trim().isEmpty
+                                ? 'Required'
+                                : null,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        controller: _totalSpotsCtrl,
+                        decoration:
+                            const InputDecoration(labelText: 'Total Spots'),
+                        keyboardType: TextInputType.number,
+                        onChanged: (_) => setState(() {}),
+                        validator: (v) =>
+                            v == null || v.trim().isEmpty
+                                ? 'Required'
+                                : null,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextFormField(
+                        controller: _maxTeamsPerUserCtrl,
+                        decoration: const InputDecoration(
+                            labelText: 'Max Teams/User'),
+                        keyboardType: TextInputType.number,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  value: _contestType,
+                  decoration:
+                      const InputDecoration(labelText: 'Contest Type'),
+                  items: [
+                    'Mega',
+                    'HeadToHead',
+                    'Small League',
+                    'Winner Takes All'
+                  ]
+                      .map(
+                          (t) => DropdownMenuItem(value: t, child: Text(t)))
+                      .toList(),
+                  onChanged: (v) =>
+                      setState(() => _contestType = v ?? 'Mega'),
+                ),
+                const SizedBox(height: 16),
+                // Auto-calculated fields
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Auto-calculated',
+                          style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color: Colors.grey.shade700)),
+                      const SizedBox(height: 8),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text('Collected Amount:'),
+                          Text(_collectedAmount.toStringAsFixed(0),
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text('Profit:'),
+                          Text(
+                            _profit.toStringAsFixed(0),
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: _profit >= 0
+                                  ? AppColors.success
+                                  : AppColors.error,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton(
+                  onPressed: _submitting ? null : _submit,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                  child: _submitting
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white))
+                      : const Text('Create Contest'),
+                ),
+              ],
+            ),
           ),
-        ])),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFE11D48)),
-            onPressed: () async {
-              Navigator.pop(ctx);
-              final ok = await ref.read(adminProvider.notifier).updateContest(c['id'] as String,
-                  {'name': name.text.trim(), 'entry_fee': double.tryParse(entryFee.text) ?? 0,
-                   'prize_pool': double.tryParse(prizePool.text) ?? 0, 'status': status});
-              if (ok) { _load(); _snack('Updated!'); } else _snack('Failed');
-            },
-            child: const Text('Update', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      )),
-    );
-  }
-
-  void _confirmDelete(Map<String, dynamic> c) {
-    showDialog(context: context, builder: (ctx) => AlertDialog(
-      title: const Text('Delete Contest'),
-      content: Text('Delete "${c['name']}"?'),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-        ElevatedButton(
-          style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-          onPressed: () async {
-            Navigator.pop(ctx);
-            await ref.read(adminProvider.notifier).deleteContest(c['id'] as String);
-            _load(); _snack('Deleted');
-          },
-          child: const Text('Delete', style: TextStyle(color: Colors.white)),
         ),
-      ],
-    ));
-  }
-
-  void _snack(String msg) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+      ),
+    );
   }
 }

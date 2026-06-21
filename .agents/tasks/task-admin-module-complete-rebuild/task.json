@@ -1,0 +1,7 @@
+{
+  "task_id": "task-admin-module-complete-rebuild",
+  "task_description": "Complete rewrite of all 6 admin screens with proper UI (no FAB, no AppBar button, only body button), image upload via gallery picker + Supabase Storage, correct form fields per spec, Riverpod-safe loading via addPostFrameCallback, empty states instead of error states, and new SQL schema file.",
+  "status": "completed",
+  "feature_order": ["FEAT-001"],
+  "blocked_reason": null
+}
