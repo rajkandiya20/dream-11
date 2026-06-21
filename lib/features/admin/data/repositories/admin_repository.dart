@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -79,6 +80,7 @@ class AdminRepository {
         totalTeams: (teams as List).length,
       );
     } catch (e) {
+      debugPrint('\u274c Admin query error: $e');
       return const AdminAnalytics();
     }
   }
@@ -95,6 +97,7 @@ class AdminRepository {
       final response = await query.order('created_at', ascending: false);
       return List<Map<String, dynamic>>.from(response as List);
     } catch (e) {
+      debugPrint('\u274c Admin query error: $e');
       return [];
     }
   }
@@ -105,6 +108,7 @@ class AdminRepository {
       await _client.from('users').update({'role': role}).eq('id', userId);
       return true;
     } catch (e) {
+      debugPrint('\u274c Admin query error: $e');
       return false;
     }
   }
@@ -117,9 +121,10 @@ class AdminRepository {
       final response = await _client
           .from('tournaments')
           .select('*')
-          .order('start_date', ascending: false);
+          .order('created_at', ascending: false);
       return List<Map<String, dynamic>>.from(response as List);
     } catch (e) {
+      debugPrint('\u274c Admin query error: $e');
       return [];
     }
   }
@@ -132,6 +137,7 @@ class AdminRepository {
           await _client.from('tournaments').insert(data).select().single();
       return response;
     } catch (e) {
+      debugPrint('\u274c Admin query error: $e');
       return null;
     }
   }
@@ -143,6 +149,7 @@ class AdminRepository {
       await _client.from('tournaments').update(data).eq('id', id);
       return true;
     } catch (e) {
+      debugPrint('\u274c Admin query error: $e');
       return false;
     }
   }
@@ -153,6 +160,7 @@ class AdminRepository {
       await _client.from('tournaments').delete().eq('id', id);
       return true;
     } catch (e) {
+      debugPrint('\u274c Admin query error: $e');
       return false;
     }
   }
@@ -166,9 +174,10 @@ class AdminRepository {
       if (status != null && status.isNotEmpty) {
         query = query.eq('status', status);
       }
-      final response = await query.order('date_time', ascending: false);
+      final response = await query.order('created_at', ascending: false);
       return List<Map<String, dynamic>>.from(response as List);
     } catch (e) {
+      debugPrint('\u274c Admin query error: $e');
       return [];
     }
   }
@@ -180,6 +189,7 @@ class AdminRepository {
           await _client.from('matches').insert(data).select().single();
       return response;
     } catch (e) {
+      debugPrint('\u274c Admin query error: $e');
       return null;
     }
   }
@@ -190,6 +200,7 @@ class AdminRepository {
       await _client.from('matches').update(data).eq('id', id);
       return true;
     } catch (e) {
+      debugPrint('\u274c Admin query error: $e');
       return false;
     }
   }
@@ -200,6 +211,7 @@ class AdminRepository {
       await _client.from('matches').delete().eq('id', id);
       return true;
     } catch (e) {
+      debugPrint('\u274c Admin query error: $e');
       return false;
     }
   }
@@ -215,6 +227,7 @@ class AdminRepository {
           .order('name', ascending: true);
       return List<Map<String, dynamic>>.from(response as List);
     } catch (e) {
+      debugPrint('\u274c Admin query error: $e');
       return [];
     }
   }
@@ -226,6 +239,7 @@ class AdminRepository {
           await _client.from('teams').insert(data).select().single();
       return response;
     } catch (e) {
+      debugPrint('\u274c Admin query error: $e');
       return null;
     }
   }
@@ -236,6 +250,7 @@ class AdminRepository {
       await _client.from('teams').update(data).eq('id', id);
       return true;
     } catch (e) {
+      debugPrint('\u274c Admin query error: $e');
       return false;
     }
   }
@@ -246,6 +261,7 @@ class AdminRepository {
       await _client.from('teams').delete().eq('id', id);
       return true;
     } catch (e) {
+      debugPrint('\u274c Admin query error: $e');
       return false;
     }
   }
@@ -262,6 +278,7 @@ class AdminRepository {
       final response = await query.order('name', ascending: true);
       return List<Map<String, dynamic>>.from(response as List);
     } catch (e) {
+      debugPrint('\u274c Admin query error: $e');
       return [];
     }
   }
@@ -274,6 +291,7 @@ class AdminRepository {
           await _client.from('players').insert(data).select().single();
       return response;
     } catch (e) {
+      debugPrint('\u274c Admin query error: $e');
       return null;
     }
   }
@@ -284,6 +302,7 @@ class AdminRepository {
       await _client.from('players').update(data).eq('id', id);
       return true;
     } catch (e) {
+      debugPrint('\u274c Admin query error: $e');
       return false;
     }
   }
@@ -294,6 +313,7 @@ class AdminRepository {
       await _client.from('players').delete().eq('id', id);
       return true;
     } catch (e) {
+      debugPrint('\u274c Admin query error: $e');
       return false;
     }
   }
@@ -311,6 +331,7 @@ class AdminRepository {
           await query.order('prize_pool', ascending: false);
       return List<Map<String, dynamic>>.from(response as List);
     } catch (e) {
+      debugPrint('\u274c Admin query error: $e');
       return [];
     }
   }
@@ -323,6 +344,7 @@ class AdminRepository {
           await _client.from('contests').insert(data).select().single();
       return response;
     } catch (e) {
+      debugPrint('\u274c Admin query error: $e');
       return null;
     }
   }
@@ -333,6 +355,7 @@ class AdminRepository {
       await _client.from('contests').update(data).eq('id', id);
       return true;
     } catch (e) {
+      debugPrint('\u274c Admin query error: $e');
       return false;
     }
   }
@@ -343,6 +366,7 @@ class AdminRepository {
       await _client.from('contests').delete().eq('id', id);
       return true;
     } catch (e) {
+      debugPrint('\u274c Admin query error: $e');
       return false;
     }
   }
@@ -359,6 +383,7 @@ class AdminRepository {
           .order('points', ascending: false);
       return List<Map<String, dynamic>>.from(response as List);
     } catch (e) {
+      debugPrint('\u274c Admin query error: $e');
       return [];
     }
   }
@@ -372,6 +397,7 @@ class AdminRepository {
           .select();
       return true;
     } catch (e) {
+      debugPrint('\u274c Admin query error: $e');
       return false;
     }
   }
@@ -389,6 +415,7 @@ class AdminRepository {
           .order('created_at', ascending: false);
       return List<Map<String, dynamic>>.from(response as List);
     } catch (e) {
+      debugPrint('\u274c Admin query error: $e');
       return [];
     }
   }
@@ -404,6 +431,7 @@ class AdminRepository {
           .single();
       return response;
     } catch (e) {
+      debugPrint('\u274c Admin query error: $e');
       return null;
     }
   }
@@ -415,6 +443,7 @@ class AdminRepository {
       await _client.from('admin_payment_methods').update(data).eq('id', id);
       return true;
     } catch (e) {
+      debugPrint('\u274c Admin query error: $e');
       return false;
     }
   }
@@ -425,6 +454,7 @@ class AdminRepository {
       await _client.from('admin_payment_methods').delete().eq('id', id);
       return true;
     } catch (e) {
+      debugPrint('\u274c Admin query error: $e');
       return false;
     }
   }
@@ -442,6 +472,7 @@ class AdminRepository {
           .order('created_at', ascending: false);
       return List<Map<String, dynamic>>.from(response as List);
     } catch (e) {
+      debugPrint('\u274c Admin query error: $e');
       return [];
     }
   }
@@ -457,6 +488,7 @@ class AdminRepository {
           .order('created_at', ascending: false);
       return List<Map<String, dynamic>>.from(response as List);
     } catch (e) {
+      debugPrint('\u274c Admin query error: $e');
       return [];
     }
   }
@@ -495,6 +527,7 @@ class AdminRepository {
 
       return true;
     } catch (e) {
+      debugPrint('\u274c Admin query error: $e');
       return false;
     }
   }
@@ -508,6 +541,7 @@ class AdminRepository {
           .eq('id', transactionId);
       return true;
     } catch (e) {
+      debugPrint('\u274c Admin query error: $e');
       return false;
     }
   }
@@ -560,6 +594,7 @@ class AdminRepository {
 
       return true;
     } catch (e) {
+      debugPrint('\u274c Admin query error: $e');
       return false;
     }
   }
