@@ -66,3 +66,18 @@ ON CONFLICT (id) DO NOTHING;
 INSERT INTO storage.buckets (id, name, public)
 VALUES ('player-photos', 'player-photos', true)
 ON CONFLICT (id) DO NOTHING;
+
+-- ============================================================
+-- Storage RLS Policies
+-- ============================================================
+-- Public read access for all storage buckets (logos/photos are public)
+CREATE POLICY "Public read access" ON storage.objects FOR SELECT USING (bucket_id IN ('tournament-logos','team-logos','player-photos'));
+
+-- Authenticated users can upload to storage buckets
+CREATE POLICY "Authenticated upload" ON storage.objects FOR INSERT TO authenticated WITH CHECK (bucket_id IN ('tournament-logos','team-logos','player-photos'));
+
+-- Authenticated users can update objects in storage buckets
+CREATE POLICY "Authenticated update" ON storage.objects FOR UPDATE TO authenticated USING (bucket_id IN ('tournament-logos','team-logos','player-photos'));
+
+-- Authenticated users can delete objects in storage buckets
+CREATE POLICY "Authenticated delete" ON storage.objects FOR DELETE TO authenticated USING (bucket_id IN ('tournament-logos','team-logos','player-photos'));
