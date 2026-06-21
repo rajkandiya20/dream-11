@@ -29,7 +29,6 @@ class AuthHeader extends StatelessWidget {
             width: 56,
             height: 56,
             decoration: BoxDecoration(
-              gradient: AppColors.primaryGradient,
               borderRadius: AppSpacing.borderRadiusMd,
               boxShadow: [
                 BoxShadow(
@@ -39,15 +38,9 @@ class AuthHeader extends StatelessWidget {
                 ),
               ],
             ),
-            child: const Center(
-              child: Text(
-                'D',
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.white,
-                ),
-              ),
+            child: ClipRRect(
+              borderRadius: AppSpacing.borderRadiusMd,
+              child: Image.asset('assets/logo.png', fit: BoxFit.cover),
             ),
           )
               .animate()

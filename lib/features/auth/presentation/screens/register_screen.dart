@@ -56,7 +56,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     if (success && mounted) {
       ref.read(notificationControllerProvider.notifier).showSuccess(
             title: 'Account Created',
-            message: 'Welcome to Dream Team Fantasy!',
+            message: 'Welcome to Local 11!',
           );
       context.go(AppRoutes.home);
     } else if (mounted) {

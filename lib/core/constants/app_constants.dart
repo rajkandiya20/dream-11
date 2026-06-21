@@ -3,7 +3,7 @@ class AppConstants {
   AppConstants._();
 
   // App Info
-  static const String appName = 'Dream Team Fantasy';
+  static const String appName = 'Local 11';
   static const String appVersion = '1.0.0';
   static const String appBuildNumber = '1';
 
