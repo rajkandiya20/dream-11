@@ -51,7 +51,7 @@ class _AdminPlayersScreenState extends ConsumerState<AdminPlayersScreen> {
         onPressed: () => _showFormDialog(null),
         backgroundColor: AppColors.primary,
         icon: const Icon(Icons.add, color: Colors.white),
-        label: const Text('Create', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+        label: const Text('Add Player', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -61,9 +61,13 @@ class _AdminPlayersScreenState extends ConsumerState<AdminPlayersScreen> {
           displayKeys: const ['name', 'role', 'points', 'credits'],
           rows: adminState.players,
           isLoading: adminState.isLoading,
+          errorMessage: adminState.playersError,
+          emptyMessage: 'No players added yet',
+          emptyActionText: 'Add Player',
           onAdd: () => _showFormDialog(null),
           onEdit: (player) => _showFormDialog(player),
           onDelete: (player) => _confirmDelete(player),
+          onRetry: () => ref.read(adminProvider.notifier).loadPlayers(),
         ),
       ),
     );

@@ -85,9 +85,13 @@ class _AdminMatchesScreenState extends ConsumerState<AdminMatchesScreen> {
           ],
           rows: adminState.matches,
           isLoading: adminState.isLoading,
+          errorMessage: adminState.matchesError,
+          emptyMessage: 'No matches scheduled',
+          emptyActionText: 'Create Match',
           onAdd: () => _showFormDialog(null),
           onEdit: (match) => _showFormDialog(match),
           onDelete: (match) => _confirmDelete(match),
+          onRetry: () => ref.read(adminProvider.notifier).loadMatches(status: _statusFilter),
         ),
       ),
     );

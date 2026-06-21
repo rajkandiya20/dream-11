@@ -50,7 +50,7 @@ class _AdminTeamsScreenState extends ConsumerState<AdminTeamsScreen> {
         onPressed: () => _showFormDialog(null),
         backgroundColor: AppColors.primary,
         icon: const Icon(Icons.add, color: Colors.white),
-        label: const Text('Create', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+        label: const Text('Add Team', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -60,9 +60,13 @@ class _AdminTeamsScreenState extends ConsumerState<AdminTeamsScreen> {
           displayKeys: const ['name', 'code', 'tournament_id'],
           rows: adminState.teams,
           isLoading: adminState.isLoading,
+          errorMessage: adminState.teamsError,
+          emptyMessage: 'No teams created yet',
+          emptyActionText: 'Add Team',
           onAdd: () => _showFormDialog(null),
           onEdit: (team) => _showFormDialog(team),
           onDelete: (team) => _confirmDelete(team),
+          onRetry: () => ref.read(adminProvider.notifier).loadTeams(),
         ),
       ),
     );

@@ -11,11 +11,15 @@ class AdminDataTable extends StatefulWidget {
   final List<Map<String, dynamic>> rows;
   final List<String> displayKeys;
   final bool isLoading;
+  final String? errorMessage;
   final String searchHint;
+  final String emptyMessage;
+  final String emptyActionText;
   final Function(String)? onSearch;
   final Function(Map<String, dynamic>)? onEdit;
   final Function(Map<String, dynamic>)? onDelete;
   final VoidCallback? onAdd;
+  final VoidCallback? onRetry;
 
   const AdminDataTable({
     super.key,
@@ -24,11 +28,15 @@ class AdminDataTable extends StatefulWidget {
     required this.rows,
     required this.displayKeys,
     this.isLoading = false,
+    this.errorMessage,
     this.searchHint = 'Search...',
+    this.emptyMessage = 'No data found',
+    this.emptyActionText = 'Add New',
     this.onSearch,
     this.onEdit,
     this.onDelete,
     this.onAdd,
+    this.onRetry,
   });
 
   @override
@@ -116,10 +124,72 @@ class _AdminDataTableState extends State<AdminDataTable> {
         if (widget.onSearch != null) AppSpacing.gapH16,
         // Table
         if (widget.isLoading)
-          const Center(
+          Center(
             child: Padding(
-              padding: EdgeInsets.all(32),
-              child: CircularProgressIndicator(),
+              padding: const EdgeInsets.all(48),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const CircularProgressIndicator(
+                    color: AppColors.primary,
+                  ),
+                  AppSpacing.gapH16,
+                  Text(
+                    'Loading ${widget.title.toLowerCase()}...',
+                    style: AppTypography.bodyMedium.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          )
+        else if (widget.errorMessage != null && widget.errorMessage!.isNotEmpty)
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.all(32),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppColors.error.withOpacity(0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.error_outline,
+                      size: 48,
+                      color: AppColors.error,
+                    ),
+                  ),
+                  AppSpacing.gapH16,
+                  Text(
+                    'Error Loading Data',
+                    style: AppTypography.titleMedium.copyWith(
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  AppSpacing.gapH8,
+                  Text(
+                    widget.errorMessage!,
+                    style: AppTypography.bodySmall.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  AppSpacing.gapH16,
+                  if (widget.onRetry != null)
+                    ElevatedButton.icon(
+                      onPressed: widget.onRetry,
+                      icon: const Icon(Icons.refresh, color: Colors.white),
+                      label: const Text('Retry', style: TextStyle(color: Colors.white)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                      ),
+                    ),
+                ],
+              ),
             ),
           )
         else if (widget.rows.isEmpty)
@@ -127,16 +197,57 @@ class _AdminDataTableState extends State<AdminDataTable> {
             child: Padding(
               padding: const EdgeInsets.all(32),
               child: Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.inbox_outlined,
-                      size: 48, color: AppColors.textTertiary),
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withOpacity(0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.inbox_outlined,
+                      size: 48,
+                      color: AppColors.primary.withOpacity(0.7),
+                    ),
+                  ),
+                  AppSpacing.gapH16,
+                  Text(
+                    widget.emptyMessage,
+                    style: AppTypography.titleMedium.copyWith(
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
                   AppSpacing.gapH8,
                   Text(
-                    'No data found',
-                    style: AppTypography.bodyMedium.copyWith(
+                    'Get started by adding your first item',
+                    style: AppTypography.bodySmall.copyWith(
                       color: AppColors.textSecondary,
                     ),
                   ),
+                  AppSpacing.gapH24,
+                  if (widget.onAdd != null)
+                    ElevatedButton.icon(
+                      onPressed: widget.onAdd,
+                      icon: const Icon(Icons.add, color: Colors.white),
+                      label: Text(
+                        widget.emptyActionText,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 12,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: AppSpacing.borderRadiusSm,
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),
