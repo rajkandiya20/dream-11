@@ -2,7 +2,7 @@
   "id": "FEAT-002",
   "type": "feat",
   "description": "Rebuild all admin CRUD screens (Tournaments, Teams, Players, Matches, Contests, Scoreboard) with the complete field sets from the user specification. Remove duplicate create buttons (keep ONLY the large body button). Remove header create button and FloatingActionButton. Use image_picker for gallery-based image uploads. Use Supabase Storage for storing images. Show empty states (never show 'Failed to load'). Use local setState for loading. Add all validation rules. Add cascading dropdowns (tournament -> teams -> players). Add Playing XI selection after match creation.",
-  "status": "in_progress",
+  "status": "completed",
   "steps": [
     "Rewrite lib/features/admin/presentation/screens/admin_tournaments_screen.dart - Full form with fields: Tournament Name, Tournament Logo (gallery picker using image_picker), Tournament Type dropdown (League/Knockout/Practice), Start Date (date picker), End Date (date picker), Total Teams (number), Total Matches (number), Location (text), Description (text), Status dropdown (Upcoming/Live/Completed). Validation: End Date >= Start Date. List shows: logo thumbnail, name, status, start date. Actions: View, Edit, Delete. Empty state with icon and message. Remove header create button and FAB - keep only the large body button. Use AdminNavDrawer.",
     "Rewrite lib/features/admin/presentation/screens/admin_teams_screen.dart - Add tournament dropdown at top to filter/select tournament. Form fields: Team Name, Team Logo (gallery picker), Captain (text), Vice Captain (text), Maximum Squad Size (default 16), Minimum Squad Size (default 11). List shows: logo thumbnail, team name, captain. Actions: View, Edit, Delete. Empty state. Remove header create button and FAB - keep only the large body button. Use AdminNavDrawer.",
@@ -33,5 +33,5 @@
     "Verify app_router.dart does not import match_manager_screen.dart"
   ],
   "blocked_reason": null,
-  "findings": ""
+  "findings": "All 6 admin screens rewritten with complete forms, image upload via image_picker + StorageService, cascading dropdowns, Playing XI selection, auto-calculated fields, and proper empty states. No FloatingActionButton, no AppBar create button, no Failed to load text. Three redundant manager screens deleted. Router updated. All bracket counts balanced. No Flutter SDK available for static analysis - verified by syntax review only."
 }
