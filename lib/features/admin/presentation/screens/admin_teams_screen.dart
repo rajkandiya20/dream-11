@@ -47,18 +47,10 @@ class _AdminTeamsScreenState extends ConsumerState<AdminTeamsScreen> {
         title: const Text('Teams',
             style: TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.w700)),
         actions: [
-          TextButton.icon(
-            onPressed: _showCreateDialog,
-            icon: const Icon(Icons.group_add, color: Colors.white, size: 18),
-            label: const Text('Add', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
-            style: TextButton.styleFrom(backgroundColor: const Color(0xFFE11D48),
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6))),
-          ),
-          const SizedBox(width: 8),
           IconButton(icon: const Icon(Icons.refresh, color: Color(0xFF0F172A)), onPressed: _load),
-          const SizedBox(width: 4),
         ],
+      ),
+      drawer: const AdminNavDrawer(currentRoute: '/admin/teams'),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _showCreateDialog,
         backgroundColor: const Color(0xFFE11D48),
