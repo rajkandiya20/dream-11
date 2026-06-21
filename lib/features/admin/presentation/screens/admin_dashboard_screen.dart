@@ -160,6 +160,7 @@ class AdminDashboardScreen extends ConsumerWidget {
                   ],
                 ),
               ),
+            ),
     );
   }
 
