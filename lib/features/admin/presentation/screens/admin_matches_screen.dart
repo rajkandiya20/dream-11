@@ -362,8 +362,6 @@ class _AdminMatchesScreenState extends ConsumerState<AdminMatchesScreen> {
                   'overs': int.tryParse(oversCtrl.text) ?? 20,
                   'status': status,
                   if (dateTimeStr != null) 'date_time': dateTimeStr,
-                  if (matchTime != null)
-                    'time': matchTime!.format(ctx),
                 });
 
                 if (matchId != null) {
