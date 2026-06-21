@@ -2,7 +2,7 @@
   "id": "FEAT-002",
   "type": "feat",
   "description": "Create sql/part6-relational-integrity.sql with proper foreign key constraints, logging triggers for Supabase queries, and any missing schema updates to support the relational hierarchy (Tournament -> Teams -> Players -> Matches -> Playing XI -> Contests).",
-  "status": "in_progress",
+  "status": "completed",
   "steps": [
     "Create sql/part6-relational-integrity.sql with the following: (1) Add NOT NULL constraints where appropriate to enforce referential integrity - teams.tournament_id should be NOT NULL, players.team_id should be NOT NULL, matches.tournament_id/team_a_id/team_b_id should be NOT NULL, contests.match_id should be NOT NULL. Use ALTER TABLE statements. (2) Add CHECK constraints: matches team_a_id != team_b_id, contests entry_fee >= 0, contests prize_pool >= 0. (3) Add an audit_log table for logging Supabase queries with columns: id, table_name, operation (INSERT/UPDATE/DELETE), record_id, old_data JSONB, new_data JSONB, performed_at TIMESTAMPTZ. (4) Create trigger functions and triggers on teams, players, matches, contests tables that log INSERT/UPDATE/DELETE to the audit_log table. (5) Add indexes on foreign key columns for performance: teams(tournament_id), players(team_id), matches(tournament_id), matches(team_a_id), matches(team_b_id), contests(match_id). (6) Add a comment header explaining this file must be run after part4."
   ],
@@ -23,5 +23,5 @@
     "Run: grep -c 'TRIGGER' sql/part6-relational-integrity.sql - should be >= 4"
   ],
   "blocked_reason": null,
-  "findings": ""
+  "findings": "Created sql/part6-relational-integrity.sql with all required components. Verified: NOT NULL count=11, audit_log references=9, CREATE INDEX count=6, TRIGGER count=6. All acceptance criteria met. No build/test available (Flutter SDK not installed, SQL is runtime-only)."
 }
