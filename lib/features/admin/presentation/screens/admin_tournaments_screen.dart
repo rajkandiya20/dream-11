@@ -1,201 +1,239 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_spacing.dart';
-import '../../../../core/theme/app_typography.dart';
 import '../../domain/providers/admin_provider.dart';
-import '../widgets/admin_data_table.dart';
 import '../widgets/admin_nav_drawer.dart';
 
-/// Admin tournaments CRUD screen.
 class AdminTournamentsScreen extends ConsumerStatefulWidget {
   const AdminTournamentsScreen({super.key});
 
   @override
-  ConsumerState<AdminTournamentsScreen> createState() =>
-      _AdminTournamentsScreenState();
+  ConsumerState<AdminTournamentsScreen> createState() => _AdminTournamentsScreenState();
 }
 
-class _AdminTournamentsScreenState
-    extends ConsumerState<AdminTournamentsScreen> {
+class _AdminTournamentsScreenState extends ConsumerState<AdminTournamentsScreen> {
+  bool _loading = false;
+  List<Map<String, dynamic>> _tournaments = [];
+  String? _error;
+
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(adminProvider.notifier).loadTournaments();
-    });
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() { _loading = true; _error = null; });
+    try {
+      await ref.read(adminProvider.notifier).loadTournaments();
+      final s = ref.read(adminProvider);
+      setState(() { _tournaments = s.tournaments; _loading = false; });
+    } catch (e) {
+      setState(() { _loading = false; _error = e.toString(); });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final adminState = ref.watch(adminProvider);
-
     return Scaffold(
-      backgroundColor: AppColors.scaffoldBackground,
+      backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
-        backgroundColor: AppColors.surface,
+        backgroundColor: Colors.white,
         elevation: 0,
-        leading: Builder(
-          builder: (context) => IconButton(
-            onPressed: () => Scaffold.of(context).openDrawer(),
-            icon: const Icon(Icons.menu, color: AppColors.textPrimary),
-          ),
-        ),
-        title: Text(
-          'Tournaments',
-          style: AppTypography.titleLarge.copyWith(color: AppColors.textPrimary),
-        ),
+        leading: Builder(builder: (ctx) => IconButton(
+          icon: const Icon(Icons.menu, color: Color(0xFF0F172A)),
+          onPressed: () => Scaffold.of(ctx).openDrawer(),
+        )),
+        title: const Text('Tournaments',
+            style: TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.w700)),
+        actions: [
+          IconButton(icon: const Icon(Icons.refresh, color: Color(0xFF0F172A)), onPressed: _load),
+        ],
       ),
       drawer: const AdminNavDrawer(currentRoute: '/admin/tournaments'),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showFormDialog(null),
-        backgroundColor: AppColors.primary,
+        onPressed: _showCreateDialog,
+        backgroundColor: const Color(0xFFE11D48),
         icon: const Icon(Icons.add, color: Colors.white),
-        label: const Text('Create', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+        label: const Text('Create Tournament',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: AdminDataTable(
-          title: 'All Tournaments',
-          columns: const ['Name', 'Status', 'Start Date', 'End Date'],
-          displayKeys: const ['name', 'status', 'start_date', 'end_date'],
-          rows: adminState.tournaments,
-          isLoading: adminState.tournamentsLoading,
-          errorMessage: adminState.tournamentsError,
-          emptyMessage: 'No tournaments yet',
-          emptyActionText: 'Create Tournament',
-          onAdd: () => _showFormDialog(null),
-          onEdit: (tournament) => _showFormDialog(tournament),
-          onDelete: (tournament) => _confirmDelete(tournament),
-          onRetry: () => ref.read(adminProvider.notifier).loadTournaments(),
-        ),
-      ),
-    );
-  }
-
-  void _showFormDialog(Map<String, dynamic>? tournament) {
-    final isEditing = tournament != null;
-    final nameController =
-        TextEditingController(text: tournament?['name'] ?? '');
-    final descController =
-        TextEditingController(text: tournament?['description'] ?? '');
-    String status = tournament?['status'] ?? 'upcoming';
-
-    showDialog(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: AppSpacing.borderRadiusLg,
-          ),
-          title: Text(
-            isEditing ? 'Edit Tournament' : 'Create Tournament',
-            style: AppTypography.titleLarge,
-          ),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: nameController,
-                  decoration: InputDecoration(
-                    labelText: 'Tournament Name',
-                    border: OutlineInputBorder(
-                      borderRadius: AppSpacing.borderRadiusSm,
-                    ),
-                  ),
-                ),
-                AppSpacing.gapH12,
-                TextField(
-                  controller: descController,
-                  maxLines: 3,
-                  decoration: InputDecoration(
-                    labelText: 'Description',
-                    border: OutlineInputBorder(
-                      borderRadius: AppSpacing.borderRadiusSm,
-                    ),
-                  ),
-                ),
-                AppSpacing.gapH12,
-                DropdownButtonFormField<String>(
-                  value: status,
-                  decoration: InputDecoration(
-                    labelText: 'Status',
-                    border: OutlineInputBorder(
-                      borderRadius: AppSpacing.borderRadiusSm,
-                    ),
-                  ),
-                  items: ['upcoming', 'active', 'completed']
-                      .map((s) => DropdownMenuItem(value: s, child: Text(s)))
-                      .toList(),
-                  onChanged: (v) => setDialogState(() => status = v!),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                final data = {
-                  'name': nameController.text.trim(),
-                  'description': descController.text.trim(),
-                  'status': status,
-                };
-                bool success;
-                if (isEditing) {
-                  success = await ref
-                      .read(adminProvider.notifier)
-                      .updateTournament(tournament['id'], data);
-                } else {
-                  success = await ref
-                      .read(adminProvider.notifier)
-                      .createTournament(data);
-                }
-                if (success && mounted) Navigator.pop(context);
-              },
+      body: Column(
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            child: ElevatedButton.icon(
+              onPressed: _showCreateDialog,
+              icon: const Icon(Icons.add, color: Colors.white),
+              label: const Text('+ Create New Tournament',
+                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 16)),
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-              ),
-              child: Text(
-                isEditing ? 'Update' : 'Create',
-                style: const TextStyle(color: Colors.white),
+                backgroundColor: const Color(0xFFE11D48),
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               ),
             ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _confirmDelete(Map<String, dynamic> tournament) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Tournament'),
-        content: Text(
-            'Are you sure you want to delete "${tournament['name']}"?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
           ),
-          ElevatedButton(
-            onPressed: () async {
-              await ref
-                  .read(adminProvider.notifier)
-                  .deleteTournament(tournament['id']);
-              if (mounted) Navigator.pop(context);
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
-            child: const Text('Delete', style: TextStyle(color: Colors.white)),
+          Expanded(
+            child: _loading
+                ? const Center(child: CircularProgressIndicator(color: Color(0xFFE11D48)))
+                : _error != null
+                    ? _buildError()
+                    : _tournaments.isEmpty
+                        ? _buildEmpty()
+                        : _buildList(),
           ),
         ],
       ),
     );
+  }
+
+  Widget _buildError() => Center(child: Padding(padding: const EdgeInsets.all(24),
+    child: Column(mainAxisSize: MainAxisSize.min, children: [
+      const Icon(Icons.error_outline, size: 48, color: Colors.red),
+      const SizedBox(height: 12),
+      const Text('Failed to load', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
+      const SizedBox(height: 16),
+      ElevatedButton(onPressed: _load,
+          style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFE11D48)),
+          child: const Text('Retry', style: TextStyle(color: Colors.white))),
+    ]),
+  ));
+
+  Widget _buildEmpty() => Center(child: Padding(padding: const EdgeInsets.all(24),
+    child: Column(mainAxisSize: MainAxisSize.min, children: [
+      const Icon(Icons.emoji_events, size: 64, color: Color(0xFFE11D48)),
+      const SizedBox(height: 16),
+      const Text('No tournaments yet', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 20)),
+      const SizedBox(height: 8),
+      const Text('Tap the button above to create your first tournament',
+          textAlign: TextAlign.center, style: TextStyle(color: Color(0xFF64748B))),
+    ]),
+  ));
+
+  Widget _buildList() => ListView.builder(
+    padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+    itemCount: _tournaments.length,
+    itemBuilder: (ctx, i) {
+      final t = _tournaments[i];
+      return Card(
+        margin: const EdgeInsets.only(bottom: 8),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        child: ListTile(
+          leading: const Icon(Icons.emoji_events, color: Color(0xFFE11D48)),
+          title: Text(t['name'] ?? '-', style: const TextStyle(fontWeight: FontWeight.w600)),
+          subtitle: Text('${t['status'] ?? '-'}'),
+          trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+            IconButton(icon: const Icon(Icons.edit, color: Color(0xFF3B82F6)),
+                onPressed: () => _showEditDialog(t)),
+            IconButton(icon: const Icon(Icons.delete, color: Color(0xFFEF4444)),
+                onPressed: () => _confirmDelete(t)),
+          ]),
+        ),
+      );
+    },
+  );
+
+  void _showCreateDialog() {
+    final name = TextEditingController();
+    final desc = TextEditingController();
+    String status = 'upcoming';
+    showDialog(context: context,
+      builder: (ctx) => StatefulBuilder(builder: (ctx, setS) => AlertDialog(
+        title: const Text('Create Tournament', style: TextStyle(fontWeight: FontWeight.w700)),
+        content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
+          TextField(controller: name, decoration: const InputDecoration(labelText: 'Tournament Name', border: OutlineInputBorder())),
+          const SizedBox(height: 12),
+          TextField(controller: desc, maxLines: 3,
+              decoration: const InputDecoration(labelText: 'Description', border: OutlineInputBorder())),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<String>(value: status,
+            decoration: const InputDecoration(labelText: 'Status', border: OutlineInputBorder()),
+            items: ['upcoming','active','completed']
+                .map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+            onChanged: (v) => setS(() => status = v!),
+          ),
+        ])),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFE11D48)),
+            onPressed: () async {
+              if (name.text.trim().isEmpty) return;
+              Navigator.pop(ctx);
+              final ok = await ref.read(adminProvider.notifier).createTournament({
+                'name': name.text.trim(), 'description': desc.text.trim(), 'status': status,
+              });
+              if (ok) { _load(); _snack('Tournament created!'); }
+              else _snack('Failed to create');
+            },
+            child: const Text('Create', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      )),
+    );
+  }
+
+  void _showEditDialog(Map<String, dynamic> t) {
+    final name = TextEditingController(text: t['name'] ?? '');
+    final desc = TextEditingController(text: t['description'] ?? '');
+    String status = t['status'] ?? 'upcoming';
+    showDialog(context: context,
+      builder: (ctx) => StatefulBuilder(builder: (ctx, setS) => AlertDialog(
+        title: const Text('Edit Tournament', style: TextStyle(fontWeight: FontWeight.w700)),
+        content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
+          TextField(controller: name, decoration: const InputDecoration(labelText: 'Tournament Name', border: OutlineInputBorder())),
+          const SizedBox(height: 12),
+          TextField(controller: desc, maxLines: 3,
+              decoration: const InputDecoration(labelText: 'Description', border: OutlineInputBorder())),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<String>(value: status,
+            decoration: const InputDecoration(labelText: 'Status', border: OutlineInputBorder()),
+            items: ['upcoming','active','completed']
+                .map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+            onChanged: (v) => setS(() => status = v!),
+          ),
+        ])),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFE11D48)),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              final ok = await ref.read(adminProvider.notifier).updateTournament(t['id'] as String,
+                  {'name': name.text.trim(), 'description': desc.text.trim(), 'status': status});
+              if (ok) { _load(); _snack('Updated!'); } else _snack('Failed');
+            },
+            child: const Text('Update', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      )),
+    );
+  }
+
+  void _confirmDelete(Map<String, dynamic> t) {
+    showDialog(context: context, builder: (ctx) => AlertDialog(
+      title: const Text('Delete Tournament'),
+      content: Text('Delete "${t['name']}"?'),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+          onPressed: () async {
+            Navigator.pop(ctx);
+            await ref.read(adminProvider.notifier).deleteTournament(t['id'] as String);
+            _load();
+            _snack('Deleted');
+          },
+          child: const Text('Delete', style: TextStyle(color: Colors.white)),
+        ),
+      ],
+    ));
+  }
+
+  void _snack(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 }
