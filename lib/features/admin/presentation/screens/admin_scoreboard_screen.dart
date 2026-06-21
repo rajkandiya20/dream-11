@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/theme/app_colors.dart';
 import '../../domain/providers/admin_provider.dart';
 import '../widgets/admin_nav_drawer.dart';
 
@@ -17,9 +18,7 @@ class _AdminScoreboardScreenState
   bool _loading = false;
   List<Map<String, dynamic>> _matches = [];
   List<Map<String, dynamic>> _scoreboard = [];
-  List<Map<String, dynamic>> _matchPlayers = [];
   String? _selectedMatchId;
-  String? _selectedMatch;
 
   // Toss fields
   String? _tossWinner;
@@ -41,9 +40,7 @@ class _AdminScoreboardScreenState
 
   Future<void> _loadScoreboard() async {
     if (_selectedMatchId == null) return;
-    setState(() {
-      _loading = true;
-    });
+    setState(() => _loading = true);
     try {
       await ref.read(adminProvider.notifier).loadScoreboard(_selectedMatchId!);
       final s = ref.read(adminProvider);
@@ -59,13 +56,6 @@ class _AdminScoreboardScreenState
     }
   }
 
-  Future<void> _loadMatchPlayers() async {
-    if (_selectedMatchId == null) return;
-    // We rely on the repository method through the notifier
-    // The scoreboard already includes player details from the join
-  }
-
-  // Fantasy points calculation
   double _calcFantasyPoints(Map<String, dynamic> entry) {
     final runs = (entry['runs'] as num?)?.toDouble() ?? 0;
     final fours = (entry['fours'] as num?)?.toDouble() ?? 0;
@@ -76,36 +66,37 @@ class _AdminScoreboardScreenState
     final runOuts = (entry['run_outs'] as num?)?.toDouble() ?? 0;
 
     double points = 0;
-    points += runs * 1; // 1 pt per run
-    points += fours * 1; // 1 pt bonus per four
-    points += sixes * 2; // 2 pt bonus per six
-    points += wickets * 25; // 25 pts per wicket
-    points += catches * 8; // 8 pts per catch
-    points += stumpings * 12; // 12 pts per stumping
-    points += runOuts * 6; // 6 pts per run out
+    points += runs * 1;
+    points += fours * 1;
+    points += sixes * 2;
+    points += wickets * 25;
+    points += catches * 8;
+    points += stumpings * 12;
+    points += runOuts * 6;
 
     return points;
   }
 
-  // Calculate strike rate
   double _calcStrikeRate(num runs, num balls) {
     if (balls == 0) return 0;
     return (runs / balls) * 100;
   }
 
-  // Calculate economy
   double _calcEconomy(num runsConceded, num oversBowled) {
     if (oversBowled == 0) return 0;
     return runsConceded / oversBowled;
   }
 
+  void _snack(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  }
+
   @override
   Widget build(BuildContext context) {
-    // Calculate aggregate stats
     double totalRuns = 0;
     double totalOvers = 0;
     int totalWickets = 0;
-    int target = 0;
 
     for (final entry in _scoreboard) {
       totalRuns += (entry['runs'] as num?)?.toDouble() ?? 0;
@@ -158,23 +149,12 @@ class _AdminScoreboardScreenState
                     .map((m) => DropdownMenuItem<String>(
                           value: m['id'] as String,
                           child: Text(
-                            m['name'] ??
-                                '${m['team_a_name'] ?? '-'} vs ${m['team_b_name'] ?? '-'}',
+                            '${m['team_a_name'] ?? '-'} vs ${m['team_b_name'] ?? '-'}',
                           ),
                         ))
                     .toList(),
                 onChanged: (v) {
-                  setState(() {
-                    _selectedMatchId = v;
-                    if (v != null) {
-                      final match = _matches.firstWhere(
-                        (m) => m['id'] == v,
-                        orElse: () => <String, dynamic>{},
-                      );
-                      _selectedMatch = match['name'] ??
-                          '${match['team_a_name']} vs ${match['team_b_name']}';
-                    }
-                  });
+                  setState(() => _selectedMatchId = v);
                   _loadScoreboard();
                 },
               ),
@@ -222,7 +202,7 @@ class _AdminScoreboardScreenState
                           value: _batFirst,
                           onChanged: (v) =>
                               setState(() => _batFirst = v),
-                          activeColor: const Color(0xFFE11D48),
+                          activeColor: AppColors.primary,
                         ),
                       ],
                     ),
@@ -252,22 +232,11 @@ class _AdminScoreboardScreenState
                         const SizedBox(height: 12),
                         _statRow('Current Run Rate',
                             currentRunRate.toStringAsFixed(2)),
-                        _statRow('Total Runs', totalRuns.toStringAsFixed(0)),
-                        _statRow('Total Overs', totalOvers.toStringAsFixed(1)),
+                        _statRow(
+                            'Total Runs', totalRuns.toStringAsFixed(0)),
+                        _statRow(
+                            'Total Overs', totalOvers.toStringAsFixed(1)),
                         _statRow('Total Wickets', '$totalWickets'),
-                        if (target > 0) ...[
-                          _statRow('Target', '$target'),
-                          _statRow(
-                            'Required Run Rate',
-                            totalOvers > 0
-                                ? ((target - totalRuns) /
-                                        (totalOvers > 0
-                                            ? totalOvers
-                                            : 1))
-                                    .toStringAsFixed(2)
-                                : '-',
-                          ),
-                        ],
                       ],
                     ),
                   ),
@@ -290,7 +259,7 @@ class _AdminScoreboardScreenState
                     ),
                   ),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFE11D48),
+                    backgroundColor: AppColors.primary,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
@@ -312,7 +281,9 @@ class _AdminScoreboardScreenState
               else if (_scoreboard.isEmpty)
                 _buildEmpty()
               else
-                ..._scoreboard.map((entry) => _buildScoreCard(entry)).toList(),
+                ..._scoreboard
+                    .map((entry) => _buildScoreCard(entry))
+                    .toList(),
             ] else
               _buildEmpty(),
           ],
@@ -362,16 +333,10 @@ class _AdminScoreboardScreenState
               const SizedBox(height: 16),
               Text(
                 _selectedMatchId == null
-                    ? 'Select a match to view scoreboard'
-                    : 'No score entries yet',
+                    ? 'No Scoreboard Entries Found'
+                    : 'No Scoreboard Entries Found',
                 style: const TextStyle(
                     fontWeight: FontWeight.w700, fontSize: 20),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Add score entries using the button above',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Color(0xFF64748B)),
               ),
             ],
           ),
@@ -386,7 +351,6 @@ class _AdminScoreboardScreenState
     final balls = (entry['balls_faced'] as num?)?.toInt() ?? 0;
     final wickets = (entry['wickets'] as num?)?.toInt() ?? 0;
     final overs = (entry['overs'] as num?)?.toDouble() ?? 0;
-    final extras = (entry['extras'] as num?)?.toInt() ?? 0;
     final fours = (entry['fours'] as num?)?.toInt() ?? 0;
     final sixes = (entry['sixes'] as num?)?.toInt() ?? 0;
     final strikeRate = _calcStrikeRate(runs, balls);
@@ -456,7 +420,6 @@ class _AdminScoreboardScreenState
                 _miniStat('Ov', overs.toStringAsFixed(1)),
                 _miniStat('SR', strikeRate.toStringAsFixed(1)),
                 _miniStat('Eco', economy.toStringAsFixed(2)),
-                _miniStat('Ext', '$extras'),
               ],
             ),
           ],
@@ -494,7 +457,6 @@ class _AdminScoreboardScreenState
     final runOutsCtrl = TextEditingController(text: '0');
     String? selectedPlayerId;
 
-    // Build player list from scoreboard data
     final players = _scoreboard
         .where((e) => e['player'] != null)
         .map((e) => {
@@ -551,8 +513,8 @@ class _AdminScoreboardScreenState
                 const SizedBox(height: 12),
                 TextField(
                   controller: oversCtrl,
-                  keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true),
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
                   decoration: const InputDecoration(
                     labelText: 'Overs (e.g. 4.2)',
                     border: OutlineInputBorder(),
@@ -630,37 +592,6 @@ class _AdminScoreboardScreenState
                     border: OutlineInputBorder(),
                   ),
                 ),
-                const SizedBox(height: 16),
-                // Auto-calculated fantasy points preview
-                Builder(
-                  builder: (_) {
-                    final previewData = <String, dynamic>{
-                      'runs': int.tryParse(runsCtrl.text) ?? 0,
-                      'fours': int.tryParse(foursCtrl.text) ?? 0,
-                      'sixes': int.tryParse(sixesCtrl.text) ?? 0,
-                      'wickets': int.tryParse(wicketsCtrl.text) ?? 0,
-                      'catches': int.tryParse(catchesCtrl.text) ?? 0,
-                      'stumpings': int.tryParse(stumpingsCtrl.text) ?? 0,
-                      'run_outs': int.tryParse(runOutsCtrl.text) ?? 0,
-                    };
-                    final pts = _calcFantasyPoints(previewData);
-                    return Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF1F5F9),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        'Fantasy Points: ${pts.toStringAsFixed(0)}',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFFE11D48),
-                        ),
-                      ),
-                    );
-                  },
-                ),
               ],
             ),
           ),
@@ -671,7 +602,7 @@ class _AdminScoreboardScreenState
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFE11D48),
+                backgroundColor: AppColors.primary,
               ),
               onPressed: () async {
                 if (selectedPlayerId == null && players.isNotEmpty) return;
@@ -723,16 +654,12 @@ class _AdminScoreboardScreenState
                   _snack('Could not save score entry');
                 }
               },
-              child: const Text('Save', style: TextStyle(color: Colors.white)),
+              child:
+                  const Text('Save', style: TextStyle(color: Colors.white)),
             ),
           ],
         ),
       ),
     );
-  }
-
-  void _snack(String msg) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 }
