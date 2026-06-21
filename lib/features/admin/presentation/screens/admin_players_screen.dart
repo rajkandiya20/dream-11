@@ -19,7 +19,8 @@ class AdminPlayersScreen extends ConsumerStatefulWidget {
 
 class _AdminPlayersScreenState extends ConsumerState<AdminPlayersScreen> {
   bool _loading = false;
-  List<Map<String, dynamic>> _items = [];
+  List<Map<String, dynamic>> _players = [];
+  List<Map<String, dynamic>> _teams = [];
 
   @override
   void initState() {
@@ -31,58 +32,48 @@ class _AdminPlayersScreenState extends ConsumerState<AdminPlayersScreen> {
     setState(() => _loading = true);
     try {
       await ref.read(adminProvider.notifier).loadPlayers();
+      await ref.read(adminProvider.notifier).loadTeams();
       final s = ref.read(adminProvider);
       setState(() {
-        _items = s.players;
+        _players = s.players;
+        _teams = s.teams;
         _loading = false;
       });
-    } catch (_) {
-      setState(() {
-        _items = [];
-        _loading = false;
-      });
+    } catch (e) {
+      setState(() => _loading = false);
     }
   }
 
-  Future<void> _deletePlayer(String id) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Delete Player'),
-        content:
-            const Text('Are you sure you want to delete this player?'),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel')),
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child:
-                  const Text('Delete', style: TextStyle(color: Colors.red))),
-        ],
-      ),
-    );
-    if (confirmed == true) {
-      await ref.read(adminProvider.notifier).deletePlayer(id);
-      await _load();
-    }
-  }
-
-  void _showCreateDialog() {
-    showDialog(
-      context: context,
-      builder: (ctx) => _CreatePlayerDialog(onCreated: () => _load()),
-    );
+  void _snack(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF8FAFC),
       drawer: const AdminNavDrawer(currentRoute: '/admin/players'),
       appBar: AppBar(
-        title: const Text('Players'),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: Builder(
+          builder: (ctx) => IconButton(
+            icon: const Icon(Icons.menu, color: Color(0xFF0F172A)),
+            onPressed: () => Scaffold.of(ctx).openDrawer(),
+          ),
+        ),
+        title: const Text(
+          'Players',
+          style:
+              TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.w700),
+        ),
         actions: [
-          IconButton(icon: const Icon(Icons.refresh), onPressed: _load),
+          IconButton(
+            icon: const Icon(Icons.refresh, color: Color(0xFF0F172A)),
+            onPressed: _load,
+          ),
+          const SizedBox(width: 4),
         ],
       ),
       body: Column(
@@ -92,22 +83,30 @@ class _AdminPlayersScreenState extends ConsumerState<AdminPlayersScreen> {
             padding: const EdgeInsets.all(16),
             child: ElevatedButton.icon(
               onPressed: _showCreateDialog,
-              icon: const Icon(Icons.add),
-              label: const Text('Add Player'),
+              icon: const Icon(Icons.person_add, color: Colors.white),
+              label: const Text(
+                '+ Add New Player',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 16,
+                ),
+              ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(8),
                 ),
               ),
             ),
           ),
           Expanded(
             child: _loading
-                ? const Center(child: CircularProgressIndicator())
-                : _items.isEmpty
+                ? const Center(
+                    child:
+                        CircularProgressIndicator(color: Color(0xFFE11D48)))
+                : _players.isEmpty
                     ? _buildEmpty()
                     : _buildList(),
           ),
@@ -116,324 +115,489 @@ class _AdminPlayersScreenState extends ConsumerState<AdminPlayersScreen> {
     );
   }
 
-  Widget _buildEmpty() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.person_outlined, size: 64, color: Colors.grey.shade400),
-          const SizedBox(height: 16),
-          Text('No players yet',
-              style: TextStyle(fontSize: 18, color: Colors.grey.shade600)),
-          const SizedBox(height: 8),
-          Text('Add your first player to get started',
-              style: TextStyle(color: Colors.grey.shade500)),
-        ],
-      ),
-    );
-  }
+  Widget _buildEmpty() => Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: const [
+              Icon(Icons.person, size: 64, color: Color(0xFFE11D48)),
+              SizedBox(height: 16),
+              Text(
+                'No Players Found',
+                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 20),
+              ),
+            ],
+          ),
+        ),
+      );
 
-  Widget _buildList() {
-    return RefreshIndicator(
-      onRefresh: _load,
-      child: ListView.builder(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        itemCount: _items.length,
-        itemBuilder: (context, index) {
-          final item = _items[index];
-          final image = item['image'] as String?;
-          final name = item['name'] as String? ?? 'Unnamed';
-          final role = item['role'] as String? ?? '';
-
+  Widget _buildList() => ListView.builder(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        itemCount: _players.length,
+        itemBuilder: (ctx, i) {
+          final p = _players[i];
           return Card(
-            margin: const EdgeInsets.only(bottom: 12),
+            margin: const EdgeInsets.only(bottom: 8),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             child: ListTile(
               leading: CircleAvatar(
-                backgroundImage: image != null && image.isNotEmpty
-                    ? NetworkImage(image)
+                backgroundColor: AppColors.primary,
+                backgroundImage: p['image'] != null &&
+                        (p['image'] as String).isNotEmpty
+                    ? NetworkImage(p['image'] as String)
                     : null,
-                child: image == null || image.isEmpty
-                    ? const Icon(Icons.person)
+                child: p['image'] == null || (p['image'] as String).isEmpty
+                    ? Text(
+                        (p['name'] ?? '?')[0].toUpperCase(),
+                        style: const TextStyle(
+                            color: Colors.white, fontWeight: FontWeight.w700),
+                      )
                     : null,
               ),
-              title: Text(name,
+              title: Text(p['name'] ?? '-',
                   style: const TextStyle(fontWeight: FontWeight.w600)),
-              subtitle: Text(role.toUpperCase()),
-              trailing: PopupMenuButton<String>(
-                onSelected: (value) {
-                  if (value == 'delete') {
-                    _deletePlayer(item['id'] as String);
-                  }
-                },
-                itemBuilder: (ctx) => [
-                  const PopupMenuItem(value: 'delete', child: Text('Delete')),
+              subtitle: Text(
+                  '${p['role'] ?? '-'} | Team: ${_getTeamName(p['team_id'])} | #${p['jersey_number'] ?? '-'}'),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.edit, color: Color(0xFF3B82F6)),
+                    onPressed: () => _showEditDialog(p),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.delete, color: Color(0xFFEF4444)),
+                    onPressed: () => _confirmDelete(p),
+                  ),
                 ],
               ),
             ),
           );
         },
-      ),
-    );
-  }
-}
-
-class _CreatePlayerDialog extends ConsumerStatefulWidget {
-  final VoidCallback onCreated;
-
-  const _CreatePlayerDialog({required this.onCreated});
-
-  @override
-  ConsumerState<_CreatePlayerDialog> createState() =>
-      _CreatePlayerDialogState();
-}
-
-class _CreatePlayerDialogState extends ConsumerState<_CreatePlayerDialog> {
-  final _formKey = GlobalKey<FormState>();
-  final _nameCtrl = TextEditingController();
-  final _jerseyCtrl = TextEditingController();
-  final _ageCtrl = TextEditingController();
-
-  String _role = 'BAT';
-  List<Map<String, dynamic>> _tournaments = [];
-  List<Map<String, dynamic>> _teams = [];
-  String? _selectedTournamentId;
-  String? _selectedTeamId;
-  Uint8List? _imageBytes;
-  bool _submitting = false;
-  bool _loadingTournaments = true;
-  bool _loadingTeams = false;
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _loadTournaments());
-  }
-
-  @override
-  void dispose() {
-    _nameCtrl.dispose();
-    _jerseyCtrl.dispose();
-    _ageCtrl.dispose();
-    super.dispose();
-  }
-
-  Future<void> _loadTournaments() async {
-    await ref.read(adminProvider.notifier).loadTournaments();
-    final s = ref.read(adminProvider);
-    setState(() {
-      _tournaments = s.tournaments;
-      _loadingTournaments = false;
-    });
-  }
-
-  Future<void> _loadTeams(String tournamentId) async {
-    setState(() => _loadingTeams = true);
-    final teams = await ref
-        .read(adminProvider.notifier)
-        .getTeamsByTournament(tournamentId);
-    setState(() {
-      _teams = teams;
-      _loadingTeams = false;
-      _selectedTeamId = null;
-    });
-  }
-
-  Future<void> _pickImage() async {
-    final picker = ImagePicker();
-    final picked =
-        await picker.pickImage(source: ImageSource.gallery, maxWidth: 800);
-    if (picked != null) {
-      final bytes = await picked.readAsBytes();
-      setState(() => _imageBytes = bytes);
-    }
-  }
-
-  Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
-    if (_selectedTeamId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a team')),
       );
-      return;
-    }
 
-    setState(() => _submitting = true);
-
-    String? imageUrl;
-    if (_imageBytes != null) {
-      final storageService = ref.read(storageServiceProvider);
-      imageUrl = await storageService.uploadImage(
-        'player-photos',
-        'players/${DateTime.now().millisecondsSinceEpoch}.png',
-        _imageBytes!,
-      );
-    }
-
-    final data = <String, dynamic>{
-      'name': _nameCtrl.text.trim(),
-      'role': _role.toLowerCase(),
-      'team_id': _selectedTeamId,
-      'jersey_number': int.tryParse(_jerseyCtrl.text) ?? 0,
-      'age': int.tryParse(_ageCtrl.text) ?? 0,
-      if (imageUrl != null) 'image': imageUrl,
-    };
-
-    final success =
-        await ref.read(adminProvider.notifier).createPlayer(data);
-
-    setState(() => _submitting = false);
-
-    if (success && mounted) {
-      Navigator.pop(context);
-      widget.onCreated();
-    }
+  String _getTeamName(String? id) {
+    if (id == null) return '-';
+    final t = _teams.where((t) => t['id'] == id).toList();
+    return t.isNotEmpty ? (t.first['name'] ?? '-') : '-';
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Dialog(
-      insetPadding: const EdgeInsets.all(16),
-      child: Container(
-        constraints: const BoxConstraints(maxWidth: 500),
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Form(
-            key: _formKey,
+  void _showCreateDialog() {
+    final nameCtrl = TextEditingController();
+    final creditsCtrl = TextEditingController(text: '8.0');
+    final pointsCtrl = TextEditingController(text: '0');
+    final jerseyCtrl = TextEditingController();
+    final ageCtrl = TextEditingController();
+    String role = 'Batsman';
+    String? selectedTeamId;
+    Uint8List? imageBytes;
+    String? imageFileName;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setS) => AlertDialog(
+          title: const Text('Add Player',
+              style: TextStyle(fontWeight: FontWeight.w700)),
+          content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Text('Add Player',
-                    style:
-                        TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 20),
-                if (_loadingTournaments)
-                  const Center(child: CircularProgressIndicator())
-                else
-                  DropdownButtonFormField<String>(
-                    value: _selectedTournamentId,
-                    decoration: const InputDecoration(
-                        labelText: 'Select Tournament'),
-                    items: _tournaments
-                        .map((t) => DropdownMenuItem(
-                            value: t['id'] as String,
-                            child:
-                                Text(t['name'] as String? ?? 'Unnamed')))
-                        .toList(),
-                    onChanged: (v) {
-                      setState(() => _selectedTournamentId = v);
-                      if (v != null) _loadTeams(v);
-                    },
-                    validator: (v) => v == null ? 'Required' : null,
+                TextField(
+                  controller: nameCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Player Name',
+                    border: OutlineInputBorder(),
                   ),
-                const SizedBox(height: 12),
-                if (_loadingTeams)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 8),
-                    child: Center(child: CircularProgressIndicator()),
-                  )
-                else if (_selectedTournamentId != null)
-                  DropdownButtonFormField<String>(
-                    value: _selectedTeamId,
-                    decoration:
-                        const InputDecoration(labelText: 'Select Team'),
-                    items: _teams
-                        .map((t) => DropdownMenuItem(
-                            value: t['id'] as String,
-                            child:
-                                Text(t['name'] as String? ?? 'Unnamed')))
-                        .toList(),
-                    onChanged: (v) =>
-                        setState(() => _selectedTeamId = v),
-                    validator: (v) => v == null ? 'Required' : null,
-                  ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: _nameCtrl,
-                  decoration:
-                      const InputDecoration(labelText: 'Player Name'),
-                  validator: (v) =>
-                      v == null || v.trim().isEmpty ? 'Required' : null,
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  value: _role,
-                  decoration: const InputDecoration(labelText: 'Role'),
-                  items: ['WK', 'BAT', 'AR', 'BOWL']
-                      .map(
-                          (r) => DropdownMenuItem(value: r, child: Text(r)))
+                  value: role,
+                  decoration: const InputDecoration(
+                    labelText: 'Role',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: ['WK', 'Batsman', 'Bowler', 'All-rounder']
+                      .map((r) =>
+                          DropdownMenuItem(value: r, child: Text(r)))
                       .toList(),
-                  onChanged: (v) => setState(() => _role = v ?? 'BAT'),
+                  onChanged: (v) => setS(() => role = v!),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  value: selectedTeamId,
+                  decoration: const InputDecoration(
+                    labelText: 'Team',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: _teams
+                      .map((t) => DropdownMenuItem<String>(
+                            value: t['id'] as String,
+                            child: Text(t['name'] ?? '-'),
+                          ))
+                      .toList(),
+                  onChanged: (v) => setS(() => selectedTeamId = v),
                 ),
                 const SizedBox(height: 12),
                 Row(
                   children: [
                     Expanded(
-                      child: TextFormField(
-                        controller: _jerseyCtrl,
-                        decoration: const InputDecoration(
-                            labelText: 'Jersey Number'),
+                      child: TextField(
+                        controller: creditsCtrl,
                         keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          labelText: 'Credits',
+                          border: OutlineInputBorder(),
+                        ),
                       ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: TextFormField(
-                        controller: _ageCtrl,
-                        decoration:
-                            const InputDecoration(labelText: 'Age'),
+                      child: TextField(
+                        controller: pointsCtrl,
                         keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          labelText: 'Points',
+                          border: OutlineInputBorder(),
+                        ),
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 12),
-                GestureDetector(
-                  onTap: _pickImage,
-                  child: Container(
-                    height: 100,
-                    decoration: BoxDecoration(
-                      border: Border.all(color: AppColors.border),
-                      borderRadius: BorderRadius.circular(8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: jerseyCtrl,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          labelText: 'Jersey #',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
                     ),
-                    child: _imageBytes != null
-                        ? ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: Image.memory(_imageBytes!,
-                                fit: BoxFit.cover,
-                                width: double.infinity))
-                        : const Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.add_photo_alternate,
-                                  size: 32, color: Colors.grey),
-                              SizedBox(height: 4),
-                              Text('Tap to select profile image',
-                                  style: TextStyle(color: Colors.grey)),
-                            ],
-                          ),
-                  ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextField(
+                        controller: ageCtrl,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          labelText: 'Age',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 24),
-                ElevatedButton(
-                  onPressed: _submitting ? null : _submit,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                  ),
-                  child: _submitting
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                              strokeWidth: 2, color: Colors.white))
-                      : const Text('Add Player'),
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: () async {
+                    final picker = ImagePicker();
+                    final file = await picker.pickImage(
+                        source: ImageSource.gallery);
+                    if (file != null) {
+                      final bytes = await file.readAsBytes();
+                      setS(() {
+                        imageBytes = bytes;
+                        imageFileName = file.name;
+                      });
+                    }
+                  },
+                  icon: const Icon(Icons.image),
+                  label: Text(imageFileName ?? 'Pick Player Image'),
                 ),
+                if (imageBytes != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Image.memory(imageBytes!,
+                        height: 60, fit: BoxFit.contain),
+                  ),
               ],
             ),
           ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary),
+              onPressed: () async {
+                if (nameCtrl.text.trim().isEmpty) return;
+                if (selectedTeamId == null) {
+                  ScaffoldMessenger.of(ctx).showSnackBar(
+                    const SnackBar(content: Text('Please select a team')),
+                  );
+                  return;
+                }
+                Navigator.pop(ctx);
+
+                String? imageUrl;
+                if (imageBytes != null) {
+                  final path =
+                      '${DateTime.now().millisecondsSinceEpoch}_${imageFileName ?? 'player.png'}';
+                  imageUrl = await ref
+                      .read(storageServiceProvider)
+                      .uploadImage(
+                        'player-photos',
+                        path,
+                        imageBytes!,
+                        'image/png',
+                      );
+                }
+
+                final ok =
+                    await ref.read(adminProvider.notifier).createPlayer({
+                  'name': nameCtrl.text.trim(),
+                  'role': role,
+                  'team_id': selectedTeamId,
+                  'credits': double.tryParse(creditsCtrl.text) ?? 8.0,
+                  'points': int.tryParse(pointsCtrl.text) ?? 0,
+                  'jersey_number': int.tryParse(jerseyCtrl.text),
+                  'age': int.tryParse(ageCtrl.text),
+                  'is_playing': true,
+                  if (imageUrl != null) 'image': imageUrl,
+                });
+                if (ok) {
+                  _load();
+                  _snack('Player added!');
+                } else {
+                  _snack('Failed to add player');
+                }
+              },
+              child:
+                  const Text('Add', style: TextStyle(color: Colors.white)),
+            ),
+          ],
         ),
+      ),
+    );
+  }
+
+  void _showEditDialog(Map<String, dynamic> p) {
+    final nameCtrl = TextEditingController(text: p['name'] ?? '');
+    final creditsCtrl =
+        TextEditingController(text: '${p['credits'] ?? 8.0}');
+    final pointsCtrl = TextEditingController(text: '${p['points'] ?? 0}');
+    final jerseyCtrl =
+        TextEditingController(text: '${p['jersey_number'] ?? ''}');
+    final ageCtrl = TextEditingController(text: '${p['age'] ?? ''}');
+    String role = p['role'] ?? 'Batsman';
+    String? selectedTeamId = p['team_id'] as String?;
+    Uint8List? imageBytes;
+    String? imageFileName;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setS) => AlertDialog(
+          title: const Text('Edit Player',
+              style: TextStyle(fontWeight: FontWeight.w700)),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Player Name',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  value: role,
+                  decoration: const InputDecoration(
+                    labelText: 'Role',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: ['WK', 'Batsman', 'Bowler', 'All-rounder']
+                      .map((r) =>
+                          DropdownMenuItem(value: r, child: Text(r)))
+                      .toList(),
+                  onChanged: (v) => setS(() => role = v!),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  value: selectedTeamId,
+                  decoration: const InputDecoration(
+                    labelText: 'Team',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: _teams
+                      .map((t) => DropdownMenuItem<String>(
+                            value: t['id'] as String,
+                            child: Text(t['name'] ?? '-'),
+                          ))
+                      .toList(),
+                  onChanged: (v) => setS(() => selectedTeamId = v),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: creditsCtrl,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          labelText: 'Credits',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextField(
+                        controller: pointsCtrl,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          labelText: 'Points',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: jerseyCtrl,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          labelText: 'Jersey #',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextField(
+                        controller: ageCtrl,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          labelText: 'Age',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: () async {
+                    final picker = ImagePicker();
+                    final file = await picker.pickImage(
+                        source: ImageSource.gallery);
+                    if (file != null) {
+                      final bytes = await file.readAsBytes();
+                      setS(() {
+                        imageBytes = bytes;
+                        imageFileName = file.name;
+                      });
+                    }
+                  },
+                  icon: const Icon(Icons.image),
+                  label: Text(imageFileName ?? 'Change Image'),
+                ),
+                if (imageBytes != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Image.memory(imageBytes!,
+                        height: 60, fit: BoxFit.contain),
+                  ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary),
+              onPressed: () async {
+                Navigator.pop(ctx);
+
+                String? imageUrl;
+                if (imageBytes != null) {
+                  final path =
+                      '${DateTime.now().millisecondsSinceEpoch}_${imageFileName ?? 'player.png'}';
+                  imageUrl = await ref
+                      .read(storageServiceProvider)
+                      .uploadImage(
+                        'player-photos',
+                        path,
+                        imageBytes!,
+                        'image/png',
+                      );
+                }
+
+                final data = <String, dynamic>{
+                  'name': nameCtrl.text.trim(),
+                  'role': role,
+                  'team_id': selectedTeamId,
+                  'credits': double.tryParse(creditsCtrl.text) ?? 8.0,
+                  'points': int.tryParse(pointsCtrl.text) ?? 0,
+                  'jersey_number': int.tryParse(jerseyCtrl.text),
+                  'age': int.tryParse(ageCtrl.text),
+                };
+                if (imageUrl != null) data['image'] = imageUrl;
+
+                final ok = await ref
+                    .read(adminProvider.notifier)
+                    .updatePlayer(p['id'] as String, data);
+                if (ok) {
+                  _load();
+                  _snack('Player updated!');
+                } else {
+                  _snack('Failed to update');
+                }
+              },
+              child: const Text('Update',
+                  style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _confirmDelete(Map<String, dynamic> p) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Player'),
+        content: Text('Delete "${p['name']}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              final ok = await ref
+                  .read(adminProvider.notifier)
+                  .deletePlayer(p['id'] as String);
+              if (ok) {
+                _load();
+                _snack('Player deleted');
+              } else {
+                _snack('Failed to delete');
+              }
+            },
+            child:
+                const Text('Delete', style: TextStyle(color: Colors.white)),
+          ),
+        ],
       ),
     );
   }
