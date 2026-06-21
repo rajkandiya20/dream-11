@@ -1,235 +1,242 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_spacing.dart';
-import '../../../../core/theme/app_typography.dart';
 import '../../domain/providers/admin_provider.dart';
-import '../widgets/admin_data_table.dart';
 import '../widgets/admin_nav_drawer.dart';
 
-/// Admin matches CRUD screen with team selection and status management.
 class AdminMatchesScreen extends ConsumerStatefulWidget {
   const AdminMatchesScreen({super.key});
 
   @override
-  ConsumerState<AdminMatchesScreen> createState() =>
-      _AdminMatchesScreenState();
+  ConsumerState<AdminMatchesScreen> createState() => _AdminMatchesScreenState();
 }
 
 class _AdminMatchesScreenState extends ConsumerState<AdminMatchesScreen> {
-  String? _statusFilter;
+  bool _loading = false;
+  List<Map<String, dynamic>> _matches = [];
+  String? _error;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(adminProvider.notifier).loadMatches();
-    });
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() { _loading = true; _error = null; });
+    try {
+      await ref.read(adminProvider.notifier).loadMatches();
+      final s = ref.read(adminProvider);
+      setState(() { _matches = s.matches; _loading = false; });
+    } catch (e) {
+      setState(() { _loading = false; _error = e.toString(); });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final adminState = ref.watch(adminProvider);
-
     return Scaffold(
-      backgroundColor: AppColors.scaffoldBackground,
+      backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
-        backgroundColor: AppColors.surface,
+        backgroundColor: Colors.white,
         elevation: 0,
-        leading: Builder(
-          builder: (context) => IconButton(
-            onPressed: () => Scaffold.of(context).openDrawer(),
-            icon: const Icon(Icons.menu, color: AppColors.textPrimary),
-          ),
-        ),
-        title: Text(
-          'Matches',
-          style: AppTypography.titleLarge.copyWith(color: AppColors.textPrimary),
-        ),
+        leading: Builder(builder: (ctx) => IconButton(
+          icon: const Icon(Icons.menu, color: Color(0xFF0F172A)),
+          onPressed: () => Scaffold.of(ctx).openDrawer(),
+        )),
+        title: const Text('Matches',
+            style: TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.w700)),
         actions: [
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.filter_list, color: AppColors.textSecondary),
-            onSelected: (status) {
-              setState(() => _statusFilter = status == 'all' ? null : status);
-              ref
-                  .read(adminProvider.notifier)
-                  .loadMatches(status: _statusFilter);
-            },
-            itemBuilder: (_) => [
-              const PopupMenuItem(value: 'all', child: Text('All')),
-              const PopupMenuItem(value: 'upcoming', child: Text('Upcoming')),
-              const PopupMenuItem(value: 'live', child: Text('Live')),
-              const PopupMenuItem(value: 'completed', child: Text('Completed')),
-            ],
-          ),
+          IconButton(icon: const Icon(Icons.refresh, color: Color(0xFF0F172A)), onPressed: _load),
         ],
       ),
       drawer: const AdminNavDrawer(currentRoute: '/admin/matches'),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showFormDialog(null),
-        backgroundColor: AppColors.primary,
+        onPressed: _showCreateDialog,
+        backgroundColor: const Color(0xFFE11D48),
         icon: const Icon(Icons.add, color: Colors.white),
-        label: const Text('Create', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+        label: const Text('Create Match',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: AdminDataTable(
-          title: 'All Matches',
-          columns: const ['Team A', 'Team B', 'Status', 'Date'],
-          displayKeys: const [
-            'team_a_name',
-            'team_b_name',
-            'status',
-            'date_time'
-          ],
-          rows: adminState.matches,
-          isLoading: adminState.matchesLoading,
-          errorMessage: adminState.matchesError,
-          emptyMessage: 'No matches scheduled',
-          emptyActionText: 'Create Match',
-          onAdd: () => _showFormDialog(null),
-          onEdit: (match) => _showFormDialog(match),
-          onDelete: (match) => _confirmDelete(match),
-          onRetry: () => ref.read(adminProvider.notifier).loadMatches(status: _statusFilter),
-        ),
-      ),
-    );
-  }
-
-  void _showFormDialog(Map<String, dynamic>? match) {
-    final isEditing = match != null;
-    final teamAController =
-        TextEditingController(text: match?['team_a_name'] ?? '');
-    final teamBController =
-        TextEditingController(text: match?['team_b_name'] ?? '');
-    final venueController =
-        TextEditingController(text: match?['venue'] ?? '');
-    String status = match?['status'] ?? 'upcoming';
-
-    showDialog(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: AppSpacing.borderRadiusLg,
-          ),
-          title: Text(
-            isEditing ? 'Edit Match' : 'Create Match',
-            style: AppTypography.titleLarge,
-          ),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: teamAController,
-                  decoration: InputDecoration(
-                    labelText: 'Team A Name',
-                    border: OutlineInputBorder(
-                      borderRadius: AppSpacing.borderRadiusSm,
-                    ),
-                  ),
-                ),
-                AppSpacing.gapH12,
-                TextField(
-                  controller: teamBController,
-                  decoration: InputDecoration(
-                    labelText: 'Team B Name',
-                    border: OutlineInputBorder(
-                      borderRadius: AppSpacing.borderRadiusSm,
-                    ),
-                  ),
-                ),
-                AppSpacing.gapH12,
-                TextField(
-                  controller: venueController,
-                  decoration: InputDecoration(
-                    labelText: 'Venue',
-                    border: OutlineInputBorder(
-                      borderRadius: AppSpacing.borderRadiusSm,
-                    ),
-                  ),
-                ),
-                AppSpacing.gapH12,
-                DropdownButtonFormField<String>(
-                  value: status,
-                  decoration: InputDecoration(
-                    labelText: 'Status',
-                    border: OutlineInputBorder(
-                      borderRadius: AppSpacing.borderRadiusSm,
-                    ),
-                  ),
-                  items: ['upcoming', 'live', 'completed']
-                      .map((s) => DropdownMenuItem(value: s, child: Text(s)))
-                      .toList(),
-                  onChanged: (v) => setDialogState(() => status = v!),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                final data = {
-                  'team_a_name': teamAController.text.trim(),
-                  'team_b_name': teamBController.text.trim(),
-                  'venue': venueController.text.trim(),
-                  'status': status,
-                };
-                bool success;
-                if (isEditing) {
-                  success = await ref
-                      .read(adminProvider.notifier)
-                      .updateMatch(match['id'], data);
-                } else {
-                  success = await ref
-                      .read(adminProvider.notifier)
-                      .createMatch(data);
-                }
-                if (success && mounted) Navigator.pop(context);
-              },
+      body: Column(
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            child: ElevatedButton.icon(
+              onPressed: _showCreateDialog,
+              icon: const Icon(Icons.add, color: Colors.white),
+              label: const Text('+ Create New Match',
+                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 16)),
               style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary),
-              child: Text(
-                isEditing ? 'Update' : 'Create',
-                style: const TextStyle(color: Colors.white),
+                backgroundColor: const Color(0xFFE11D48),
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               ),
             ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _confirmDelete(Map<String, dynamic> match) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Match'),
-        content: Text(
-            'Delete match "${match['team_a_name']} vs ${match['team_b_name']}"?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
           ),
-          ElevatedButton(
-            onPressed: () async {
-              await ref
-                  .read(adminProvider.notifier)
-                  .deleteMatch(match['id']);
-              if (mounted) Navigator.pop(context);
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
-            child: const Text('Delete', style: TextStyle(color: Colors.white)),
+          Expanded(
+            child: _loading
+                ? const Center(child: CircularProgressIndicator(color: Color(0xFFE11D48)))
+                : _error != null ? _buildError()
+                : _matches.isEmpty ? _buildEmpty()
+                : _buildList(),
           ),
         ],
       ),
     );
+  }
+
+  Widget _buildError() => Center(child: Padding(padding: const EdgeInsets.all(24),
+    child: Column(mainAxisSize: MainAxisSize.min, children: [
+      const Icon(Icons.error_outline, size: 48, color: Colors.red),
+      const SizedBox(height: 12),
+      const Text('Failed to load', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
+      const SizedBox(height: 16),
+      ElevatedButton(onPressed: _load,
+          style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFE11D48)),
+          child: const Text('Retry', style: TextStyle(color: Colors.white))),
+    ]),
+  ));
+
+  Widget _buildEmpty() => Center(child: Padding(padding: const EdgeInsets.all(24),
+    child: Column(mainAxisSize: MainAxisSize.min, children: [
+      const Icon(Icons.sports_cricket, size: 64, color: Color(0xFFE11D48)),
+      const SizedBox(height: 16),
+      const Text('No matches yet', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 20)),
+      const SizedBox(height: 8),
+      const Text('Tap the button above to create your first match',
+          textAlign: TextAlign.center, style: TextStyle(color: Color(0xFF64748B))),
+    ]),
+  ));
+
+  Widget _buildList() => ListView.builder(
+    padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+    itemCount: _matches.length,
+    itemBuilder: (ctx, i) {
+      final m = _matches[i];
+      return Card(
+        margin: const EdgeInsets.only(bottom: 8),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        child: ListTile(
+          leading: const Icon(Icons.sports_cricket, color: Color(0xFFE11D48)),
+          title: Text('${m['team_a_name'] ?? '-'} vs ${m['team_b_name'] ?? '-'}',
+              style: const TextStyle(fontWeight: FontWeight.w600)),
+          subtitle: Text('${m['status'] ?? '-'} • ${m['venue'] ?? '-'}'),
+          trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+            IconButton(icon: const Icon(Icons.edit, color: Color(0xFF3B82F6)),
+                onPressed: () => _showEditDialog(m)),
+            IconButton(icon: const Icon(Icons.delete, color: Color(0xFFEF4444)),
+                onPressed: () => _confirmDelete(m)),
+          ]),
+        ),
+      );
+    },
+  );
+
+  void _showCreateDialog() {
+    final teamA = TextEditingController();
+    final teamB = TextEditingController();
+    final venue = TextEditingController();
+    String status = 'upcoming';
+    showDialog(context: context,
+      builder: (ctx) => StatefulBuilder(builder: (ctx, setS) => AlertDialog(
+        title: const Text('Create Match', style: TextStyle(fontWeight: FontWeight.w700)),
+        content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
+          TextField(controller: teamA, decoration: const InputDecoration(labelText: 'Team A Name', border: OutlineInputBorder())),
+          const SizedBox(height: 12),
+          TextField(controller: teamB, decoration: const InputDecoration(labelText: 'Team B Name', border: OutlineInputBorder())),
+          const SizedBox(height: 12),
+          TextField(controller: venue, decoration: const InputDecoration(labelText: 'Venue', border: OutlineInputBorder())),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<String>(value: status,
+            decoration: const InputDecoration(labelText: 'Status', border: OutlineInputBorder()),
+            items: ['upcoming','live','completed']
+                .map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+            onChanged: (v) => setS(() => status = v!),
+          ),
+        ])),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFE11D48)),
+            onPressed: () async {
+              if (teamA.text.trim().isEmpty || teamB.text.trim().isEmpty) return;
+              Navigator.pop(ctx);
+              final ok = await ref.read(adminProvider.notifier).createMatch({
+                'team_a_name': teamA.text.trim(), 'team_b_name': teamB.text.trim(),
+                'venue': venue.text.trim(), 'status': status,
+              });
+              if (ok) { _load(); _snack('Match created!'); } else _snack('Failed');
+            },
+            child: const Text('Create', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      )),
+    );
+  }
+
+  void _showEditDialog(Map<String, dynamic> m) {
+    final teamA = TextEditingController(text: m['team_a_name'] ?? '');
+    final teamB = TextEditingController(text: m['team_b_name'] ?? '');
+    final venue = TextEditingController(text: m['venue'] ?? '');
+    String status = m['status'] ?? 'upcoming';
+    showDialog(context: context,
+      builder: (ctx) => StatefulBuilder(builder: (ctx, setS) => AlertDialog(
+        title: const Text('Edit Match', style: TextStyle(fontWeight: FontWeight.w700)),
+        content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
+          TextField(controller: teamA, decoration: const InputDecoration(labelText: 'Team A Name', border: OutlineInputBorder())),
+          const SizedBox(height: 12),
+          TextField(controller: teamB, decoration: const InputDecoration(labelText: 'Team B Name', border: OutlineInputBorder())),
+          const SizedBox(height: 12),
+          TextField(controller: venue, decoration: const InputDecoration(labelText: 'Venue', border: OutlineInputBorder())),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<String>(value: status,
+            decoration: const InputDecoration(labelText: 'Status', border: OutlineInputBorder()),
+            items: ['upcoming','live','completed']
+                .map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+            onChanged: (v) => setS(() => status = v!),
+          ),
+        ])),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFE11D48)),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              final ok = await ref.read(adminProvider.notifier).updateMatch(m['id'] as String,
+                  {'team_a_name': teamA.text.trim(), 'team_b_name': teamB.text.trim(),
+                   'venue': venue.text.trim(), 'status': status});
+              if (ok) { _load(); _snack('Updated!'); } else _snack('Failed');
+            },
+            child: const Text('Update', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      )),
+    );
+  }
+
+  void _confirmDelete(Map<String, dynamic> m) {
+    showDialog(context: context, builder: (ctx) => AlertDialog(
+      title: const Text('Delete Match'),
+      content: Text('Delete "${m['team_a_name']} vs ${m['team_b_name']}"?'),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+          onPressed: () async {
+            Navigator.pop(ctx);
+            await ref.read(adminProvider.notifier).deleteMatch(m['id'] as String);
+            _load(); _snack('Deleted');
+          },
+          child: const Text('Delete', style: TextStyle(color: Colors.white)),
+        ),
+      ],
+    ));
+  }
+
+  void _snack(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 }
