@@ -30,6 +30,7 @@ class AdminAnalytics {
 /// Repository for all admin CRUD operations.
 class AdminRepository {
   final SupabaseClient _client;
+  String? lastError;
 
   AdminRepository(this._client);
 
@@ -133,11 +134,14 @@ class AdminRepository {
   Future<Map<String, dynamic>?> createTournament(
       Map<String, dynamic> data) async {
     try {
+      debugPrint('AdminRepo createTournament data: $data');
       final response =
           await _client.from('tournaments').insert(data).select().single();
+      debugPrint('AdminRepo createTournament OK');
       return response;
     } catch (e) {
-      debugPrint('AdminRepo error: $e');
+      debugPrint('AdminRepo createTournament ERROR: $e');
+      lastError = e.toString();
       return null;
     }
   }
