@@ -346,7 +346,7 @@ class _AdminPlayersScreenState extends ConsumerState<AdminPlayersScreen> {
                         'player-photos',
                         path,
                         imageBytes!,
-                        'image/png',
+                        contentType: 'image/png',
                       );
                 }
 
@@ -535,7 +535,7 @@ class _AdminPlayersScreenState extends ConsumerState<AdminPlayersScreen> {
                         'player-photos',
                         path,
                         imageBytes!,
-                        'image/png',
+                        contentType: 'image/png',
                       );
                 }
 
