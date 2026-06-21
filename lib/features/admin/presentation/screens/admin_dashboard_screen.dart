@@ -105,6 +105,11 @@ class AdminDashboardScreen extends ConsumerWidget {
                         onTap: () => context.push('/admin/wallet'),
                       ),
                     AppSpacing.gapH24,
+                    // Quick Actions (ALL admin features)
+                    Text('Manage', style: AppTypography.titleLarge),
+                    AppSpacing.gapH12,
+                    _QuickActionsGrid(context: context),
+                    AppSpacing.gapH24,
                     // Revenue Chart
                     RevenueLineChart(
                       title: 'Revenue (Last 7 Days)',
@@ -143,11 +148,6 @@ class AdminDashboardScreen extends ConsumerWidget {
                       ],
                       barColor: AppColors.info,
                     ),
-                    AppSpacing.gapH24,
-                    // Quick Actions
-                    Text('Quick Actions', style: AppTypography.titleLarge),
-                    AppSpacing.gapH12,
-                    _QuickActionsGrid(context: context),
                     AppSpacing.gapH24,
                     // Recent Activity
                     _RecentActivitySection(),
@@ -234,7 +234,7 @@ class _PendingActionsCard extends StatelessWidget {
   }
 }
 
-/// Quick actions grid.
+/// Quick actions grid with ALL admin features as large cards in 2 columns.
 class _QuickActionsGrid extends StatelessWidget {
   final BuildContext context;
 
@@ -242,52 +242,113 @@ class _QuickActionsGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext _) {
-    return Wrap(
-      spacing: 12,
-      runSpacing: 12,
-      children: [
-        _QuickAction(
-          icon: Icons.person_add_outlined,
-          label: 'Manage Users',
-          color: AppColors.info,
-          onTap: () => context.push('/admin/users'),
-        ),
-        _QuickAction(
-          icon: Icons.sports_cricket_outlined,
-          label: 'Add Match',
-          color: AppColors.success,
-          onTap: () => context.push('/admin/matches'),
-        ),
-        _QuickAction(
-          icon: Icons.emoji_events_outlined,
-          label: 'Tournaments',
-          color: AppColors.warning,
-          onTap: () => context.push('/admin/tournaments'),
-        ),
-        _QuickAction(
-          icon: Icons.scoreboard_outlined,
-          label: 'Update Scores',
-          color: AppColors.primary,
-          onTap: () => context.push('/admin/scoreboard'),
-        ),
-        _QuickAction(
-          icon: Icons.payment_outlined,
-          label: 'Payment Methods',
-          color: AppColors.info,
-          onTap: () => context.push('/admin/payment-methods'),
-        ),
-      ],
+    final actions = [
+      _QuickActionData(
+        icon: Icons.emoji_events_outlined,
+        label: 'Create Tournament',
+        color: AppColors.warning,
+        route: '/admin/tournaments',
+      ),
+      _QuickActionData(
+        icon: Icons.sports_cricket_outlined,
+        label: 'Create Match',
+        color: AppColors.success,
+        route: '/admin/matches',
+      ),
+      _QuickActionData(
+        icon: Icons.groups_outlined,
+        label: 'Manage Teams',
+        color: AppColors.info,
+        route: '/admin/teams',
+      ),
+      _QuickActionData(
+        icon: Icons.person_add_outlined,
+        label: 'Add Players',
+        color: AppColors.primary,
+        route: '/admin/players',
+      ),
+      _QuickActionData(
+        icon: Icons.leaderboard_outlined,
+        label: 'Manage Contests',
+        color: AppColors.warning,
+        route: '/admin/contests',
+      ),
+      _QuickActionData(
+        icon: Icons.scoreboard_outlined,
+        label: 'Update Scoreboard',
+        color: AppColors.success,
+        route: '/admin/scoreboard',
+      ),
+      _QuickActionData(
+        icon: Icons.manage_accounts_outlined,
+        label: 'User Management',
+        color: AppColors.info,
+        route: '/admin/users',
+      ),
+      _QuickActionData(
+        icon: Icons.account_balance_wallet_outlined,
+        label: 'Wallet/Deposits',
+        color: AppColors.primary,
+        route: '/admin/wallet',
+      ),
+      _QuickActionData(
+        icon: Icons.payment_outlined,
+        label: 'Payment Methods',
+        color: AppColors.warning,
+        route: '/admin/payment-methods',
+      ),
+      _QuickActionData(
+        icon: Icons.settings_outlined,
+        label: 'Settings',
+        color: AppColors.info,
+        route: '/admin/settings',
+      ),
+    ];
+
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        mainAxisSpacing: 12,
+        crossAxisSpacing: 12,
+        mainAxisExtent: 60,
+      ),
+      itemCount: actions.length,
+      itemBuilder: (ctx, index) {
+        final action = actions[index];
+        return _QuickActionCard(
+          icon: action.icon,
+          label: action.label,
+          color: action.color,
+          onTap: () => context.push(action.route),
+        );
+      },
     );
   }
 }
 
-class _QuickAction extends StatelessWidget {
+class _QuickActionData {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final String route;
+
+  const _QuickActionData({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.route,
+  });
+}
+
+class _QuickActionCard extends StatelessWidget {
   final IconData icon;
   final String label;
   final Color color;
   final VoidCallback onTap;
 
-  const _QuickAction({
+  const _QuickActionCard({
     required this.icon,
     required this.label,
     required this.color,
@@ -300,32 +361,34 @@ class _QuickAction extends StatelessWidget {
       onTap: onTap,
       borderRadius: AppSpacing.borderRadiusSm,
       child: Container(
-        width: (MediaQuery.of(context).size.width - 56) / 2,
-        padding: const EdgeInsets.all(14),
+        height: 60,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
           color: AppColors.card,
           borderRadius: AppSpacing.borderRadiusSm,
-          border: Border.all(color: AppColors.border.withOpacity(0.5)),
+          border: Border.all(color: color.withOpacity(0.4)),
         ),
         child: Row(
           children: [
             Container(
-              width: 36,
-              height: 36,
+              width: 40,
+              height: 40,
               decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
+                color: color.withOpacity(0.12),
                 borderRadius: AppSpacing.borderRadiusSm,
               ),
-              child: Center(child: Icon(icon, color: color, size: 18)),
+              child: Center(child: Icon(icon, color: color, size: 22)),
             ),
             const SizedBox(width: 10),
             Expanded(
               child: Text(
                 label,
                 style: AppTypography.labelMedium.copyWith(
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13,
                 ),
                 maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           ],
