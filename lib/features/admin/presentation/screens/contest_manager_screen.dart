@@ -43,24 +43,98 @@ class _ContestManagerScreenState extends ConsumerState<ContestManagerScreen> {
           'Contest Manager',
           style: AppTypography.titleLarge.copyWith(color: AppColors.textPrimary),
         ),
+        actions: [
+          IconButton(
+            onPressed: () => ref.read(adminProvider.notifier).loadContests(),
+            icon: const Icon(Icons.refresh, color: AppColors.textPrimary),
+            tooltip: 'Refresh',
+          ),
+        ],
       ),
       drawer: const AdminNavDrawer(currentRoute: '/admin/contests'),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => _showCreateDialog(),
+        backgroundColor: AppColors.primary,
+        icon: const Icon(Icons.add, color: Colors.white),
+        label: const Text(
+          'Create Contest',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+        ),
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
-        child: AdminDataTable(
-          title: 'Manage Contests',
-          columns: const ['Name', 'Entry Fee', 'Prize Pool', 'Status'],
-          displayKeys: const ['name', 'entry_fee', 'prize_pool', 'status'],
-          rows: adminState.contests,
-          isLoading: adminState.isLoading,
-          onAdd: () => _showCreateDialog(),
-          onEdit: (contest) => _showEditDialog(contest),
-          onDelete: (contest) async {
-            await ref
-                .read(adminProvider.notifier)
-                .deleteContest(contest['id'] as String);
-          },
+        child: Column(
+          children: [
+            // Always visible Create button at the top
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () => _showCreateDialog(),
+                icon: const Icon(Icons.add, color: Colors.white),
+                label: const Text(
+                  'Create New Contest',
+                  style: TextStyle(
+                      color: Colors.white, fontWeight: FontWeight.w600),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: AppSpacing.borderRadiusSm,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            AdminDataTable(
+              title: 'All Contests',
+              columns: const ['Name', 'Entry Fee', 'Prize Pool', 'Status'],
+              displayKeys: const [
+                'name',
+                'entry_fee',
+                'prize_pool',
+                'status'
+              ],
+              rows: adminState.contests,
+              isLoading: adminState.isLoading,
+              errorMessage: adminState.contestsError,
+              emptyMessage: 'No contests created yet',
+              emptyActionText: 'Create Contest',
+              onAdd: () => _showCreateDialog(),
+              onEdit: (contest) => _showEditDialog(contest),
+              onDelete: (contest) => _confirmDelete(contest),
+              onRetry: () => ref.read(adminProvider.notifier).loadContests(),
+            ),
+          ],
         ),
+      ),
+    );
+  }
+
+  void _confirmDelete(Map<String, dynamic> contest) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Contest'),
+        content: Text('Delete contest "${contest['name']}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await ref
+                  .read(adminProvider.notifier)
+                  .deleteContest(contest['id'] as String);
+            },
+            style:
+                ElevatedButton.styleFrom(backgroundColor: AppColors.error),
+            child:
+                const Text('Delete', style: TextStyle(color: Colors.white)),
+          ),
+        ],
       ),
     );
   }
@@ -70,87 +144,162 @@ class _ContestManagerScreenState extends ConsumerState<ContestManagerScreen> {
     final entryFeeController = TextEditingController(text: '0');
     final prizePoolController = TextEditingController(text: '0');
     final maxTeamsController = TextEditingController(text: '100');
+    String contestType = 'paid';
+    String status = 'open';
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: AppSpacing.borderRadiusLg),
-        title: Text('Create Contest', style: AppTypography.titleLarge),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(
+              borderRadius: AppSpacing.borderRadiusLg),
+          title: Row(
             children: [
-              TextField(
-                controller: nameController,
-                decoration: InputDecoration(
-                  labelText: 'Contest Name',
-                  border: OutlineInputBorder(
-                    borderRadius: AppSpacing.borderRadiusSm,
-                  ),
-                ),
-              ),
-              AppSpacing.gapH12,
-              TextField(
-                controller: entryFeeController,
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(
-                  labelText: 'Entry Fee (\u20B9)',
-                  border: OutlineInputBorder(
-                    borderRadius: AppSpacing.borderRadiusSm,
-                  ),
-                ),
-              ),
-              AppSpacing.gapH12,
-              TextField(
-                controller: prizePoolController,
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(
-                  labelText: 'Prize Pool (\u20B9)',
-                  border: OutlineInputBorder(
-                    borderRadius: AppSpacing.borderRadiusSm,
-                  ),
-                ),
-              ),
-              AppSpacing.gapH12,
-              TextField(
-                controller: maxTeamsController,
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(
-                  labelText: 'Max Teams',
-                  border: OutlineInputBorder(
-                    borderRadius: AppSpacing.borderRadiusSm,
-                  ),
-                ),
-              ),
+              const Icon(Icons.emoji_events, color: AppColors.primary),
+              const SizedBox(width: 8),
+              Text('Create Contest', style: AppTypography.titleLarge),
             ],
           ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameController,
+                  decoration: InputDecoration(
+                    labelText: 'Contest Name',
+                    prefixIcon:
+                        const Icon(Icons.emoji_events, size: 18),
+                    border: OutlineInputBorder(
+                      borderRadius: AppSpacing.borderRadiusSm,
+                    ),
+                  ),
+                ),
+                AppSpacing.gapH12,
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: entryFeeController,
+                        keyboardType: TextInputType.number,
+                        decoration: InputDecoration(
+                          labelText: 'Entry Fee (₹)',
+                          border: OutlineInputBorder(
+                            borderRadius: AppSpacing.borderRadiusSm,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextField(
+                        controller: prizePoolController,
+                        keyboardType: TextInputType.number,
+                        decoration: InputDecoration(
+                          labelText: 'Prize Pool (₹)',
+                          border: OutlineInputBorder(
+                            borderRadius: AppSpacing.borderRadiusSm,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                AppSpacing.gapH12,
+                TextField(
+                  controller: maxTeamsController,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    labelText: 'Max Teams',
+                    border: OutlineInputBorder(
+                      borderRadius: AppSpacing.borderRadiusSm,
+                    ),
+                  ),
+                ),
+                AppSpacing.gapH12,
+                DropdownButtonFormField<String>(
+                  value: contestType,
+                  decoration: InputDecoration(
+                    labelText: 'Type',
+                    border: OutlineInputBorder(
+                      borderRadius: AppSpacing.borderRadiusSm,
+                    ),
+                  ),
+                  items: ['paid', 'free']
+                      .map((t) =>
+                          DropdownMenuItem(value: t, child: Text(t)))
+                      .toList(),
+                  onChanged: (v) =>
+                      setDialogState(() => contestType = v!),
+                ),
+                AppSpacing.gapH12,
+                DropdownButtonFormField<String>(
+                  value: status,
+                  decoration: InputDecoration(
+                    labelText: 'Status',
+                    border: OutlineInputBorder(
+                      borderRadius: AppSpacing.borderRadiusSm,
+                    ),
+                  ),
+                  items: ['open', 'closed', 'completed']
+                      .map((s) =>
+                          DropdownMenuItem(value: s, child: Text(s)))
+                      .toList(),
+                  onChanged: (v) =>
+                      setDialogState(() => status = v!),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (nameController.text.trim().isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                        content: Text('Please enter contest name')),
+                  );
+                  return;
+                }
+                final success = await ref
+                    .read(adminProvider.notifier)
+                    .createContest({
+                  'name': nameController.text.trim(),
+                  'entry_fee':
+                      double.tryParse(entryFeeController.text) ?? 0,
+                  'prize_pool':
+                      double.tryParse(prizePoolController.text) ?? 0,
+                  'max_teams':
+                      int.tryParse(maxTeamsController.text) ?? 100,
+                  'contest_type': contestType,
+                  'status': status,
+                  'joined_teams': 0,
+                });
+                if (success && mounted) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                        content: Text('Contest created successfully!')),
+                  );
+                } else if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                        content:
+                            Text('Failed to create contest. Try again.')),
+                  );
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary),
+              child: const Text('Create',
+                  style: TextStyle(color: Colors.white)),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              final success =
-                  await ref.read(adminProvider.notifier).createContest({
-                'name': nameController.text.trim(),
-                'entry_fee':
-                    double.tryParse(entryFeeController.text) ?? 0,
-                'prize_pool':
-                    double.tryParse(prizePoolController.text) ?? 0,
-                'max_teams':
-                    int.tryParse(maxTeamsController.text) ?? 100,
-                'contest_type': 'paid',
-                'status': 'open',
-                'joined_teams': 0,
-              });
-              if (success && mounted) Navigator.pop(context);
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
-            child: const Text('Create', style: TextStyle(color: Colors.white)),
-          ),
-        ],
       ),
     );
   }
@@ -171,7 +320,13 @@ class _ContestManagerScreenState extends ConsumerState<ContestManagerScreen> {
           shape: RoundedRectangleBorder(
             borderRadius: AppSpacing.borderRadiusLg,
           ),
-          title: Text('Edit Contest', style: AppTypography.titleLarge),
+          title: Row(
+            children: [
+              const Icon(Icons.edit, color: AppColors.primary),
+              const SizedBox(width: 8),
+              Text('Edit Contest', style: AppTypography.titleLarge),
+            ],
+          ),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -190,7 +345,7 @@ class _ContestManagerScreenState extends ConsumerState<ContestManagerScreen> {
                   controller: entryFeeController,
                   keyboardType: TextInputType.number,
                   decoration: InputDecoration(
-                    labelText: 'Entry Fee',
+                    labelText: 'Entry Fee (₹)',
                     border: OutlineInputBorder(
                       borderRadius: AppSpacing.borderRadiusSm,
                     ),
@@ -201,7 +356,7 @@ class _ContestManagerScreenState extends ConsumerState<ContestManagerScreen> {
                   controller: prizePoolController,
                   keyboardType: TextInputType.number,
                   decoration: InputDecoration(
-                    labelText: 'Prize Pool',
+                    labelText: 'Prize Pool (₹)',
                     border: OutlineInputBorder(
                       borderRadius: AppSpacing.borderRadiusSm,
                     ),
@@ -217,7 +372,8 @@ class _ContestManagerScreenState extends ConsumerState<ContestManagerScreen> {
                     ),
                   ),
                   items: ['open', 'closed', 'completed']
-                      .map((s) => DropdownMenuItem(value: s, child: Text(s)))
+                      .map((s) =>
+                          DropdownMenuItem(value: s, child: Text(s)))
                       .toList(),
                   onChanged: (v) => setDialogState(() => status = v!),
                 ),
@@ -241,12 +397,18 @@ class _ContestManagerScreenState extends ConsumerState<ContestManagerScreen> {
                       double.tryParse(prizePoolController.text) ?? 0,
                   'status': status,
                 });
-                if (success && mounted) Navigator.pop(context);
+                if (success && mounted) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                        content: Text('Contest updated successfully!')),
+                  );
+                }
               },
               style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary),
-              child:
-                  const Text('Update', style: TextStyle(color: Colors.white)),
+              child: const Text('Update',
+                  style: TextStyle(color: Colors.white)),
             ),
           ],
         ),

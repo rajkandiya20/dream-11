@@ -43,24 +43,91 @@ class _PlayerManagerScreenState extends ConsumerState<PlayerManagerScreen> {
           'Player Manager',
           style: AppTypography.titleLarge.copyWith(color: AppColors.textPrimary),
         ),
+        actions: [
+          IconButton(
+            onPressed: () => ref.read(adminProvider.notifier).loadPlayers(),
+            icon: const Icon(Icons.refresh, color: AppColors.textPrimary),
+            tooltip: 'Refresh',
+          ),
+        ],
       ),
       drawer: const AdminNavDrawer(currentRoute: '/admin/players'),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => _showCreateDialog(),
+        backgroundColor: AppColors.primary,
+        icon: const Icon(Icons.person_add, color: Colors.white),
+        label: const Text(
+          'Add Player',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+        ),
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
-        child: AdminDataTable(
-          title: 'Manage Players',
-          columns: const ['Name', 'Role', 'Points', 'Credits'],
-          displayKeys: const ['name', 'role', 'points', 'credits'],
-          rows: adminState.players,
-          isLoading: adminState.isLoading,
-          onAdd: () => _showCreateDialog(),
-          onEdit: (player) => _showEditDialog(player),
-          onDelete: (player) async {
-            await ref
-                .read(adminProvider.notifier)
-                .deletePlayer(player['id'] as String);
-          },
+        child: Column(
+          children: [
+            // Always visible Add button at the top
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () => _showCreateDialog(),
+                icon: const Icon(Icons.person_add, color: Colors.white),
+                label: const Text(
+                  'Add New Player',
+                  style: TextStyle(
+                      color: Colors.white, fontWeight: FontWeight.w600),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: AppSpacing.borderRadiusSm,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            AdminDataTable(
+              title: 'All Players',
+              columns: const ['Name', 'Role', 'Points', 'Credits'],
+              displayKeys: const ['name', 'role', 'points', 'credits'],
+              rows: adminState.players,
+              isLoading: adminState.isLoading,
+              errorMessage: adminState.playersError,
+              emptyMessage: 'No players added yet',
+              emptyActionText: 'Add Player',
+              onAdd: () => _showCreateDialog(),
+              onEdit: (player) => _showEditDialog(player),
+              onDelete: (player) => _confirmDelete(player),
+              onRetry: () => ref.read(adminProvider.notifier).loadPlayers(),
+            ),
+          ],
         ),
+      ),
+    );
+  }
+
+  void _confirmDelete(Map<String, dynamic> player) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Player'),
+        content: Text('Delete player "${player['name']}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await ref
+                  .read(adminProvider.notifier)
+                  .deletePlayer(player['id'] as String);
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
+            child: const Text('Delete', style: TextStyle(color: Colors.white)),
+          ),
+        ],
       ),
     );
   }
@@ -68,6 +135,7 @@ class _PlayerManagerScreenState extends ConsumerState<PlayerManagerScreen> {
   void _showCreateDialog() {
     final nameController = TextEditingController();
     final creditsController = TextEditingController(text: '8.0');
+    final pointsController = TextEditingController(text: '0');
     String role = 'Batsman';
 
     showDialog(
@@ -75,9 +143,14 @@ class _PlayerManagerScreenState extends ConsumerState<PlayerManagerScreen> {
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
           shape: RoundedRectangleBorder(
-            borderRadius: AppSpacing.borderRadiusLg,
+              borderRadius: AppSpacing.borderRadiusLg),
+          title: Row(
+            children: [
+              const Icon(Icons.person_add, color: AppColors.primary),
+              const SizedBox(width: 8),
+              Text('Add Player', style: AppTypography.titleLarge),
+            ],
           ),
-          title: Text('Add Player', style: AppTypography.titleLarge),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -86,6 +159,7 @@ class _PlayerManagerScreenState extends ConsumerState<PlayerManagerScreen> {
                   controller: nameController,
                   decoration: InputDecoration(
                     labelText: 'Player Name',
+                    prefixIcon: const Icon(Icons.person, size: 18),
                     border: OutlineInputBorder(
                       borderRadius: AppSpacing.borderRadiusSm,
                     ),
@@ -96,25 +170,47 @@ class _PlayerManagerScreenState extends ConsumerState<PlayerManagerScreen> {
                   value: role,
                   decoration: InputDecoration(
                     labelText: 'Role',
+                    prefixIcon:
+                        const Icon(Icons.sports_cricket, size: 18),
                     border: OutlineInputBorder(
                       borderRadius: AppSpacing.borderRadiusSm,
                     ),
                   ),
                   items: ['Batsman', 'Bowler', 'All-rounder', 'WK']
-                      .map((r) => DropdownMenuItem(value: r, child: Text(r)))
+                      .map((r) =>
+                          DropdownMenuItem(value: r, child: Text(r)))
                       .toList(),
                   onChanged: (v) => setDialogState(() => role = v!),
                 ),
                 AppSpacing.gapH12,
-                TextField(
-                  controller: creditsController,
-                  keyboardType: TextInputType.number,
-                  decoration: InputDecoration(
-                    labelText: 'Credits',
-                    border: OutlineInputBorder(
-                      borderRadius: AppSpacing.borderRadiusSm,
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: creditsController,
+                        keyboardType: TextInputType.number,
+                        decoration: InputDecoration(
+                          labelText: 'Credits',
+                          border: OutlineInputBorder(
+                            borderRadius: AppSpacing.borderRadiusSm,
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextField(
+                        controller: pointsController,
+                        keyboardType: TextInputType.number,
+                        decoration: InputDecoration(
+                          labelText: 'Points',
+                          border: OutlineInputBorder(
+                            borderRadius: AppSpacing.borderRadiusSm,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -126,21 +222,40 @@ class _PlayerManagerScreenState extends ConsumerState<PlayerManagerScreen> {
             ),
             ElevatedButton(
               onPressed: () async {
+                if (nameController.text.trim().isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                        content: Text('Please enter player name')),
+                  );
+                  return;
+                }
                 final success =
                     await ref.read(adminProvider.notifier).createPlayer({
                   'name': nameController.text.trim(),
                   'role': role,
                   'credits':
                       double.tryParse(creditsController.text) ?? 8.0,
-                  'points': 0,
+                  'points': int.tryParse(pointsController.text) ?? 0,
                   'is_playing': true,
                 });
-                if (success && mounted) Navigator.pop(context);
+                if (success && mounted) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                        content: Text('Player added successfully!')),
+                  );
+                } else if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                        content:
+                            Text('Failed to add player. Try again.')),
+                  );
+                }
               },
               style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary),
               child:
-                  const Text('Create', style: TextStyle(color: Colors.white)),
+                  const Text('Add', style: TextStyle(color: Colors.white)),
             ),
           ],
         ),
@@ -164,7 +279,13 @@ class _PlayerManagerScreenState extends ConsumerState<PlayerManagerScreen> {
           shape: RoundedRectangleBorder(
             borderRadius: AppSpacing.borderRadiusLg,
           ),
-          title: Text('Edit Player', style: AppTypography.titleLarge),
+          title: Row(
+            children: [
+              const Icon(Icons.edit, color: AppColors.primary),
+              const SizedBox(width: 8),
+              Text('Edit Player', style: AppTypography.titleLarge),
+            ],
+          ),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -173,6 +294,7 @@ class _PlayerManagerScreenState extends ConsumerState<PlayerManagerScreen> {
                   controller: nameController,
                   decoration: InputDecoration(
                     labelText: 'Player Name',
+                    prefixIcon: const Icon(Icons.person, size: 18),
                     border: OutlineInputBorder(
                       borderRadius: AppSpacing.borderRadiusSm,
                     ),
@@ -188,31 +310,40 @@ class _PlayerManagerScreenState extends ConsumerState<PlayerManagerScreen> {
                     ),
                   ),
                   items: ['Batsman', 'Bowler', 'All-rounder', 'WK']
-                      .map((r) => DropdownMenuItem(value: r, child: Text(r)))
+                      .map((r) =>
+                          DropdownMenuItem(value: r, child: Text(r)))
                       .toList(),
                   onChanged: (v) => setDialogState(() => role = v!),
                 ),
                 AppSpacing.gapH12,
-                TextField(
-                  controller: creditsController,
-                  keyboardType: TextInputType.number,
-                  decoration: InputDecoration(
-                    labelText: 'Credits',
-                    border: OutlineInputBorder(
-                      borderRadius: AppSpacing.borderRadiusSm,
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: creditsController,
+                        keyboardType: TextInputType.number,
+                        decoration: InputDecoration(
+                          labelText: 'Credits',
+                          border: OutlineInputBorder(
+                            borderRadius: AppSpacing.borderRadiusSm,
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-                AppSpacing.gapH12,
-                TextField(
-                  controller: pointsController,
-                  keyboardType: TextInputType.number,
-                  decoration: InputDecoration(
-                    labelText: 'Points',
-                    border: OutlineInputBorder(
-                      borderRadius: AppSpacing.borderRadiusSm,
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextField(
+                        controller: pointsController,
+                        keyboardType: TextInputType.number,
+                        decoration: InputDecoration(
+                          labelText: 'Points',
+                          border: OutlineInputBorder(
+                            borderRadius: AppSpacing.borderRadiusSm,
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
+                  ],
                 ),
               ],
             ),
@@ -231,15 +362,20 @@ class _PlayerManagerScreenState extends ConsumerState<PlayerManagerScreen> {
                   'role': role,
                   'credits':
                       double.tryParse(creditsController.text) ?? 8.0,
-                  'points':
-                      int.tryParse(pointsController.text) ?? 0,
+                  'points': int.tryParse(pointsController.text) ?? 0,
                 });
-                if (success && mounted) Navigator.pop(context);
+                if (success && mounted) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                        content: Text('Player updated successfully!')),
+                  );
+                }
               },
               style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary),
-              child:
-                  const Text('Update', style: TextStyle(color: Colors.white)),
+              child: const Text('Update',
+                  style: TextStyle(color: Colors.white)),
             ),
           ],
         ),
