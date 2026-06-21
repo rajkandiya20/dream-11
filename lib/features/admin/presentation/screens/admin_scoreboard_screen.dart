@@ -87,7 +87,7 @@ class _AdminScoreboardScreenState
               children: [
                 Text('Select Match', style: AppTypography.titleMedium),
                 const Spacer(),
-                if (adminState.isLoading)
+                if (adminState.matchesLoading)
                   const SizedBox(
                     width: 20,
                     height: 20,
@@ -106,12 +106,7 @@ class _AdminScoreboardScreenState
                 borderRadius: AppSpacing.borderRadiusSm,
                 border: Border.all(color: AppColors.border),
               ),
-              child: adminState.isLoading && adminState.matches.isEmpty
-                  ? const Padding(
-                      padding: EdgeInsets.all(16),
-                      child: Center(child: Text('Loading matches...')),
-                    )
-                  : DropdownButtonHideUnderline(
+              child: DropdownButtonHideUnderline(
                       child: DropdownButton<String>(
                         value: _selectedMatchId,
                         hint: Text(
@@ -187,7 +182,7 @@ class _AdminScoreboardScreenState
               _buildNoMatchSelectedState()
             
             // Loading scoreboard
-            else if (adminState.isLoading && adminState.scoreboard.isEmpty)
+            else if (adminState.scoreboardLoading && adminState.scoreboard.isEmpty)
               _buildLoadingState()
             
             // Error loading scoreboard

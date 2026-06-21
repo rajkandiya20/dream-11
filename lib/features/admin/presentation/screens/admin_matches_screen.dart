@@ -84,7 +84,7 @@ class _AdminMatchesScreenState extends ConsumerState<AdminMatchesScreen> {
             'date_time'
           ],
           rows: adminState.matches,
-          isLoading: adminState.isLoading,
+          isLoading: adminState.matchesLoading,
           errorMessage: adminState.matchesError,
           emptyMessage: 'No matches scheduled',
           emptyActionText: 'Create Match',

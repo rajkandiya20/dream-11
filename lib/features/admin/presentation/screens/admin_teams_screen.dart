@@ -59,7 +59,7 @@ class _AdminTeamsScreenState extends ConsumerState<AdminTeamsScreen> {
           columns: const ['Name', 'Code', 'Tournament'],
           displayKeys: const ['name', 'code', 'tournament_id'],
           rows: adminState.teams,
-          isLoading: adminState.isLoading,
+          isLoading: adminState.teamsLoading,
           errorMessage: adminState.teamsError,
           emptyMessage: 'No teams created yet',
           emptyActionText: 'Add Team',

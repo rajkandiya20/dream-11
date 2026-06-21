@@ -96,7 +96,7 @@ class _ContestManagerScreenState extends ConsumerState<ContestManagerScreen> {
                 'status'
               ],
               rows: adminState.contests,
-              isLoading: adminState.isLoading,
+              isLoading: adminState.contestsLoading,
               errorMessage: adminState.contestsError,
               emptyMessage: 'No contests created yet',
               emptyActionText: 'Create Contest',

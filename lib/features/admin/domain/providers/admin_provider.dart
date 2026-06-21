@@ -2,7 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/repositories/admin_repository.dart';
 
-/// Admin state holding analytics and entity lists.
+/// Admin state with per-screen loading flags so no screen blocks another.
 class AdminState {
   final AdminAnalytics analytics;
   final List<Map<String, dynamic>> users;
@@ -15,7 +15,19 @@ class AdminState {
   final List<Map<String, dynamic>> pendingWithdrawals;
   final List<Map<String, dynamic>> scoreboard;
   final List<Map<String, dynamic>> paymentMethods;
+
+  // Global loading (dashboard only)
   final bool isLoading;
+
+  // Per-screen loading flags — independent of each other
+  final bool tournamentsLoading;
+  final bool matchesLoading;
+  final bool teamsLoading;
+  final bool playersLoading;
+  final bool contestsLoading;
+  final bool scoreboardLoading;
+
+  // Per-screen error messages
   final String? errorMessage;
   final String? tournamentsError;
   final String? matchesError;
@@ -37,6 +49,12 @@ class AdminState {
     this.scoreboard = const [],
     this.paymentMethods = const [],
     this.isLoading = false,
+    this.tournamentsLoading = false,
+    this.matchesLoading = false,
+    this.teamsLoading = false,
+    this.playersLoading = false,
+    this.contestsLoading = false,
+    this.scoreboardLoading = false,
     this.errorMessage,
     this.tournamentsError,
     this.matchesError,
@@ -59,6 +77,12 @@ class AdminState {
     List<Map<String, dynamic>>? scoreboard,
     List<Map<String, dynamic>>? paymentMethods,
     bool? isLoading,
+    bool? tournamentsLoading,
+    bool? matchesLoading,
+    bool? teamsLoading,
+    bool? playersLoading,
+    bool? contestsLoading,
+    bool? scoreboardLoading,
     String? errorMessage,
     String? tournamentsError,
     String? matchesError,
@@ -86,6 +110,12 @@ class AdminState {
       scoreboard: scoreboard ?? this.scoreboard,
       paymentMethods: paymentMethods ?? this.paymentMethods,
       isLoading: isLoading ?? this.isLoading,
+      tournamentsLoading: tournamentsLoading ?? this.tournamentsLoading,
+      matchesLoading: matchesLoading ?? this.matchesLoading,
+      teamsLoading: teamsLoading ?? this.teamsLoading,
+      playersLoading: playersLoading ?? this.playersLoading,
+      contestsLoading: contestsLoading ?? this.contestsLoading,
+      scoreboardLoading: scoreboardLoading ?? this.scoreboardLoading,
       errorMessage: errorMessage,
       tournamentsError: clearTournamentsError ? null : (tournamentsError ?? this.tournamentsError),
       matchesError: clearMatchesError ? null : (matchesError ?? this.matchesError),
@@ -105,21 +135,33 @@ class AdminNotifier extends StateNotifier<AdminState> {
     loadDashboard();
   }
 
-  /// Load dashboard analytics.
+  // ========== DASHBOARD ==========
+
+  /// Load dashboard analytics. Uses global isLoading but NEVER stays stuck.
   Future<void> loadDashboard() async {
     state = state.copyWith(isLoading: true);
-    final analytics = await _repository.getAnalytics();
-    state = state.copyWith(analytics: analytics, isLoading: false);
+    try {
+      final analytics = await _repository.getAnalytics()
+          .timeout(const Duration(seconds: 8));
+      state = state.copyWith(analytics: analytics, isLoading: false);
+    } catch (_) {
+      state = state.copyWith(isLoading: false);
+    }
   }
 
-  /// Load users with optional search.
+  // ========== USERS ==========
+
   Future<void> loadUsers({String? search}) async {
     state = state.copyWith(isLoading: true);
-    final users = await _repository.getUsers(search: search);
-    state = state.copyWith(users: users, isLoading: false);
+    try {
+      final users = await _repository.getUsers(search: search)
+          .timeout(const Duration(seconds: 8));
+      state = state.copyWith(users: users, isLoading: false);
+    } catch (_) {
+      state = state.copyWith(users: [], isLoading: false);
+    }
   }
 
-  /// Update user role.
   Future<bool> updateUserRole(String userId, String role) async {
     final success = await _repository.updateUserRole(userId, role);
     if (success) await loadUsers();
@@ -129,25 +171,23 @@ class AdminNotifier extends StateNotifier<AdminState> {
   // ========== TOURNAMENTS ==========
 
   Future<void> loadTournaments() async {
-    state = state.copyWith(isLoading: true, clearTournamentsError: true);
+    state = state.copyWith(tournamentsLoading: true, clearTournamentsError: true);
     try {
-      final tournaments = await _repository.getTournaments();
-      state = state.copyWith(tournaments: tournaments, isLoading: false);
-    } catch (e) {
+      final tournaments = await _repository.getTournaments()
+          .timeout(const Duration(seconds: 8));
+      state = state.copyWith(tournaments: tournaments, tournamentsLoading: false);
+    } catch (_) {
       state = state.copyWith(
         tournaments: [],
-        isLoading: false,
-        tournamentsError: 'Failed to load tournaments. Please check your connection.',
+        tournamentsLoading: false,
+        tournamentsError: 'Could not load tournaments. Check connection.',
       );
     }
   }
 
   Future<bool> createTournament(Map<String, dynamic> data) async {
     final result = await _repository.createTournament(data);
-    if (result != null) {
-      await loadTournaments();
-      return true;
-    }
+    if (result != null) { await loadTournaments(); return true; }
     return false;
   }
 
@@ -166,25 +206,23 @@ class AdminNotifier extends StateNotifier<AdminState> {
   // ========== MATCHES ==========
 
   Future<void> loadMatches({String? status}) async {
-    state = state.copyWith(isLoading: true, clearMatchesError: true);
+    state = state.copyWith(matchesLoading: true, clearMatchesError: true);
     try {
-      final matches = await _repository.getMatches(status: status);
-      state = state.copyWith(matches: matches, isLoading: false);
-    } catch (e) {
+      final matches = await _repository.getMatches(status: status)
+          .timeout(const Duration(seconds: 8));
+      state = state.copyWith(matches: matches, matchesLoading: false);
+    } catch (_) {
       state = state.copyWith(
         matches: [],
-        isLoading: false,
-        matchesError: 'Failed to load matches. Please check your connection.',
+        matchesLoading: false,
+        matchesError: 'Could not load matches. Check connection.',
       );
     }
   }
 
   Future<bool> createMatch(Map<String, dynamic> data) async {
     final result = await _repository.createMatch(data);
-    if (result != null) {
-      await loadMatches();
-      return true;
-    }
+    if (result != null) { await loadMatches(); return true; }
     return false;
   }
 
@@ -203,25 +241,23 @@ class AdminNotifier extends StateNotifier<AdminState> {
   // ========== TEAMS ==========
 
   Future<void> loadTeams() async {
-    state = state.copyWith(isLoading: true, clearTeamsError: true);
+    state = state.copyWith(teamsLoading: true, clearTeamsError: true);
     try {
-      final teams = await _repository.getTeams();
-      state = state.copyWith(teams: teams, isLoading: false);
-    } catch (e) {
+      final teams = await _repository.getTeams()
+          .timeout(const Duration(seconds: 8));
+      state = state.copyWith(teams: teams, teamsLoading: false);
+    } catch (_) {
       state = state.copyWith(
         teams: [],
-        isLoading: false,
-        teamsError: 'Failed to load teams. Please check your connection.',
+        teamsLoading: false,
+        teamsError: 'Could not load teams. Check connection.',
       );
     }
   }
 
   Future<bool> createTeam(Map<String, dynamic> data) async {
     final result = await _repository.createTeam(data);
-    if (result != null) {
-      await loadTeams();
-      return true;
-    }
+    if (result != null) { await loadTeams(); return true; }
     return false;
   }
 
@@ -240,25 +276,23 @@ class AdminNotifier extends StateNotifier<AdminState> {
   // ========== PLAYERS ==========
 
   Future<void> loadPlayers({String? teamId}) async {
-    state = state.copyWith(isLoading: true, clearPlayersError: true);
+    state = state.copyWith(playersLoading: true, clearPlayersError: true);
     try {
-      final players = await _repository.getPlayers(teamId: teamId);
-      state = state.copyWith(players: players, isLoading: false);
-    } catch (e) {
+      final players = await _repository.getPlayers(teamId: teamId)
+          .timeout(const Duration(seconds: 8));
+      state = state.copyWith(players: players, playersLoading: false);
+    } catch (_) {
       state = state.copyWith(
         players: [],
-        isLoading: false,
-        playersError: 'Failed to load players. Please check your connection.',
+        playersLoading: false,
+        playersError: 'Could not load players. Check connection.',
       );
     }
   }
 
   Future<bool> createPlayer(Map<String, dynamic> data) async {
     final result = await _repository.createPlayer(data);
-    if (result != null) {
-      await loadPlayers();
-      return true;
-    }
+    if (result != null) { await loadPlayers(); return true; }
     return false;
   }
 
@@ -277,25 +311,23 @@ class AdminNotifier extends StateNotifier<AdminState> {
   // ========== CONTESTS ==========
 
   Future<void> loadContests({String? matchId}) async {
-    state = state.copyWith(isLoading: true, clearContestsError: true);
+    state = state.copyWith(contestsLoading: true, clearContestsError: true);
     try {
-      final contests = await _repository.getContests(matchId: matchId);
-      state = state.copyWith(contests: contests, isLoading: false);
-    } catch (e) {
+      final contests = await _repository.getContests(matchId: matchId)
+          .timeout(const Duration(seconds: 8));
+      state = state.copyWith(contests: contests, contestsLoading: false);
+    } catch (_) {
       state = state.copyWith(
         contests: [],
-        isLoading: false,
-        contestsError: 'Failed to load contests. Please check your connection.',
+        contestsLoading: false,
+        contestsError: 'Could not load contests. Check connection.',
       );
     }
   }
 
   Future<bool> createContest(Map<String, dynamic> data) async {
     final result = await _repository.createContest(data);
-    if (result != null) {
-      await loadContests();
-      return true;
-    }
+    if (result != null) { await loadContests(); return true; }
     return false;
   }
 
@@ -314,15 +346,16 @@ class AdminNotifier extends StateNotifier<AdminState> {
   // ========== SCOREBOARD ==========
 
   Future<void> loadScoreboard(String matchId) async {
-    state = state.copyWith(isLoading: true, clearScoreboardError: true);
+    state = state.copyWith(scoreboardLoading: true, clearScoreboardError: true);
     try {
-      final scoreboard = await _repository.getScoreboard(matchId);
-      state = state.copyWith(scoreboard: scoreboard, isLoading: false);
-    } catch (e) {
+      final scoreboard = await _repository.getScoreboard(matchId)
+          .timeout(const Duration(seconds: 8));
+      state = state.copyWith(scoreboard: scoreboard, scoreboardLoading: false);
+    } catch (_) {
       state = state.copyWith(
         scoreboard: [],
-        isLoading: false,
-        scoreboardError: 'Failed to load scoreboard. Please check your connection.',
+        scoreboardLoading: false,
+        scoreboardError: 'Could not load scoreboard. Check connection.',
       );
     }
   }
@@ -331,18 +364,28 @@ class AdminNotifier extends StateNotifier<AdminState> {
     return await _repository.upsertScoreboard(data);
   }
 
-  // ========== WALLET MANAGEMENT ==========
+  // ========== WALLET ==========
 
   Future<void> loadPendingDeposits() async {
     state = state.copyWith(isLoading: true);
-    final deposits = await _repository.getPendingDeposits();
-    state = state.copyWith(pendingDeposits: deposits, isLoading: false);
+    try {
+      final deposits = await _repository.getPendingDeposits()
+          .timeout(const Duration(seconds: 8));
+      state = state.copyWith(pendingDeposits: deposits, isLoading: false);
+    } catch (_) {
+      state = state.copyWith(pendingDeposits: [], isLoading: false);
+    }
   }
 
   Future<void> loadPendingWithdrawals() async {
     state = state.copyWith(isLoading: true);
-    final withdrawals = await _repository.getPendingWithdrawals();
-    state = state.copyWith(pendingWithdrawals: withdrawals, isLoading: false);
+    try {
+      final withdrawals = await _repository.getPendingWithdrawals()
+          .timeout(const Duration(seconds: 8));
+      state = state.copyWith(pendingWithdrawals: withdrawals, isLoading: false);
+    } catch (_) {
+      state = state.copyWith(pendingWithdrawals: [], isLoading: false);
+    }
   }
 
   Future<bool> approveDeposit(String transactionId) async {
@@ -370,17 +413,19 @@ class AdminNotifier extends StateNotifier<AdminState> {
 
   Future<void> loadPaymentMethods() async {
     state = state.copyWith(isLoading: true, errorMessage: null);
-    final methods = await _repository.getAdminPaymentMethods();
-    state = state.copyWith(paymentMethods: methods, isLoading: false);
+    try {
+      final methods = await _repository.getAdminPaymentMethods()
+          .timeout(const Duration(seconds: 8));
+      state = state.copyWith(paymentMethods: methods, isLoading: false);
+    } catch (_) {
+      state = state.copyWith(paymentMethods: [], isLoading: false);
+    }
   }
 
   Future<bool> createPaymentMethod(Map<String, dynamic> data) async {
     state = state.copyWith(errorMessage: null);
     final result = await _repository.createAdminPaymentMethod(data);
-    if (result != null) {
-      await loadPaymentMethods();
-      return true;
-    }
+    if (result != null) { await loadPaymentMethods(); return true; }
     state = state.copyWith(errorMessage: 'Failed to create payment method');
     return false;
   }
@@ -388,10 +433,7 @@ class AdminNotifier extends StateNotifier<AdminState> {
   Future<bool> updatePaymentMethod(String id, Map<String, dynamic> data) async {
     state = state.copyWith(errorMessage: null);
     final success = await _repository.updateAdminPaymentMethod(id, data);
-    if (success) {
-      await loadPaymentMethods();
-      return true;
-    }
+    if (success) { await loadPaymentMethods(); return true; }
     state = state.copyWith(errorMessage: 'Failed to update payment method');
     return false;
   }
@@ -399,10 +441,7 @@ class AdminNotifier extends StateNotifier<AdminState> {
   Future<bool> deletePaymentMethod(String id) async {
     state = state.copyWith(errorMessage: null);
     final success = await _repository.deleteAdminPaymentMethod(id);
-    if (success) {
-      await loadPaymentMethods();
-      return true;
-    }
+    if (success) { await loadPaymentMethods(); return true; }
     state = state.copyWith(errorMessage: 'Failed to delete payment method');
     return false;
   }
