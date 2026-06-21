@@ -1,0 +1,32 @@
+{
+  "project_type": "Flutter mobile app (Fantasy Cricket Platform) with Clean Architecture",
+  "language": "Dart/Flutter",
+  "build_system": "Flutter 3.27.1, pubspec.yaml, no Makefile",
+  "test_framework": "flutter_test (no existing tests for admin module)",
+  "build_command": "cd /projects/sandbox/dream-11 && flutter analyze --no-fatal-infos",
+  "test_command": "cd /projects/sandbox/dream-11 && flutter analyze --no-fatal-infos",
+  "verification_instructions": "Run flutter analyze to check for compile errors. The app uses Supabase backend so runtime testing requires credentials.",
+  "snapshot_or_generated_files": null,
+  "setup_instructions": "flutter pub get in /projects/sandbox/dream-11",
+  "environment_constraints": "Flutter SDK available. No Supabase/Firebase credentials for runtime testing. Validate via static analysis only.",
+  "contribution_requirements": "Create branch, commit, push, and create PR to main.",
+  "key_patterns": "ConsumerStatefulWidget with Riverpod, local setState for loading, WidgetsBinding.instance.addPostFrameCallback for provider reads in initState, Supabase client via provider, StorageService for image upload, image_picker for gallery selection, AdminNavDrawer with currentRoute parameter, ElevatedButton.icon for body create buttons, no FAB, no AppBar create buttons, empty states instead of error states",
+  "relevant_files": [
+    "lib/features/admin/presentation/screens/admin_tournaments_screen.dart",
+    "lib/features/admin/presentation/screens/admin_teams_screen.dart",
+    "lib/features/admin/presentation/screens/admin_players_screen.dart",
+    "lib/features/admin/presentation/screens/admin_matches_screen.dart",
+    "lib/features/admin/presentation/screens/admin_contests_screen.dart",
+    "lib/features/admin/presentation/screens/admin_scoreboard_screen.dart",
+    "lib/features/admin/domain/providers/admin_provider.dart",
+    "lib/features/admin/data/repositories/admin_repository.dart",
+    "lib/features/admin/data/services/storage_service.dart",
+    "lib/features/admin/presentation/widgets/admin_nav_drawer.dart",
+    "lib/core/router/app_router.dart",
+    "lib/core/network/supabase_client.dart",
+    "lib/core/theme/app_colors.dart",
+    "sql/part4-admin-module-updates.sql",
+    "sql/part1-drop-and-create-tables.sql"
+  ],
+  "directory_structure": "lib/features/admin/{data/{repositories,services},domain/providers,presentation/{screens,widgets}}. SQL schemas in sql/ directory. Core utilities in lib/core/{theme,router,network,constants}."
+}
