@@ -129,14 +129,37 @@ class _AdminDataTableState extends State<AdminDataTable> {
               child: Column(
                 children: [
                   Icon(Icons.inbox_outlined,
-                      size: 48, color: AppColors.textTertiary),
-                  AppSpacing.gapH8,
+                      size: 64, color: AppColors.textTertiary),
+                  AppSpacing.gapH16,
                   Text(
                     'No data found',
-                    style: AppTypography.bodyMedium.copyWith(
+                    style: AppTypography.titleMedium.copyWith(
                       color: AppColors.textSecondary,
                     ),
                   ),
+                  AppSpacing.gapH8,
+                  Text(
+                    'Tap the button below to create your first entry',
+                    style: AppTypography.bodySmall.copyWith(
+                      color: AppColors.textTertiary,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  AppSpacing.gapH24,
+                  if (widget.onAdd != null)
+                    ElevatedButton.icon(
+                      onPressed: widget.onAdd,
+                      icon: const Icon(Icons.add, color: Colors.white),
+                      label: const Text('Create New',
+                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: AppSpacing.borderRadiusMd,
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),
