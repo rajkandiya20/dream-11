@@ -1,0 +1,14 @@
+{
+  "task_id": "task-realtime-ranking-preview",
+  "task_description": "Implement live ranking system, realtime fantasy points, match detail tabs (Contests/Scorecard/My Team), live scorecard integration, full realtime subscriptions on all tables, database SQL for missing tables, and Dream11-style team preview screen.",
+  "status": "completed",
+  "feature_order": ["FEAT-001", "FEAT-002", "FEAT-003", "FEAT-004"],
+  "blocked_reason": null,
+  "verification": {
+    "build": "skipped",
+    "tests": "skipped",
+    "test_quality": "skipped",
+    "docker_build": "skipped",
+    "summary": "Flutter SDK not available in sandbox. Manual code review verified: all imports reference existing files, all color/spacing/typography constants exist in the theme, model patterns match existing conventions exactly, realtime subscription pattern matches existing working code, no syntax issues detected."
+  }
+}

@@ -2,7 +2,7 @@
   "id": "FEAT-004",
   "type": "fix",
   "description": "Fix review issues: empty userId in My Team tab, duplicate contest_entries subscriptions, fantasyTeamId nullability mismatch, leaderboard not handling new entries, FutureBuilder rebuild issue.",
-  "status": "in_progress",
+  "status": "completed",
   "steps": [
     "Fix empty userId in _MyTeamTab - use Firebase Auth currentUser?.uid via authProvider",
     "Fix duplicate subscriptions in LiveRankingRepository - subscribeToLeaderboard should watch 'leaderboard' table",
@@ -21,5 +21,5 @@
     "Code review to confirm all fixes are correct since flutter SDK is not available"
   ],
   "blocked_reason": null,
-  "findings": null
+  "findings": "Flutter SDK not available in sandbox. Verified by code review: auth_provider.dart import path is correct (../../../auth/domain/providers/auth_provider.dart), FutureProvider.family uses Dart 3 record syntax for key, non-nullable fantasyTeamId uses empty string fallback in fromJson, leaderboard subscription now watches correct table, new entries appended before re-sort."
 }
