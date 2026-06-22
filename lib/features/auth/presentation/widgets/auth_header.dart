@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 
-/// Branded header for auth screens with animated app branding.
+/// Branded header for auth screens with app branding.
 class AuthHeader extends StatelessWidget {
   final String title;
   final String subtitle;
@@ -24,7 +23,7 @@ class AuthHeader extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (showLogo) ...[
-          // Animated logo/brand icon
+          // Logo/brand icon
           Container(
             width: 56,
             height: 56,
@@ -49,10 +48,7 @@ class AuthHeader extends StatelessWidget {
                 ),
               ),
             ),
-          )
-              .animate()
-              .fadeIn(duration: 500.ms)
-              .scale(begin: const Offset(0.8, 0.8), end: const Offset(1, 1)),
+          ),
           AppSpacing.gapH24,
         ],
         // Title
@@ -62,10 +58,7 @@ class AuthHeader extends StatelessWidget {
             color: AppColors.textPrimary,
             fontWeight: FontWeight.w700,
           ),
-        )
-            .animate()
-            .fadeIn(delay: 200.ms, duration: 400.ms)
-            .slideX(begin: -0.1, end: 0),
+        ),
         AppSpacing.gapH8,
         // Subtitle
         Text(
@@ -74,10 +67,7 @@ class AuthHeader extends StatelessWidget {
             color: AppColors.textSecondary,
             height: 1.5,
           ),
-        )
-            .animate()
-            .fadeIn(delay: 350.ms, duration: 400.ms)
-            .slideX(begin: -0.1, end: 0),
+        ),
       ],
     );
   }

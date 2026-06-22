@@ -12,12 +12,12 @@ class HomeRepository {
 
   HomeRepository(this._client);
 
-  /// Fetch all matches with tournament relation, ordered by date.
+  /// Fetch all matches with tournament and team relations, ordered by date.
   Future<List<MatchModel>> getMatches() async {
     try {
       final response = await _client
           .from('matches')
-          .select('*, tournament:tournaments(name, logo)')
+          .select('*, tournament:tournaments(name, logo), team_a:teams!team_a_id(name, logo, code), team_b:teams!team_b_id(name, logo, code)')
           .order('date_time');
 
       return (response as List)
@@ -33,7 +33,7 @@ class HomeRepository {
     try {
       final response = await _client
           .from('matches')
-          .select('*, tournament:tournaments(name, logo)')
+          .select('*, tournament:tournaments(name, logo), team_a:teams!team_a_id(name, logo, code), team_b:teams!team_b_id(name, logo, code)')
           .inFilter('status', ['upcoming', 'scheduled'])
           .order('date_time', ascending: true);
 
@@ -50,7 +50,7 @@ class HomeRepository {
     try {
       final response = await _client
           .from('matches')
-          .select('*, tournament:tournaments(name, logo)')
+          .select('*, tournament:tournaments(name, logo), team_a:teams!team_a_id(name, logo, code), team_b:teams!team_b_id(name, logo, code)')
           .eq('status', 'live');
 
       return (response as List)
@@ -66,7 +66,7 @@ class HomeRepository {
     try {
       final response = await _client
           .from('matches')
-          .select('*, tournament:tournaments(name, logo)')
+          .select('*, tournament:tournaments(name, logo), team_a:teams!team_a_id(name, logo, code), team_b:teams!team_b_id(name, logo, code)')
           .eq('status', 'completed')
           .order('date_time', ascending: false)
           .limit(10);

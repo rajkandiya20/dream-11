@@ -7,8 +7,7 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../shared/widgets/shimmer_loading.dart';
 import '../../../home/domain/providers/home_provider.dart';
-import '../../../home/presentation/widgets/live_match_card.dart';
-import '../../../home/presentation/widgets/upcoming_match_card.dart';
+import '../../../home/presentation/widgets/unified_match_card.dart';
 
 /// Matches tab screen showing live, upcoming, and completed matches.
 class MatchesScreen extends ConsumerWidget {
@@ -154,7 +153,7 @@ class _MatchList extends StatelessWidget {
       itemCount: matches.length,
       itemBuilder: (context, index) {
         final match = matches[index];
-        return UpcomingMatchCard(
+        return UnifiedMatchCard(
           match: match,
           onTap: () => context.push('/matches/${match.id}'),
         );

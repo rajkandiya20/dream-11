@@ -9,9 +9,8 @@ import '../../../../core/theme/app_typography.dart';
 import '../../../../shared/widgets/shimmer_loading.dart';
 import '../../domain/providers/home_provider.dart';
 import '../widgets/hero_banner.dart';
-import '../widgets/live_match_card.dart';
 import '../widgets/popular_contest_card.dart';
-import '../widgets/upcoming_match_card.dart';
+import '../widgets/unified_match_card.dart';
 
 /// Premium home screen with hero banner, live matches, upcoming matches,
 /// popular contests, and more sections.
@@ -56,23 +55,18 @@ class HomeScreen extends ConsumerWidget {
                           showPulse: true,
                         ),
                       ),
-                      SliverToBoxAdapter(
-                        child: SizedBox(
-                          height: 170,
-                          child: ListView.builder(
-                            scrollDirection: Axis.horizontal,
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            itemCount: homeState.liveMatches.length,
-                            itemBuilder: (context, index) {
-                              final match = homeState.liveMatches[index];
-                              return LiveMatchCard(
-                                match: match,
-                                onTap: () => context.push(
-                                  '/matches/${match.id}',
-                                ),
-                              );
-                            },
-                          ),
+                      SliverList(
+                        delegate: SliverChildBuilderDelegate(
+                          (context, index) {
+                            final match = homeState.liveMatches[index];
+                            return UnifiedMatchCard(
+                              match: match,
+                              onTap: () => context.push(
+                                '/matches/${match.id}',
+                              ),
+                            );
+                          },
+                          childCount: homeState.liveMatches.length,
                         ),
                       ),
                     ],
@@ -98,7 +92,7 @@ class HomeScreen extends ConsumerWidget {
                         delegate: SliverChildBuilderDelegate(
                           (context, index) {
                             final match = homeState.upcomingMatches[index];
-                            return UpcomingMatchCard(
+                            return UnifiedMatchCard(
                               match: match,
                               onTap: () => context.push(
                                 '/matches/${match.id}',
