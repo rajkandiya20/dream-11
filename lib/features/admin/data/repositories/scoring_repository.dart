@@ -145,13 +145,17 @@ class ScoringRepository {
 
       final overs = legalBalls ~/ 6;
       final ballsInOver = legalBalls % 6;
-      final oversDouble = overs + (ballsInOver / 10.0);
+      // Display overs uses /10 convention (12.5 = 12 overs, 5 balls)
+      final oversDisplay = overs + (ballsInOver / 10.0);
+      // Arithmetic overs uses /6 for rate calculations
+      final oversArithmetic = legalBalls / 6.0;
 
       return {
         'total_runs': totalRuns,
         'total_wickets': totalWickets,
         'legal_balls': legalBalls,
-        'overs': oversDouble,
+        'overs': oversDisplay,
+        'overs_arithmetic': oversArithmetic,
         'balls': balls.map((b) => b.toJson()).toList(),
       };
     } catch (e) {
@@ -160,19 +164,63 @@ class ScoringRepository {
     }
   }
 
-  /// Update fantasy points for a player in the scoreboard.
+  /// Increment fantasy points for a player in the scoreboard.
+  /// Uses fetch-then-add to avoid overwriting points from other facets
+  /// (e.g., batting points when updating bowling points).
   Future<bool> updateFantasyPoints(
+      String matchId, String playerId, double pointsDelta) async {
+    try {
+      // Fetch current points first
+      final existing = await _client
+          .from('scoreboard')
+          .select('points')
+          .eq('match_id', matchId)
+          .eq('player_id', playerId)
+          .maybeSingle();
+
+      final currentPoints =
+          (existing?['points'] as num?)?.toDouble() ?? 0.0;
+      final newPoints = currentPoints + pointsDelta;
+
+      await _client
+          .from('scoreboard')
+          .upsert(
+            {
+              'match_id': matchId,
+              'player_id': playerId,
+              'points': newPoints,
+            },
+            onConflict: 'match_id,player_id',
+          )
+          .select();
+      debugPrint(
+          'Fantasy Updated: playerId=$playerId, delta=$pointsDelta, total=$newPoints');
+      return true;
+    } catch (e) {
+      debugPrint('ScoringRepo updateFantasyPoints error: $e');
+      return false;
+    }
+  }
+
+  /// Reset fantasy points for a player (used during undo to recalculate).
+  Future<bool> setFantasyPoints(
       String matchId, String playerId, double points) async {
     try {
       await _client
           .from('scoreboard')
-          .update({'points': points})
-          .eq('match_id', matchId)
-          .eq('player_id', playerId);
-      debugPrint('Fantasy Updated: playerId=$playerId, points=$points');
+          .upsert(
+            {
+              'match_id': matchId,
+              'player_id': playerId,
+              'points': points,
+            },
+            onConflict: 'match_id,player_id',
+          )
+          .select();
+      debugPrint('Fantasy Reset: playerId=$playerId, points=$points');
       return true;
     } catch (e) {
-      debugPrint('ScoringRepo updateFantasyPoints error: $e');
+      debugPrint('ScoringRepo setFantasyPoints error: $e');
       return false;
     }
   }

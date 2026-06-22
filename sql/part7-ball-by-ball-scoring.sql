@@ -32,5 +32,14 @@ CREATE INDEX idx_ball_by_ball_batsman_id ON ball_by_ball(batsman_id);
 CREATE INDEX idx_ball_by_ball_bowler_id ON ball_by_ball(bowler_id);
 CREATE INDEX idx_ball_by_ball_innings ON ball_by_ball(match_id, innings);
 
+-- Enable Row Level Security
+ALTER TABLE ball_by_ball ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policies (matching project conventions from part2)
+CREATE POLICY "read_all" ON ball_by_ball FOR SELECT USING (true);
+CREATE POLICY "write_all" ON ball_by_ball FOR INSERT WITH CHECK (true);
+CREATE POLICY "update_all" ON ball_by_ball FOR UPDATE USING (true);
+CREATE POLICY "delete_all" ON ball_by_ball FOR DELETE USING (true);
+
 -- Enable realtime for live scoring updates
 ALTER PUBLICATION supabase_realtime ADD TABLE ball_by_ball;

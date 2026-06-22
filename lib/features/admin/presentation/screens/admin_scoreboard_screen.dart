@@ -29,6 +29,7 @@ class _AdminScoreboardScreenState
   String? _selectedMatchId;
   List<Map<String, dynamic>> _matches = [];
   bool _matchInitialized = false;
+  bool _isShowingOverCompleteDialog = false;
 
   @override
   void initState() {
@@ -429,10 +430,17 @@ class _AdminScoreboardScreenState
       if (next.error != null && next.error != prev?.error) {
         _showError(next.error!);
       }
-      // Auto-popup bowler dialog when over is complete
-      if (next.isOverComplete && prev?.isOverComplete != true) {
+      // Auto-popup bowler dialog when over is complete (with guard against double-fire)
+      if (next.isOverComplete && prev?.isOverComplete != true &&
+          !_isShowingOverCompleteDialog) {
+        _isShowingOverCompleteDialog = true;
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) _showSelectBowlerDialog();
+          if (mounted) {
+            _showSelectBowlerDialog();
+            _isShowingOverCompleteDialog = false;
+          } else {
+            _isShowingOverCompleteDialog = false;
+          }
         });
       }
     });

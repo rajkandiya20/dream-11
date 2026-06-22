@@ -134,6 +134,7 @@ class ScoringState {
 class ScoringNotifier extends StateNotifier<ScoringState> {
   final ScoringRepository _repository;
   int _currentBallInOver = 0;
+  bool _isBusy = false;
 
   ScoringNotifier(this._repository) : super(const ScoringState());
 
@@ -180,7 +181,10 @@ class ScoringNotifier extends StateNotifier<ScoringState> {
         _currentBallInOver = legalBalls % 6;
       }
 
-      final runRate = overs > 0 ? totalRuns / overs : 0.0;
+      // Use arithmetic overs (legalBalls / 6) for rate calculation
+      final legalBalls = inningsData?['legal_balls'] as int? ?? 0;
+      final oversArithmetic = legalBalls / 6.0;
+      final runRate = oversArithmetic > 0 ? totalRuns / oversArithmetic : 0.0;
 
       state = state.copyWith(
         matchId: matchId,
@@ -205,12 +209,14 @@ class ScoringNotifier extends StateNotifier<ScoringState> {
 
   /// Record runs scored off a delivery.
   Future<void> recordRun(int runs) async {
+    if (_isBusy) return;
     if (state.matchId == null || state.striker == null || state.bowler == null) {
       state = state.copyWith(
           error: 'Cannot record run: match, striker, or bowler not set');
       return;
     }
 
+    _isBusy = true;
     try {
       _currentBallInOver++;
       final overNo = state.totalOvers.toInt();
@@ -238,10 +244,16 @@ class ScoringNotifier extends StateNotifier<ScoringState> {
       // Update local state
       final newTotalRuns = state.totalRuns + runs;
       final isOverComplete = _currentBallInOver >= 6;
+      // Display overs: uses /10 convention (12.5 = 12 overs 5 balls)
       final newOvers = isOverComplete
           ? (overNo + 1).toDouble()
           : overNo + (_currentBallInOver / 10.0);
-      final newRunRate = newOvers > 0 ? newTotalRuns / newOvers : 0.0;
+      // Arithmetic overs: uses /6 for rate calculations
+      final totalLegalBalls =
+          (overNo * 6) + _currentBallInOver;
+      final newOversArithmetic = totalLegalBalls / 6.0;
+      final newRunRate =
+          newOversArithmetic > 0 ? newTotalRuns / newOversArithmetic : 0.0;
 
       // Update batsman state
       final updatedStriker = state.striker!.copyWith(
@@ -252,14 +264,18 @@ class ScoringNotifier extends StateNotifier<ScoringState> {
       );
 
       // Update bowler state
+      final bowlerTotalLegalBalls =
+          (state.bowler!.overs.toInt() * 6) +
+              (_currentBallInOver <= 6 ? _currentBallInOver : 0);
       final newBowlerOvers = isOverComplete
           ? (state.bowler!.overs.toInt() + 1).toDouble()
           : state.bowler!.overs.toInt() + (_currentBallInOver / 10.0);
+      final bowlerOversArithmetic = bowlerTotalLegalBalls / 6.0;
       final updatedBowler = state.bowler!.copyWith(
         runsConceded: state.bowler!.runsConceded + runs,
         overs: newBowlerOvers,
-        economy: newBowlerOvers > 0
-            ? (state.bowler!.runsConceded + runs) / newBowlerOvers
+        economy: bowlerOversArithmetic > 0
+            ? (state.bowler!.runsConceded + runs) / bowlerOversArithmetic
             : 0.0,
       );
 
@@ -278,11 +294,14 @@ class ScoringNotifier extends StateNotifier<ScoringState> {
       double? reqRR;
       if (state.target != null && state.target! > newTotalRuns) {
         final remaining = state.target! - newTotalRuns;
-        final oversRemaining = 20.0 - newOvers;
+        final oversRemaining = 20.0 - newOversArithmetic;
         if (oversRemaining > 0) {
           reqRR = remaining / oversRemaining;
         }
       }
+
+      // Capture scorer's ID before potential swap for scoreboard update
+      final scorerPlayerId = state.striker!.id;
 
       state = state.copyWith(
         totalRuns: newTotalRuns,
@@ -305,8 +324,8 @@ class ScoringNotifier extends StateNotifier<ScoringState> {
         'current_over': newOvers,
       });
 
-      // Update batsman scoreboard
-      await _repository.updateScoreboard(state.matchId!, state.striker!.id, {
+      // Update batsman scoreboard using the scorer's ID (not state.striker which may have swapped)
+      await _repository.updateScoreboard(state.matchId!, scorerPlayerId, {
         'runs': updatedStriker.runs,
         'balls_faced': updatedStriker.balls,
         'fours': updatedStriker.fours,
@@ -314,12 +333,12 @@ class ScoringNotifier extends StateNotifier<ScoringState> {
         'strike_rate': updatedStriker.strikeRate,
       });
 
-      // Update fantasy points for batsman
-      double fantasyPts = updatedStriker.runs * FantasyPoints.perRun;
-      fantasyPts += updatedStriker.fours * FantasyPoints.fourBonus;
-      fantasyPts += updatedStriker.sixes * FantasyPoints.sixBonus;
+      // Update fantasy points for batsman (delta only for this ball)
+      double fantasyDelta = runs * FantasyPoints.perRun;
+      if (runs == 4) fantasyDelta += FantasyPoints.fourBonus;
+      if (runs == 6) fantasyDelta += FantasyPoints.sixBonus;
       await _repository.updateFantasyPoints(
-          state.matchId!, state.striker!.id, fantasyPts);
+          state.matchId!, scorerPlayerId, fantasyDelta);
 
       // Update bowler scoreboard
       await _repository.updateBowlerStats(state.matchId!, state.bowler!.id, {
@@ -333,17 +352,21 @@ class ScoringNotifier extends StateNotifier<ScoringState> {
     } catch (e) {
       debugPrint('ScoringNotifier recordRun error: $e');
       state = state.copyWith(error: 'Failed to record run: $e');
+    } finally {
+      _isBusy = false;
     }
   }
 
   /// Record an extra delivery (wide, no_ball, bye, leg_bye).
   Future<void> recordExtra(String type, int additionalRuns) async {
+    if (_isBusy) return;
     if (state.matchId == null || state.striker == null || state.bowler == null) {
       state = state.copyWith(
           error: 'Cannot record extra: match, striker, or bowler not set');
       return;
     }
 
+    _isBusy = true;
     try {
       final isLegal = type == 'bye' || type == 'leg_bye';
       if (isLegal) _currentBallInOver++;
@@ -375,13 +398,19 @@ class ScoringNotifier extends StateNotifier<ScoringState> {
       final extraRuns = 1 + additionalRuns;
       final newTotalRuns = state.totalRuns + extraRuns;
       final isOverComplete = isLegal && _currentBallInOver >= 6;
+      // Display overs: /10 convention
       final newOvers = isOverComplete
           ? (overNo + 1).toDouble()
           : isLegal
               ? overNo + (_currentBallInOver / 10.0)
               : state.totalOvers;
-      final effectiveOvers = newOvers > 0 ? newOvers : 0.001;
-      final newRunRate = newTotalRuns / effectiveOvers;
+      // Arithmetic overs: /6 for rate calculations
+      final totalLegalBalls = isLegal
+          ? (overNo * 6) + _currentBallInOver
+          : (overNo * 6) + _currentBallInOver;
+      final newOversArithmetic = totalLegalBalls / 6.0;
+      final newRunRate =
+          newOversArithmetic > 0 ? newTotalRuns / newOversArithmetic : 0.0;
 
       // Update bowler stats (extras count against bowler for wides/no-balls)
       BowlerState updatedBowler = state.bowler!;
@@ -394,10 +423,13 @@ class ScoringNotifier extends StateNotifier<ScoringState> {
         final newBowlerOvers = isOverComplete
             ? (updatedBowler.overs.toInt() + 1).toDouble()
             : updatedBowler.overs.toInt() + (_currentBallInOver / 10.0);
+        final bowlerLegalBalls =
+            (updatedBowler.overs.toInt() * 6) + _currentBallInOver;
+        final bowlerOversArithmetic = bowlerLegalBalls / 6.0;
         updatedBowler = updatedBowler.copyWith(
           overs: newBowlerOvers,
-          economy: newBowlerOvers > 0
-              ? updatedBowler.runsConceded / newBowlerOvers
+          economy: bowlerOversArithmetic > 0
+              ? updatedBowler.runsConceded / bowlerOversArithmetic
               : 0.0,
         );
       }
@@ -412,10 +444,10 @@ class ScoringNotifier extends StateNotifier<ScoringState> {
           ballDesc = 'Nb${additionalRuns > 0 ? "+$additionalRuns" : ""}';
           break;
         case 'bye':
-          ballDesc = 'B${extraRuns}';
+          ballDesc = 'B$extraRuns';
           break;
         case 'leg_bye':
-          ballDesc = 'Lb${extraRuns}';
+          ballDesc = 'Lb$extraRuns';
           break;
         default:
           ballDesc = 'E$extraRuns';
@@ -463,6 +495,8 @@ class ScoringNotifier extends StateNotifier<ScoringState> {
     } catch (e) {
       debugPrint('ScoringNotifier recordExtra error: $e');
       state = state.copyWith(error: 'Failed to record extra: $e');
+    } finally {
+      _isBusy = false;
     }
   }
 
@@ -473,12 +507,14 @@ class ScoringNotifier extends StateNotifier<ScoringState> {
     int runsCompleted = 0,
     String? fielderId,
   }) async {
+    if (_isBusy) return;
     if (state.matchId == null || state.striker == null || state.bowler == null) {
       state = state.copyWith(
           error: 'Cannot record wicket: match, striker, or bowler not set');
       return;
     }
 
+    _isBusy = true;
     try {
       _currentBallInOver++;
       final overNo = state.totalOvers.toInt();
@@ -512,24 +548,34 @@ class ScoringNotifier extends StateNotifier<ScoringState> {
       final newTotalRuns = state.totalRuns + runsCompleted;
       final newWickets = state.totalWickets + 1;
       final isOverComplete = _currentBallInOver >= 6;
+      // Display overs: /10 convention
       final newOvers = isOverComplete
           ? (overNo + 1).toDouble()
           : overNo + (_currentBallInOver / 10.0);
-      final newRunRate = newOvers > 0 ? newTotalRuns / newOvers : 0.0;
+      // Arithmetic overs: /6 for rate calculations
+      final totalLegalBalls = (overNo * 6) + _currentBallInOver;
+      final newOversArithmetic = totalLegalBalls / 6.0;
+      final newRunRate =
+          newOversArithmetic > 0 ? newTotalRuns / newOversArithmetic : 0.0;
 
       // Check if innings is complete (10 wickets or 20 overs)
-      final isInningsComplete = newWickets >= 10 || newOvers >= 20.0;
+      final isInningsComplete =
+          newWickets >= 10 || newOversArithmetic >= 20.0;
 
       // Update bowler
       final newBowlerOvers = isOverComplete
           ? (state.bowler!.overs.toInt() + 1).toDouble()
           : state.bowler!.overs.toInt() + (_currentBallInOver / 10.0);
+      final bowlerLegalBalls =
+          (state.bowler!.overs.toInt() * 6) + _currentBallInOver;
+      final bowlerOversArithmetic = bowlerLegalBalls / 6.0;
       final updatedBowler = state.bowler!.copyWith(
         wickets: state.bowler!.wickets + 1,
         runsConceded: state.bowler!.runsConceded + runsCompleted,
         overs: newBowlerOvers,
-        economy: newBowlerOvers > 0
-            ? (state.bowler!.runsConceded + runsCompleted) / newBowlerOvers
+        economy: bowlerOversArithmetic > 0
+            ? (state.bowler!.runsConceded + runsCompleted) /
+                bowlerOversArithmetic
             : 0.0,
       );
 
@@ -587,12 +633,11 @@ class ScoringNotifier extends StateNotifier<ScoringState> {
         'economy': updatedBowler.economy,
       });
 
-      // Fantasy points for bowler (wicket bonus)
-      double bowlerFantasy = updatedBowler.wickets * FantasyPoints.wicket;
+      // Fantasy points for bowler (wicket bonus - delta only)
       await _repository.updateFantasyPoints(
-          state.matchId!, state.bowler!.id, bowlerFantasy);
+          state.matchId!, state.bowler!.id, FantasyPoints.wicket);
 
-      // Fantasy points for fielder (catch or run out)
+      // Fantasy points for fielder (catch or run out - delta only)
       if (fielderId != null) {
         double fielderPoints = 0;
         if (dismissalType == 'caught') {
@@ -623,16 +668,20 @@ class ScoringNotifier extends StateNotifier<ScoringState> {
     } catch (e) {
       debugPrint('ScoringNotifier recordWicket error: $e');
       state = state.copyWith(error: 'Failed to record wicket: $e');
+    } finally {
+      _isBusy = false;
     }
   }
 
   /// Undo the last ball delivered.
   Future<void> undoLastBall() async {
+    if (_isBusy) return;
     if (state.matchId == null) {
       state = state.copyWith(error: 'Cannot undo: no match initialized');
       return;
     }
 
+    _isBusy = true;
     try {
       final undone =
           await _repository.undoLastBall(state.matchId!, state.innings);
@@ -655,40 +704,188 @@ class ScoringNotifier extends StateNotifier<ScoringState> {
         overs = (inningsData['overs'] as num?)?.toDouble() ?? 0.0;
         final legalBalls = inningsData['legal_balls'] as int? ?? 0;
         _currentBallInOver = legalBalls % 6;
+
+        // Recalculate per-player stats from remaining ball records
+        final ballsData = inningsData['balls'] as List<dynamic>? ?? [];
+        final balls = ballsData
+            .map((b) => BallEntry.fromJson(Map<String, dynamic>.from(b as Map)))
+            .toList();
+
+        // Recalculate arithmetic overs for run rate
+        final oversArithmetic = legalBalls / 6.0;
+        final runRate =
+            oversArithmetic > 0 ? totalRuns / oversArithmetic : 0.0;
+
+        // Rebuild striker stats if striker is set
+        BatsmanState? updatedStriker = state.striker;
+        if (state.striker != null) {
+          int sRuns = 0, sBalls = 0, sFours = 0, sSixes = 0;
+          for (final b in balls) {
+            if (b.batsmanId == state.striker!.id && b.isLegal) {
+              sBalls++;
+              sRuns += b.runs;
+              if (b.runs == 4) sFours++;
+              if (b.runs == 6) sSixes++;
+            }
+          }
+          updatedStriker = state.striker!.copyWith(
+            runs: sRuns,
+            balls: sBalls,
+            fours: sFours,
+            sixes: sSixes,
+          );
+        }
+
+        // Rebuild non-striker stats if set
+        BatsmanState? updatedNonStriker = state.nonStriker;
+        if (state.nonStriker != null) {
+          int nsRuns = 0, nsBalls = 0, nsFours = 0, nsSixes = 0;
+          for (final b in balls) {
+            if (b.batsmanId == state.nonStriker!.id && b.isLegal) {
+              nsBalls++;
+              nsRuns += b.runs;
+              if (b.runs == 4) nsFours++;
+              if (b.runs == 6) nsSixes++;
+            }
+          }
+          updatedNonStriker = state.nonStriker!.copyWith(
+            runs: nsRuns,
+            balls: nsBalls,
+            fours: nsFours,
+            sixes: nsSixes,
+          );
+        }
+
+        // Rebuild bowler stats if set
+        BowlerState? updatedBowler = state.bowler;
+        if (state.bowler != null) {
+          int bRunsConceded = 0, bWickets = 0, bLegalBalls = 0;
+          for (final b in balls) {
+            if (b.bowlerId == state.bowler!.id) {
+              if (b.isLegal) bLegalBalls++;
+              bRunsConceded += b.runs + b.extras;
+              if (b.isWicket) bWickets++;
+            }
+          }
+          final bOversInt = bLegalBalls ~/ 6;
+          final bBallsInOver = bLegalBalls % 6;
+          final bOversDisplay =
+              bOversInt + (bBallsInOver / 10.0);
+          final bOversArithmetic = bLegalBalls / 6.0;
+          updatedBowler = state.bowler!.copyWith(
+            runsConceded: bRunsConceded,
+            wickets: bWickets,
+            overs: bOversDisplay,
+            economy: bOversArithmetic > 0
+                ? bRunsConceded / bOversArithmetic
+                : 0.0,
+          );
+        }
+
+        // Remove last entry from lastSixBalls
+        final lastSix = [...state.lastSixBalls];
+        if (lastSix.isNotEmpty) lastSix.removeLast();
+
+        state = state.copyWith(
+          totalRuns: totalRuns,
+          totalWickets: totalWickets,
+          totalOvers: overs,
+          currentRunRate: runRate,
+          striker: updatedStriker,
+          nonStriker: updatedNonStriker,
+          bowler: updatedBowler,
+          lastSixBalls: lastSix,
+          isOverComplete: false,
+          isInningsComplete: false,
+          clearError: true,
+        );
+
+        // Persist updated score to match table
+        await _repository.updateMatchScore(state.matchId!, {
+          if (state.innings == 1) 'current_score_a': '$totalRuns/$totalWickets',
+          if (state.innings == 1) 'current_wickets_a': totalWickets,
+          if (state.innings == 2) 'current_score_b': '$totalRuns/$totalWickets',
+          if (state.innings == 2) 'current_wickets_b': totalWickets,
+          'current_over': overs,
+        });
+
+        // Update scoreboard rows for affected players
+        if (updatedStriker != null) {
+          await _repository.updateScoreboard(
+              state.matchId!, updatedStriker.id, {
+            'runs': updatedStriker.runs,
+            'balls_faced': updatedStriker.balls,
+            'fours': updatedStriker.fours,
+            'sixes': updatedStriker.sixes,
+            'strike_rate': updatedStriker.strikeRate,
+          });
+          // Recalculate and set absolute fantasy points for batsman
+          double batsmanFantasy =
+              updatedStriker.runs * FantasyPoints.perRun;
+          batsmanFantasy += updatedStriker.fours * FantasyPoints.fourBonus;
+          batsmanFantasy += updatedStriker.sixes * FantasyPoints.sixBonus;
+          await _repository.setFantasyPoints(
+              state.matchId!, updatedStriker.id, batsmanFantasy);
+        }
+
+        if (updatedNonStriker != null) {
+          await _repository.updateScoreboard(
+              state.matchId!, updatedNonStriker.id, {
+            'runs': updatedNonStriker.runs,
+            'balls_faced': updatedNonStriker.balls,
+            'fours': updatedNonStriker.fours,
+            'sixes': updatedNonStriker.sixes,
+            'strike_rate': updatedNonStriker.strikeRate,
+          });
+        }
+
+        if (updatedBowler != null) {
+          await _repository.updateBowlerStats(
+              state.matchId!, updatedBowler.id, {
+            'wickets': updatedBowler.wickets,
+            'overs_bowled': updatedBowler.overs,
+            'economy': updatedBowler.economy,
+          });
+          // Recalculate and set absolute fantasy points for bowler
+          final bowlerFantasy =
+              updatedBowler.wickets * FantasyPoints.wicket;
+          await _repository.setFantasyPoints(
+              state.matchId!, updatedBowler.id, bowlerFantasy);
+        }
       } else {
         _currentBallInOver = 0;
+
+        // Remove last entry from lastSixBalls
+        final lastSix = [...state.lastSixBalls];
+        if (lastSix.isNotEmpty) lastSix.removeLast();
+
+        state = state.copyWith(
+          totalRuns: totalRuns,
+          totalWickets: totalWickets,
+          totalOvers: overs,
+          currentRunRate: 0.0,
+          lastSixBalls: lastSix,
+          isOverComplete: false,
+          isInningsComplete: false,
+          clearError: true,
+        );
+
+        await _repository.updateMatchScore(state.matchId!, {
+          if (state.innings == 1) 'current_score_a': '$totalRuns/$totalWickets',
+          if (state.innings == 1) 'current_wickets_a': totalWickets,
+          if (state.innings == 2) 'current_score_b': '$totalRuns/$totalWickets',
+          if (state.innings == 2) 'current_wickets_b': totalWickets,
+          'current_over': overs,
+        });
       }
 
-      final runRate = overs > 0 ? totalRuns / overs : 0.0;
-
-      // Remove last entry from lastSixBalls
-      final lastSix = [...state.lastSixBalls];
-      if (lastSix.isNotEmpty) lastSix.removeLast();
-
-      state = state.copyWith(
-        totalRuns: totalRuns,
-        totalWickets: totalWickets,
-        totalOvers: overs,
-        currentRunRate: runRate,
-        lastSixBalls: lastSix,
-        isOverComplete: false,
-        isInningsComplete: false,
-        clearError: true,
-      );
-
-      // Persist updated score
-      await _repository.updateMatchScore(state.matchId!, {
-        if (state.innings == 1) 'current_score_a': '$totalRuns/$totalWickets',
-        if (state.innings == 1) 'current_wickets_a': totalWickets,
-        if (state.innings == 2) 'current_score_b': '$totalRuns/$totalWickets',
-        if (state.innings == 2) 'current_wickets_b': totalWickets,
-        'current_over': overs,
-      });
-
-      debugPrint('Ball Undone: reverted to $totalRuns/$totalWickets ($overs ov)');
+      debugPrint(
+          'Ball Undone: reverted to $totalRuns/$totalWickets ($overs ov)');
     } catch (e) {
       debugPrint('ScoringNotifier undoLastBall error: $e');
       state = state.copyWith(error: 'Failed to undo last ball: $e');
+    } finally {
+      _isBusy = false;
     }
   }
 

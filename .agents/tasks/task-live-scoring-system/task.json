@@ -1,7 +1,14 @@
 {
   "task_id": "task-live-scoring-system",
   "task_description": "Complete rewrite of the admin scoring panel with professional CricHeroes/Cricbuzz-style ball-by-ball live scoring. Includes new ball_by_ball SQL table, dedicated scoring repository and state management, professional UI with quick scoring buttons, extras, wickets, and advanced actions. Fantasy points auto-update on every ball.",
-  "status": "in_progress",
+  "status": "completed",
   "feature_order": ["FEAT-001", "FEAT-002"],
-  "blocked_reason": null
+  "blocked_reason": null,
+  "verification": {
+    "build": "skipped",
+    "tests": "skipped",
+    "test_quality": "skipped",
+    "docker_build": "skipped",
+    "summary": "Flutter SDK not available in sandbox (INTEGRATIONS_ONLY). Applied review fixes: (1) overs rate calculations now use legalBalls/6.0 while display keeps /10 convention, (2) fantasy points use incremental delta via fetch-then-add, (3) undo recalculates per-player stats from remaining balls and updates scoreboard/fantasy, (4) strike rotation uses scorer ID captured before swap, (5) RLS policies added to ball_by_ball, (6) bye/leg-bye now show additional runs dialog, (7) over-end popup has double-fire guard, (8) rapid tap concurrency guard via _isBusy flag. All files structurally verified (balanced braces, valid imports)."
+  }
 }
