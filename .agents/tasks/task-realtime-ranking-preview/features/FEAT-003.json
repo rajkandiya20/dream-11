@@ -1,0 +1,26 @@
+{
+  "id": "FEAT-003",
+  "type": "feat",
+  "description": "Dream11-style team preview screen with full-screen cricket ground layout. WK at bottom, Batters in middle, All-rounders upper-middle, Bowlers at top. Player photo/avatar, name, points. Captain badge (C) and Vice Captain badge (VC). Green field gradient background. Professional fantasy app styling.",
+  "status": "completed",
+  "steps": [
+    "Replace the entire content of lib/features/fantasy/presentation/screens/team_preview_screen.dart with a professional Dream11-style full-screen cricket ground layout. Key design requirements: (1) Full-screen green gradient background simulating a cricket ground (darker green at top, lighter at bottom). (2) Oval/ellipse pitch graphic in the center using CustomPaint or Container decorations. (3) Players positioned in zones by role: BOWLERS at the TOP of the screen, ALL-ROUNDERS in UPPER-MIDDLE, BATTERS in MIDDLE, WICKET-KEEPERS at BOTTOM. (4) Each player shows: circular avatar with player initial or image (using CachedImage if URL available), name below avatar (last name or short name), fantasy points below name. (5) Captain badge: a circular badge with 'C' positioned top-right of the avatar, red/primary color background. (6) Vice-Captain badge: a circular badge with 'VC' positioned top-right of the avatar, blue/info color background. (7) Player names on dark semi-transparent pill-shaped containers for readability. (8) Section labels for each role zone (BOWLERS, ALL-ROUNDERS, BATTERS, WICKET-KEEPERS) in small white text with 50% opacity. (9) Close button in top-left corner. (10) Title 'Team Preview' centered at top. (11) Use Wrap widget for each role section so players spread evenly. (12) Accept optional points parameter for each player to show live fantasy points.",
+    "Update the TeamPreviewScreen constructor to optionally accept a Map<String, double>? playerPoints parameter that maps playerId to fantasy points. When provided, display points below each player's name. When the player is captain, show points multiplied by 2x. When vice-captain, show points multiplied by 1.5x.",
+    "Ensure the screen also accepts the existing parameters (players, captainId, viceCaptainId) for backward compatibility."
+  ],
+  "acceptance_criteria": [
+    "TeamPreviewScreen shows a full-screen green gradient cricket ground",
+    "Players are grouped by role: Bowlers at top, All-rounders upper-middle, Batters middle, WK at bottom",
+    "Captain badge (C) in red/primary circle shown on captain's avatar",
+    "Vice-captain badge (VC) in blue/info circle shown on VC's avatar",
+    "Player names shown in dark pill containers",
+    "Points shown below name with captain 2x and VC 1.5x multipliers applied when playerPoints provided",
+    "Close button to dismiss the screen",
+    "flutter analyze passes without errors"
+  ],
+  "verification": [
+    "Run flutter analyze --no-fatal-infos and confirm zero errors"
+  ],
+  "blocked_reason": null,
+  "findings": "Flutter SDK not available in sandbox. Verified by code review: all imports correct, types match PlayerModel fields, CachedImage used with proper parameters, AppColors/AppTypography/AppSpacing constants used correctly. Removed unused flutter_riverpod import from original. Layout uses Expanded with equal flex for even distribution of role sections."
+}
