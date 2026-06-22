@@ -2,7 +2,7 @@
   "id": "FEAT-001",
   "type": "feat",
   "description": "Create the ball-by-ball scoring data layer: SQL migration for ball_by_ball table, a dedicated ScoringRepository with full ball-by-ball CRUD and scoring logic, a ScoringState and ScoringNotifier provider for live match state management, and scoring models.",
-  "status": "in_progress",
+  "status": "completed",
   "steps": [
     "Create sql/part7-ball-by-ball-scoring.sql with the ball_by_ball table definition: id (UUID PK), match_id (UUID FK to matches), innings (INTEGER), over_no (INTEGER), ball_no (INTEGER), batsman_id (UUID FK to players), non_striker_id (UUID FK to players), bowler_id (UUID FK to players), runs (INTEGER), extras (INTEGER default 0), extras_type (TEXT nullable - wide/no_ball/bye/leg_bye), is_wicket (BOOLEAN default false), dismissal_type (TEXT nullable), dismissed_player_id (UUID FK nullable), fielder_id (UUID FK nullable), is_legal (BOOLEAN default true), created_at (TIMESTAMPTZ). Add indexes on match_id, batsman_id, bowler_id. Enable realtime.",
     "Create lib/features/admin/data/models/ball_model.dart - a BallEntry class with all ball_by_ball fields, fromJson/toJson methods.",
@@ -27,5 +27,5 @@
     "Verify the SQL file has proper CREATE TABLE with all specified columns"
   ],
   "blocked_reason": null,
-  "findings": ""
+  "findings": "All 5 files created successfully. SQL has UUID PK, all required columns, indexes on match_id/batsman_id/bowler_id, and realtime enabled. BallEntry model covers all columns with fromJson/toJson. InningsState model includes BatsmanState, BowlerState, Partnership, FallOfWicket. ScoringRepository has insertBall, getBallsForInnings, getMatchPlayers, updateMatchScore, updateScoreboard, undoLastBall, getInningsState, updateFantasyPoints, updateBowlerStats with scoringRepositoryProvider. ScoringNotifier has initMatch, recordRun, recordExtra, recordWicket, undoLastBall, changeBowler, changeStriker, endOver, endInnings, retiredHurt, penaltyRuns. Fantasy points integrated per spec. No Flutter SDK available so verification is structural only."
 }
