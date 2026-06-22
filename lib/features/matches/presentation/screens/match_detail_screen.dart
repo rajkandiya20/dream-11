@@ -2,14 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/network/supabase_client.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../shared/widgets/shimmer_loading.dart';
+import '../../../auth/domain/providers/auth_provider.dart';
+import '../../../contests/data/repositories/contest_repository.dart';
 import '../../../contests/presentation/widgets/contest_card.dart';
+import '../../data/models/contest_model.dart';
 import '../../domain/providers/match_provider.dart';
-import '../widgets/commentary_tab.dart';
 import '../widgets/match_header.dart';
+import '../widgets/my_team_tab.dart';
 import '../widgets/scorecard_tab.dart';
 
 /// Premium match detail screen with header, tabs for contests/scorecard/commentary.
@@ -74,7 +78,7 @@ class MatchDetailScreen extends ConsumerWidget {
                                       'Contests (${state.contests.length})',
                                 ),
                                 const Tab(text: 'Scorecard'),
-                                const Tab(text: 'Commentary'),
+                                const Tab(text: 'My Team'),
                               ],
                             ),
                           ),
@@ -90,8 +94,8 @@ class MatchDetailScreen extends ConsumerWidget {
                         ),
                         // Scorecard Tab
                         ScorecardTab(scoreboard: state.scoreboard),
-                        // Commentary Tab
-                        CommentaryTab(commentary: state.commentary),
+                        // My Team Tab
+                        MyTeamTab(matchId: matchId),
                       ],
                     ),
                   ),
@@ -100,42 +104,155 @@ class MatchDetailScreen extends ConsumerWidget {
   }
 }
 
-/// Contests tab content.
-class _ContestsTab extends StatelessWidget {
+/// Contests tab content with All/My toggle.
+class _ContestsTab extends ConsumerStatefulWidget {
   final String matchId;
   final MatchDetailState state;
 
   const _ContestsTab({required this.matchId, required this.state});
 
   @override
+  ConsumerState<_ContestsTab> createState() => _ContestsTabState();
+}
+
+class _ContestsTabState extends ConsumerState<_ContestsTab> {
+  bool _showMyContests = false;
+  Set<String> _joinedContestIds = {};
+  Map<String, LeaderboardEntry> _myLeaderboardEntries = {};
+  bool _loadingJoined = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadJoinedContests();
+    });
+  }
+
+  Future<void> _loadJoinedContests() async {
+    final user = ref.read(authProvider).user;
+    if (user == null) return;
+
+    setState(() => _loadingJoined = true);
+
+    final client = ref.read(supabaseClientProvider);
+    final contestRepo = ContestRepository(client);
+
+    final Set<String> joined = {};
+    final Map<String, LeaderboardEntry> entries = {};
+
+    for (final contest in widget.state.contests) {
+      final hasJoined = await contestRepo.hasUserJoinedContest(
+        contestId: contest.id,
+        userId: user.uid,
+      );
+      if (hasJoined) {
+        joined.add(contest.id);
+        // Fetch leaderboard to get user's rank and points
+        final leaderboard = await contestRepo.getLeaderboard(contest.id);
+        final myEntry = leaderboard.where((e) => e.userId == user.uid).firstOrNull;
+        if (myEntry != null) {
+          entries[contest.id] = myEntry;
+        }
+      }
+    }
+
+    if (mounted) {
+      setState(() {
+        _joinedContestIds = joined;
+        _myLeaderboardEntries = entries;
+        _loadingJoined = false;
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    if (state.contests.isEmpty) {
+    final contests = _showMyContests
+        ? widget.state.contests
+            .where((c) => _joinedContestIds.contains(c.id))
+            .toList()
+        : widget.state.contests;
+
+    return Column(
+      children: [
+        // All/My toggle
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Row(
+            children: [
+              _ToggleButton(
+                label: 'All Contests',
+                isSelected: !_showMyContests,
+                onTap: () => setState(() => _showMyContests = false),
+              ),
+              AppSpacing.gapW8,
+              _ToggleButton(
+                label: 'My Contests',
+                isSelected: _showMyContests,
+                onTap: () => setState(() => _showMyContests = true),
+                badge: _joinedContestIds.isNotEmpty
+                    ? _joinedContestIds.length.toString()
+                    : null,
+              ),
+            ],
+          ),
+        ),
+        // Content
+        Expanded(
+          child: _buildContestsList(context, contests),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildContestsList(BuildContext context, List<ContestModel> contests) {
+    if (_loadingJoined && _showMyContests) {
+      return const Center(
+        child: CircularProgressIndicator(color: AppColors.primary),
+      );
+    }
+
+    if (contests.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
-              Icons.emoji_events_outlined,
+              _showMyContests
+                  ? Icons.emoji_events_outlined
+                  : Icons.emoji_events_outlined,
               size: 64,
               color: AppColors.textTertiary,
             ),
             AppSpacing.gapH16,
             Text(
-              'No contests available yet',
+              _showMyContests
+                  ? 'No contests joined yet'
+                  : 'No contests available yet',
               style: AppTypography.bodyLarge.copyWith(
                 color: AppColors.textSecondary,
               ),
             ),
+            if (_showMyContests) ...[
+              AppSpacing.gapH8,
+              Text(
+                'Join a contest to see it here',
+                style: AppTypography.bodySmall.copyWith(
+                  color: AppColors.textTertiary,
+                ),
+              ),
+            ],
           ],
         ),
       );
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: state.contests.length + 1,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      itemCount: contests.length + (_showMyContests ? 0 : 1),
       itemBuilder: (context, index) {
-        if (index == 0) {
+        if (!_showMyContests && index == 0) {
           // Create Team CTA
           return Container(
             margin: const EdgeInsets.only(bottom: 16),
@@ -168,10 +285,10 @@ class _ContestsTab extends StatelessWidget {
                   ),
                 ),
                 GestureDetector(
-                  onTap: () => context.push('/create-team/$matchId'),
+                  onTap: () => context.push('/create-team/${widget.matchId}'),
                   child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 8),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: AppSpacing.borderRadiusFull,
@@ -190,15 +307,143 @@ class _ContestsTab extends StatelessWidget {
           );
         }
 
-        final contest = state.contests[index - 1];
+        final contestIndex = _showMyContests ? index : index - 1;
+        final contest = contests[contestIndex];
+        final isJoined = _joinedContestIds.contains(contest.id);
+        final myEntry = _myLeaderboardEntries[contest.id];
+
         return Padding(
           padding: const EdgeInsets.only(bottom: 12),
-          child: ContestCard(
-            contest: contest,
-            onTap: () => context.push('/contests/${contest.id}'),
+          child: Column(
+            children: [
+              ContestCard(
+                contest: contest,
+                onTap: () => context.push('/contests/${contest.id}'),
+              ),
+              // Show rank and points for joined contests
+              if (isJoined && myEntry != null)
+                Container(
+                  margin: const EdgeInsets.only(top: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: AppColors.success.withOpacity(0.08),
+                    borderRadius: const BorderRadius.only(
+                      bottomLeft: Radius.circular(12),
+                      bottomRight: Radius.circular(12),
+                    ),
+                    border: Border.all(
+                      color: AppColors.success.withOpacity(0.2),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.check_circle,
+                          size: 14, color: AppColors.success),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Joined',
+                        style: AppTypography.labelSmall.copyWith(
+                          color: AppColors.success,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const Spacer(),
+                      if (myEntry.rank > 0) ...[
+                        Icon(Icons.leaderboard,
+                            size: 12, color: AppColors.textSecondary),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Rank #${myEntry.rank}',
+                          style: AppTypography.labelSmall.copyWith(
+                            color: AppColors.textSecondary,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                      ],
+                      Icon(Icons.star,
+                          size: 12, color: AppColors.primary),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${myEntry.points.toStringAsFixed(1)} pts',
+                        style: AppTypography.labelSmall.copyWith(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
           ),
         );
       },
+    );
+  }
+}
+
+/// Toggle button for All/My Contests.
+class _ToggleButton extends StatelessWidget {
+  final String label;
+  final bool isSelected;
+  final VoidCallback onTap;
+  final String? badge;
+
+  const _ToggleButton({
+    required this.label,
+    required this.isSelected,
+    required this.onTap,
+    this.badge,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.primary : AppColors.surface,
+          borderRadius: AppSpacing.borderRadiusFull,
+          border: Border.all(
+            color: isSelected ? AppColors.primary : AppColors.border,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              label,
+              style: AppTypography.labelMedium.copyWith(
+                color: isSelected ? Colors.white : AppColors.textSecondary,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+              ),
+            ),
+            if (badge != null) ...[
+              const SizedBox(width: 6),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? Colors.white.withOpacity(0.2)
+                      : AppColors.primary.withOpacity(0.1),
+                  borderRadius: AppSpacing.borderRadiusFull,
+                ),
+                child: Text(
+                  badge!,
+                  style: AppTypography.labelSmall.copyWith(
+                    color: isSelected ? Colors.white : AppColors.primary,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 9,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 }
