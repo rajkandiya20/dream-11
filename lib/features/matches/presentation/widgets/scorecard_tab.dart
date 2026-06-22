@@ -25,9 +25,18 @@ class ScorecardTab extends StatelessWidget {
             ),
             AppSpacing.gapH16,
             Text(
-              'Scorecard will be available once the match starts',
-              style: AppTypography.bodyMedium.copyWith(
+              'No scorecard data available',
+              style: AppTypography.bodyLarge.copyWith(
                 color: AppColors.textSecondary,
+                fontWeight: FontWeight.w500,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            AppSpacing.gapH8,
+            Text(
+              'Scores will appear here once scoring begins',
+              style: AppTypography.bodySmall.copyWith(
+                color: AppColors.textTertiary,
               ),
               textAlign: TextAlign.center,
             ),
@@ -36,7 +45,7 @@ class ScorecardTab extends StatelessWidget {
       );
     }
 
-    // Separate batsmen and bowlers
+    // Separate batsmen and bowlers based on batting/bowling stats
     final batsmen =
         scoreboard.where((s) => s.ballsFaced > 0 || s.runs > 0).toList();
     final bowlers =
@@ -49,23 +58,82 @@ class ScorecardTab extends StatelessWidget {
         if (batsmen.isNotEmpty) ...[
           _SectionTitle(title: 'Batting', icon: Icons.sports_cricket),
           AppSpacing.gapH8,
-          _BattingHeader(),
-          ...batsmen.map((entry) => _BattingRow(entry: entry)),
+          Container(
+            decoration: BoxDecoration(
+              color: AppColors.card,
+              borderRadius: AppSpacing.borderRadiusMd,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.04),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Column(
+              children: [
+                _BattingHeader(),
+                ...batsmen.map((entry) => _BattingRow(entry: entry)),
+              ],
+            ),
+          ),
           AppSpacing.gapH24,
         ],
         // Bowling section
         if (bowlers.isNotEmpty) ...[
           _SectionTitle(title: 'Bowling', icon: Icons.sports_baseball),
           AppSpacing.gapH8,
-          _BowlingHeader(),
-          ...bowlers.map((entry) => _BowlingRow(entry: entry)),
+          Container(
+            decoration: BoxDecoration(
+              color: AppColors.card,
+              borderRadius: AppSpacing.borderRadiusMd,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.04),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Column(
+              children: [
+                _BowlingHeader(),
+                ...bowlers.map((entry) => _BowlingRow(entry: entry)),
+              ],
+            ),
+          ),
           AppSpacing.gapH24,
         ],
-        // Points breakdown
-        _SectionTitle(title: 'Fantasy Points', icon: Icons.star),
-        AppSpacing.gapH8,
-        ...scoreboard.take(15).map((entry) => _PointsRow(entry: entry)),
-        AppSpacing.gapH32,
+        // If we have data but no batsmen or bowlers match criteria, show all
+        if (batsmen.isEmpty && bowlers.isEmpty) ...[
+          _SectionTitle(title: 'Player Stats', icon: Icons.people),
+          AppSpacing.gapH8,
+          ...scoreboard.map((entry) => _PointsRow(entry: entry)),
+          AppSpacing.gapH24,
+        ],
+        // Fantasy Points breakdown
+        if (scoreboard.isNotEmpty) ...[
+          _SectionTitle(title: 'Fantasy Points', icon: Icons.star),
+          AppSpacing.gapH8,
+          Container(
+            decoration: BoxDecoration(
+              color: AppColors.card,
+              borderRadius: AppSpacing.borderRadiusMd,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.04),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Column(
+              children:
+                  scoreboard.take(15).map((entry) => _PointsRow(entry: entry)).toList(),
+            ),
+          ),
+          AppSpacing.gapH32,
+        ],
       ],
     );
   }

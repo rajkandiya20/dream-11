@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -72,7 +71,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 // Header
                 const AuthHeader(
                   title: 'Welcome Back',
-                  subtitle: 'Sign in to your Local 11 account',
+                  subtitle: 'Sign in to continue building your dream team',
                 ),
                 const SizedBox(height: 40),
 
@@ -85,10 +84,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   textInputAction: TextInputAction.next,
                   prefixIcon: Icons.mail_outlined,
                   validator: Validators.email,
-                )
-                    .animate()
-                    .fadeIn(delay: 400.ms, duration: 400.ms)
-                    .slideY(begin: 0.1, end: 0),
+                ),
                 AppSpacing.gapH16,
 
                 // Password field
@@ -101,10 +97,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   prefixIcon: Icons.lock_outlined,
                   validator: Validators.password,
                   onSubmitted: (_) => _handleLogin(),
-                )
-                    .animate()
-                    .fadeIn(delay: 500.ms, duration: 400.ms)
-                    .slideY(begin: 0.1, end: 0),
+                ),
                 AppSpacing.gapH12,
 
                 // Forgot password link
@@ -120,9 +113,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ),
                     ),
                   ),
-                )
-                    .animate()
-                    .fadeIn(delay: 600.ms, duration: 300.ms),
+                ),
                 AppSpacing.gapH24,
 
                 // Login button
@@ -132,10 +123,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   isLoading: isLoading,
                   variant: AppButtonVariant.gradient,
                   size: AppButtonSize.large,
-                )
-                    .animate()
-                    .fadeIn(delay: 650.ms, duration: 400.ms)
-                    .slideY(begin: 0.1, end: 0),
+                ),
                 AppSpacing.gapH32,
 
                 // Register link
@@ -161,9 +149,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ),
                     ],
                   ),
-                )
-                    .animate()
-                    .fadeIn(delay: 750.ms, duration: 400.ms),
+                ),
               ],
             ),
           ),
