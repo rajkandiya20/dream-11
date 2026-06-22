@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../auth/domain/providers/auth_provider.dart';
 import '../../../matches/data/models/player_model.dart';
 import '../../data/models/fantasy_team_model.dart';
 import '../../data/repositories/fantasy_repository.dart';
@@ -292,7 +293,8 @@ class TeamBuilderNotifier extends StateNotifier<TeamBuilderState> {
 final teamBuilderProvider = StateNotifierProvider.family<TeamBuilderNotifier,
     TeamBuilderState, String>((ref, matchId) {
   final repository = ref.watch(fantasyRepositoryProvider);
-  return TeamBuilderNotifier(repository, matchId, null);
+  final user = ref.read(currentUserProvider);
+  return TeamBuilderNotifier(repository, matchId, user?.uid);
 });
 
 /// Provider for user fantasy teams.

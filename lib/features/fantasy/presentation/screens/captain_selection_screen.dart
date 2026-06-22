@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -12,14 +13,15 @@ import '../../domain/providers/fantasy_provider.dart';
 
 /// Captain and vice-captain selection screen with multiplier info.
 class CaptainSelectionScreen extends ConsumerWidget {
-  const CaptainSelectionScreen({super.key});
+  final String matchId;
+
+  const CaptainSelectionScreen({super.key, required this.matchId});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Find the active team builder provider.
-    // Since captain selection comes after create team, we need the matchId.
-    // For now we look for any team builder state that has selected players.
-    // In production, this would be passed via route parameters.
+    final state = ref.watch(teamBuilderProvider(matchId));
+
+    debugPrint('[CaptainSelection] matchId: $matchId, selectedPlayers: ${state.selectedPlayers.length}');
 
     return Scaffold(
       backgroundColor: AppColors.scaffoldBackground,
@@ -132,60 +134,101 @@ class CaptainSelectionScreen extends ConsumerWidget {
           ),
           // Selected players list for captain choice
           Expanded(
-            child: _CaptainPlayerList(),
+            child: _CaptainPlayerList(matchId: matchId),
           ),
         ],
       ),
       // Bottom save button
-      bottomNavigationBar: _BottomBar(),
+      bottomNavigationBar: _BottomBar(matchId: matchId),
     );
   }
 }
 
-/// Player list for captain selection (uses placeholder data pattern).
+/// Player list for captain selection showing actual selected players.
 class _CaptainPlayerList extends ConsumerWidget {
+  final String matchId;
+
+  const _CaptainPlayerList({required this.matchId});
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // The captain selection screen receives selected players from the team builder.
-    // In a production app, the matchId would be passed as a route parameter.
-    // For now, we show a placeholder that integrates with the state.
+    final state = ref.watch(teamBuilderProvider(matchId));
+    final notifier = ref.read(teamBuilderProvider(matchId).notifier);
+    final players = state.selectedPlayers;
 
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.touch_app,
-              size: 48,
-              color: AppColors.primary.withOpacity(0.5),
-            ),
-            AppSpacing.gapH16,
-            Text(
-              'Tap C or VC to assign roles',
-              style: AppTypography.bodyLarge.copyWith(
-                color: AppColors.textSecondary,
+    if (players.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.touch_app,
+                size: 48,
+                color: AppColors.primary.withOpacity(0.5),
               ),
-              textAlign: TextAlign.center,
-            ),
-            AppSpacing.gapH8,
-            Text(
-              'Your selected players will appear here.\nCaptain gets 2x points, Vice Captain gets 1.5x points.',
-              style: AppTypography.bodySmall,
-              textAlign: TextAlign.center,
-            ),
-          ],
+              AppSpacing.gapH16,
+              Text(
+                'No players selected',
+                style: AppTypography.bodyLarge.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              AppSpacing.gapH8,
+              Text(
+                'Go back and select 11 players first.',
+                style: AppTypography.bodySmall,
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
         ),
-      ),
+      );
+    }
+
+    return ListView.builder(
+      itemCount: players.length,
+      itemBuilder: (context, index) {
+        final player = players[index];
+        final isCaptain = state.captainId == player.id;
+        final isViceCaptain = state.viceCaptainId == player.id;
+
+        return CaptainPlayerRow(
+          player: player,
+          isCaptain: isCaptain,
+          isViceCaptain: isViceCaptain,
+          onCaptainTap: () {
+            debugPrint('[CaptainSelection] Captain selected: ${player.name} (${player.id})');
+            notifier.setCaptain(player.id);
+          },
+          onViceCaptainTap: () {
+            debugPrint('[CaptainSelection] Vice Captain selected: ${player.name} (${player.id})');
+            notifier.setViceCaptain(player.id);
+          },
+        );
+      },
     );
   }
 }
 
 /// Bottom bar with save team button.
 class _BottomBar extends ConsumerWidget {
+  final String matchId;
+
+  const _BottomBar({required this.matchId});
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(teamBuilderProvider(matchId));
+    final notifier = ref.read(teamBuilderProvider(matchId).notifier);
+
+    final hasBothCaptains = state.captainId != null &&
+        state.captainId!.isNotEmpty &&
+        state.viceCaptainId != null &&
+        state.viceCaptainId!.isNotEmpty;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -199,15 +242,59 @@ class _BottomBar extends ConsumerWidget {
         ],
       ),
       child: SafeArea(
-        child: AppButton(
-          text: 'SAVE TEAM',
-          variant: AppButtonVariant.gradient,
-          onPressed: () {
-            // In production, this would save the team and navigate back.
-            // For now, pop back to the match detail.
-            context.pop();
-            context.pop();
-          },
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (!hasBothCaptains)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(
+                  'Select both Captain and Vice Captain to continue',
+                  style: AppTypography.labelSmall.copyWith(
+                    color: AppColors.textTertiary,
+                  ),
+                ),
+              ),
+            AppButton(
+              text: state.isSaving ? 'SAVING...' : 'SAVE TEAM',
+              variant: hasBothCaptains
+                  ? AppButtonVariant.gradient
+                  : AppButtonVariant.outline,
+              isDisabled: !hasBothCaptains || state.isSaving,
+              onPressed: hasBothCaptains && !state.isSaving
+                  ? () async {
+                      debugPrint('[CaptainSelection] Save team request - matchId: $matchId, captain: ${state.captainId}, vc: ${state.viceCaptainId}');
+
+                      final result = await notifier.saveTeam();
+
+                      if (result != null) {
+                        debugPrint('[CaptainSelection] Team saved successfully: ${result.id}');
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Team saved successfully!'),
+                              backgroundColor: Colors.green,
+                            ),
+                          );
+                          // Navigate back to match detail
+                          context.pop();
+                          context.pop();
+                        }
+                      } else {
+                        debugPrint('[CaptainSelection] Team save failed');
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Failed to save team. Please try again.'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
+                      }
+                    }
+                  : null,
+            ),
+          ],
         ),
       ),
     );

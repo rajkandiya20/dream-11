@@ -1,8 +1,8 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
@@ -243,7 +243,22 @@ class _CreateTeamScreenState extends ConsumerState<CreateTeamScreen> {
                       : AppButtonVariant.outline,
                   isDisabled: !state.isTeamComplete,
                   onPressed: state.isTeamComplete
-                      ? () => context.push(AppRoutes.captainSelection)
+                      ? () {
+                          // Validate team composition before proceeding
+                          if (!state.isValidTeam) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Team must have min 1 WK, 3 BAT, 1 AR, and 3 BOWL',
+                                ),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                            return;
+                          }
+                          debugPrint('[CreateTeam] Navigating to captain selection with ${state.selectedCount} players for match ${widget.matchId}');
+                          context.push('/captain-selection/${widget.matchId}');
+                        }
                       : null,
                 ),
               ),

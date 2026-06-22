@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../fantasy/data/models/fantasy_team_model.dart';
+import '../../../fantasy/data/repositories/fantasy_repository.dart';
 import '../../../home/data/models/match_model.dart';
 import '../../data/models/contest_model.dart';
 import '../../data/models/player_model.dart';
@@ -180,4 +182,15 @@ final matchScoreboardProvider =
 final matchCommentaryProvider =
     Provider.family<List<CommentaryModel>, String>((ref, matchId) {
   return ref.watch(matchDetailProvider(matchId)).commentary;
+});
+
+/// Provider for user's fantasy teams for a specific match.
+final userTeamsForMatchProvider = FutureProvider.family<
+    List<FantasyTeamModel>,
+    ({String matchId, String userId})>((ref, params) async {
+  final repository = ref.watch(fantasyRepositoryProvider);
+  return repository.getUserTeamsForMatch(
+    userId: params.userId,
+    matchId: params.matchId,
+  );
 });
