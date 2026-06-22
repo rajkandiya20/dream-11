@@ -1,0 +1,44 @@
+{
+  "id": "FEAT-002",
+  "type": "feat",
+  "description": "Replace the existing admin_scoreboard_screen.dart with a professional cricket scoring panel UI (CricHeroes/Cricbuzz style). The screen should have: match selection header, live scorecard display, batsman/bowler sections, last 6 balls indicator, quick scoring buttons (0-6), extras buttons, wicket types, and advanced actions. Theme uses #E91E63 primary per user request. Mobile-first, fast one-hand scoring.",
+  "status": "completed",
+  "steps": [
+    "Create lib/features/admin/presentation/widgets/scoring/ directory with the following widget files:",
+    "Create lib/features/admin/presentation/widgets/scoring/match_header_widget.dart - Shows tournament name, match name (Team A vs Team B), LIVE badge, current innings indicator. Uses #E91E63 primary color with gradient header.",
+    "Create lib/features/admin/presentation/widgets/scoring/live_scorecard_widget.dart - Displays current score (e.g. 115/4), overs (12.5), CRR, target (if 2nd innings), required run rate (if chase), toss result. White card with rounded corners and modern shadow.",
+    "Create lib/features/admin/presentation/widgets/scoring/batsman_section_widget.dart - Shows striker and non-striker with: Name, Runs, Balls, 4s, 6s, Strike Rate. Striker highlighted. Compact table layout.",
+    "Create lib/features/admin/presentation/widgets/scoring/bowler_section_widget.dart - Shows current bowler: Overs, Maidens, Runs, Wickets, Economy.",
+    "Create lib/features/admin/presentation/widgets/scoring/last_balls_widget.dart - Horizontal row showing last 6 balls with color coding: Runs=Grey, Four=Green, Six=Dark Green, Wicket=Red, Wide=Blue, No Ball=Orange.",
+    "Create lib/features/admin/presentation/widgets/scoring/run_buttons_widget.dart - Grid of run buttons 0-6, large tappable buttons for one-hand scoring. Each button triggers recordRun on the scoring provider.",
+    "Create lib/features/admin/presentation/widgets/scoring/extras_buttons_widget.dart - Buttons for Wide, No Ball, Bye, Leg Bye. Wide and No Ball show a sub-dialog for additional runs.",
+    "Create lib/features/admin/presentation/widgets/scoring/wicket_buttons_widget.dart - Buttons for Bowled, Caught, LBW, Run Out, Stumped, Hit Wicket. Each opens a dialog to select next batsman (and fielder for caught/run out).",
+    "Create lib/features/admin/presentation/widgets/scoring/advanced_actions_widget.dart - Buttons for: Undo Last Ball, Change Bowler, Retired Hurt, Penalty Runs, End Over, End Innings, Declare Innings.",
+    "Rewrite lib/features/admin/presentation/screens/admin_scoreboard_screen.dart - Complete replacement. Start with match selection dropdown (reuse existing match loading from adminProvider). Once match selected, show the full scoring panel using all widgets above. Wire up to ScoringNotifier. Include auto-popup for over completion (select next bowler) and wicket (select next batsman). Show error snackbar on any Supabase failure.",
+    "Create lib/features/admin/presentation/widgets/scoring/select_batsman_dialog.dart - Dialog shown after wicket or start of innings to select the next batsman from the team's playing XI.",
+    "Create lib/features/admin/presentation/widgets/scoring/select_bowler_dialog.dart - Dialog shown at start of each over to select the bowler."
+  ],
+  "acceptance_criteria": [
+    "admin_scoreboard_screen.dart is completely rewritten with the new scoring panel UI",
+    "Match header shows team names, LIVE badge, innings indicator",
+    "Live scorecard shows score/wickets, overs, CRR, target (2nd innings), RRR",
+    "Batsman section shows striker + non-striker stats (R, B, 4s, 6s, SR)",
+    "Bowler section shows current bowler stats (O, M, R, W, Eco)",
+    "Last 6 balls display with color coding per ball type",
+    "Run buttons 0-6 are large, tappable, and call scoring provider",
+    "Extras buttons (Wide, No Ball, Bye, Leg Bye) work with additional runs input",
+    "Wicket buttons open dialog for dismissal details and next batsman selection",
+    "Undo Last Ball button exists and calls undoLastBall on provider",
+    "End Over triggers auto bowler selection dialog",
+    "All UI uses #E91E63 primary, white cards, rounded corners, modern shadows",
+    "Screen is mobile-first with proper scrolling and one-hand reachable buttons"
+  ],
+  "verification": [
+    "Verify admin_scoreboard_screen.dart imports the scoring provider and all new widgets",
+    "Verify all widget files exist in the scoring/ directory",
+    "Verify the color #E91E63 is used in the scoring widgets",
+    "Verify proper Dart syntax in all new files (balanced braces, valid imports)"
+  ],
+  "blocked_reason": null,
+  "findings": "Created all 11 widget files in scoring/ directory plus complete rewrite of admin_scoreboard_screen.dart. All braces balanced, all import paths verified to resolve correctly. Primary color #E91E63 used throughout (25+ occurrences across files). Mobile-first design with large run buttons (52px height), extras with additional runs dialog, wicket types with fielder selection for caught/run_out, auto-popup for over completion and wicket, error snackbar via ref.listen. No Flutter SDK available so verification is structural only (brace balancing, import path validation, file existence checks)."
+}
