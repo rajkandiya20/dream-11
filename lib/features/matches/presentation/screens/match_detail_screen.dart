@@ -105,7 +105,6 @@ class MatchDetailScreen extends ConsumerWidget {
                         // Scorecard Tab
                         ScorecardTab(
                           scoreboard: state.scoreboard,
-                          ballByBall: state.ballByBall,
                         ),
                         // My Team Tab
                         _MyTeamTab(
