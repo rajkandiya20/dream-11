@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -9,7 +8,6 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../shared/components/notification_controller.dart';
-import '../../../../shared/components/top_notification.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/app_text_field.dart';
 import '../../domain/providers/auth_provider.dart';
@@ -56,7 +54,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     if (success && mounted) {
       ref.read(notificationControllerProvider.notifier).showSuccess(
             title: 'Account Created',
-            message: 'Welcome to Local 11!',
+            message: 'Welcome to Dream Team Fantasy!',
           );
       context.go(AppRoutes.home);
     } else if (mounted) {
@@ -108,10 +106,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   textInputAction: TextInputAction.next,
                   prefixIcon: Icons.person_outlined,
                   validator: Validators.username,
-                )
-                    .animate()
-                    .fadeIn(delay: 300.ms, duration: 400.ms)
-                    .slideY(begin: 0.1, end: 0),
+                ),
                 AppSpacing.gapH16,
 
                 // Email field
@@ -123,10 +118,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   textInputAction: TextInputAction.next,
                   prefixIcon: Icons.mail_outlined,
                   validator: Validators.email,
-                )
-                    .animate()
-                    .fadeIn(delay: 400.ms, duration: 400.ms)
-                    .slideY(begin: 0.1, end: 0),
+                ),
                 AppSpacing.gapH16,
 
                 // Phone field (optional)
@@ -141,10 +133,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     if (value == null || value.isEmpty) return null;
                     return Validators.phoneNumber(value);
                   },
-                )
-                    .animate()
-                    .fadeIn(delay: 500.ms, duration: 400.ms)
-                    .slideY(begin: 0.1, end: 0),
+                ),
                 AppSpacing.gapH16,
 
                 // Password field
@@ -156,10 +145,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   textInputAction: TextInputAction.next,
                   prefixIcon: Icons.lock_outlined,
                   validator: Validators.strongPassword,
-                )
-                    .animate()
-                    .fadeIn(delay: 600.ms, duration: 400.ms)
-                    .slideY(begin: 0.1, end: 0),
+                ),
                 AppSpacing.gapH16,
 
                 // Confirm Password field
@@ -175,10 +161,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     _passwordController.text,
                   ),
                   onSubmitted: (_) => _handleRegister(),
-                )
-                    .animate()
-                    .fadeIn(delay: 700.ms, duration: 400.ms)
-                    .slideY(begin: 0.1, end: 0),
+                ),
                 AppSpacing.gapH24,
 
                 // Password requirements hint
@@ -209,9 +192,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       ),
                     ],
                   ),
-                )
-                    .animate()
-                    .fadeIn(delay: 750.ms, duration: 300.ms),
+                ),
                 AppSpacing.gapH24,
 
                 // Register button
@@ -221,10 +202,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   isLoading: isLoading,
                   variant: AppButtonVariant.gradient,
                   size: AppButtonSize.large,
-                )
-                    .animate()
-                    .fadeIn(delay: 800.ms, duration: 400.ms)
-                    .slideY(begin: 0.1, end: 0),
+                ),
                 AppSpacing.gapH24,
 
                 // Login link
@@ -250,9 +228,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       ),
                     ],
                   ),
-                )
-                    .animate()
-                    .fadeIn(delay: 850.ms, duration: 400.ms),
+                ),
                 const SizedBox(height: 32),
               ],
             ),
