@@ -2,19 +2,29 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../../core/network/supabase_client.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../shared/widgets/shimmer_loading.dart';
 import '../../../auth/domain/providers/auth_provider.dart';
-import '../../../contests/data/repositories/contest_repository.dart';
 import '../../../contests/presentation/widgets/contest_card.dart';
-import '../../data/models/contest_model.dart';
+import '../../../fantasy/data/models/fantasy_team_model.dart';
+import '../../../fantasy/data/repositories/fantasy_repository.dart';
+import '../../data/models/player_stats_model.dart';
 import '../../domain/providers/match_provider.dart';
 import '../widgets/match_header.dart';
-import '../widgets/my_team_tab.dart';
 import '../widgets/scorecard_tab.dart';
+
+/// Provider that fetches user fantasy teams for a match, keyed by (userId, matchId).
+/// Cached by Riverpod so it does not re-fetch on every widget rebuild.
+final _userTeamsProvider = FutureProvider.family<List<FantasyTeamModel>,
+    ({String userId, String matchId})>((ref, params) async {
+  final repository = ref.watch(fantasyRepositoryProvider);
+  return repository.getUserTeamsForMatch(
+    userId: params.userId,
+    matchId: params.matchId,
+  );
+});
 
 /// Premium match detail screen with header, tabs for contests/scorecard/commentary.
 class MatchDetailScreen extends ConsumerWidget {
@@ -93,9 +103,15 @@ class MatchDetailScreen extends ConsumerWidget {
                           state: state,
                         ),
                         // Scorecard Tab
-                        ScorecardTab(scoreboard: state.scoreboard),
+                        ScorecardTab(
+                          scoreboard: state.scoreboard,
+                          ballByBall: state.ballByBall,
+                        ),
                         // My Team Tab
-                        MyTeamTab(matchId: matchId),
+                        _MyTeamTab(
+                          matchId: matchId,
+                          playerStats: state.playerStats,
+                        ),
                       ],
                     ),
                   ),
@@ -104,155 +120,42 @@ class MatchDetailScreen extends ConsumerWidget {
   }
 }
 
-/// Contests tab content with All/My toggle.
-class _ContestsTab extends ConsumerStatefulWidget {
+/// Contests tab content.
+class _ContestsTab extends StatelessWidget {
   final String matchId;
   final MatchDetailState state;
 
   const _ContestsTab({required this.matchId, required this.state});
 
   @override
-  ConsumerState<_ContestsTab> createState() => _ContestsTabState();
-}
-
-class _ContestsTabState extends ConsumerState<_ContestsTab> {
-  bool _showMyContests = false;
-  Set<String> _joinedContestIds = {};
-  Map<String, LeaderboardEntry> _myLeaderboardEntries = {};
-  bool _loadingJoined = false;
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadJoinedContests();
-    });
-  }
-
-  Future<void> _loadJoinedContests() async {
-    final user = ref.read(authProvider).user;
-    if (user == null) return;
-
-    setState(() => _loadingJoined = true);
-
-    final client = ref.read(supabaseClientProvider);
-    final contestRepo = ContestRepository(client);
-
-    final Set<String> joined = {};
-    final Map<String, LeaderboardEntry> entries = {};
-
-    for (final contest in widget.state.contests) {
-      final hasJoined = await contestRepo.hasUserJoinedContest(
-        contestId: contest.id,
-        userId: user.uid,
-      );
-      if (hasJoined) {
-        joined.add(contest.id);
-        // Fetch leaderboard to get user's rank and points
-        final leaderboard = await contestRepo.getLeaderboard(contest.id);
-        final myEntry = leaderboard.where((e) => e.userId == user.uid).firstOrNull;
-        if (myEntry != null) {
-          entries[contest.id] = myEntry;
-        }
-      }
-    }
-
-    if (mounted) {
-      setState(() {
-        _joinedContestIds = joined;
-        _myLeaderboardEntries = entries;
-        _loadingJoined = false;
-      });
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final contests = _showMyContests
-        ? widget.state.contests
-            .where((c) => _joinedContestIds.contains(c.id))
-            .toList()
-        : widget.state.contests;
-
-    return Column(
-      children: [
-        // All/My toggle
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          child: Row(
-            children: [
-              _ToggleButton(
-                label: 'All Contests',
-                isSelected: !_showMyContests,
-                onTap: () => setState(() => _showMyContests = false),
-              ),
-              AppSpacing.gapW8,
-              _ToggleButton(
-                label: 'My Contests',
-                isSelected: _showMyContests,
-                onTap: () => setState(() => _showMyContests = true),
-                badge: _joinedContestIds.isNotEmpty
-                    ? _joinedContestIds.length.toString()
-                    : null,
-              ),
-            ],
-          ),
-        ),
-        // Content
-        Expanded(
-          child: _buildContestsList(context, contests),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildContestsList(BuildContext context, List<ContestModel> contests) {
-    if (_loadingJoined && _showMyContests) {
-      return const Center(
-        child: CircularProgressIndicator(color: AppColors.primary),
-      );
-    }
-
-    if (contests.isEmpty) {
+    if (state.contests.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
-              _showMyContests
-                  ? Icons.emoji_events_outlined
-                  : Icons.emoji_events_outlined,
+              Icons.emoji_events_outlined,
               size: 64,
               color: AppColors.textTertiary,
             ),
             AppSpacing.gapH16,
             Text(
-              _showMyContests
-                  ? 'No contests joined yet'
-                  : 'No contests available yet',
+              'No contests available yet',
               style: AppTypography.bodyLarge.copyWith(
                 color: AppColors.textSecondary,
               ),
             ),
-            if (_showMyContests) ...[
-              AppSpacing.gapH8,
-              Text(
-                'Join a contest to see it here',
-                style: AppTypography.bodySmall.copyWith(
-                  color: AppColors.textTertiary,
-                ),
-              ),
-            ],
           ],
         ),
       );
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      itemCount: contests.length + (_showMyContests ? 0 : 1),
+      padding: const EdgeInsets.all(16),
+      itemCount: state.contests.length + 1,
       itemBuilder: (context, index) {
-        if (!_showMyContests && index == 0) {
+        if (index == 0) {
           // Create Team CTA
           return Container(
             margin: const EdgeInsets.only(bottom: 16),
@@ -285,10 +188,10 @@ class _ContestsTabState extends ConsumerState<_ContestsTab> {
                   ),
                 ),
                 GestureDetector(
-                  onTap: () => context.push('/create-team/${widget.matchId}'),
+                  onTap: () => context.push('/create-team/$matchId'),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: AppSpacing.borderRadiusFull,
@@ -307,75 +210,12 @@ class _ContestsTabState extends ConsumerState<_ContestsTab> {
           );
         }
 
-        final contestIndex = _showMyContests ? index : index - 1;
-        final contest = contests[contestIndex];
-        final isJoined = _joinedContestIds.contains(contest.id);
-        final myEntry = _myLeaderboardEntries[contest.id];
-
+        final contest = state.contests[index - 1];
         return Padding(
           padding: const EdgeInsets.only(bottom: 12),
-          child: Column(
-            children: [
-              ContestCard(
-                contest: contest,
-                onTap: () => context.push('/contests/${contest.id}'),
-              ),
-              // Show rank and points for joined contests
-              if (isJoined && myEntry != null)
-                Container(
-                  margin: const EdgeInsets.only(top: 4),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: AppColors.success.withOpacity(0.08),
-                    borderRadius: const BorderRadius.only(
-                      bottomLeft: Radius.circular(12),
-                      bottomRight: Radius.circular(12),
-                    ),
-                    border: Border.all(
-                      color: AppColors.success.withOpacity(0.2),
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.check_circle,
-                          size: 14, color: AppColors.success),
-                      const SizedBox(width: 6),
-                      Text(
-                        'Joined',
-                        style: AppTypography.labelSmall.copyWith(
-                          color: AppColors.success,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const Spacer(),
-                      if (myEntry.rank > 0) ...[
-                        Icon(Icons.leaderboard,
-                            size: 12, color: AppColors.textSecondary),
-                        const SizedBox(width: 4),
-                        Text(
-                          'Rank #${myEntry.rank}',
-                          style: AppTypography.labelSmall.copyWith(
-                            color: AppColors.textSecondary,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                      ],
-                      Icon(Icons.star,
-                          size: 12, color: AppColors.primary),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${myEntry.points.toStringAsFixed(1)} pts',
-                        style: AppTypography.labelSmall.copyWith(
-                          color: AppColors.primary,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-            ],
+          child: ContestCard(
+            contest: contest,
+            onTap: () => context.push('/contests/${contest.id}'),
           ),
         );
       },
@@ -383,66 +223,360 @@ class _ContestsTabState extends ConsumerState<_ContestsTab> {
   }
 }
 
-/// Toggle button for All/My Contests.
-class _ToggleButton extends StatelessWidget {
-  final String label;
-  final bool isSelected;
-  final VoidCallback onTap;
-  final String? badge;
+/// My Team tab showing user's fantasy team with live points.
+class _MyTeamTab extends ConsumerWidget {
+  final String matchId;
+  final List<PlayerStatsModel> playerStats;
 
-  const _ToggleButton({
-    required this.label,
-    required this.isSelected,
-    required this.onTap,
-    this.badge,
+  const _MyTeamTab({required this.matchId, required this.playerStats});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final authState = ref.watch(authProvider);
+    final userId = authState.user?.uid;
+
+    if (userId == null || userId.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.lock_outline,
+              size: 64,
+              color: AppColors.textTertiary,
+            ),
+            AppSpacing.gapH16,
+            Text(
+              'Please log in to view your team',
+              style: AppTypography.bodyLarge.copyWith(
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final teamsAsync = ref.watch(
+      _userTeamsProvider((userId: userId, matchId: matchId)),
+    );
+
+    return teamsAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (_, __) => Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.error_outline,
+              size: 64,
+              color: AppColors.textTertiary,
+            ),
+            AppSpacing.gapH16,
+            Text(
+              'Failed to load teams',
+              style: AppTypography.bodyLarge.copyWith(
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ],
+        ),
+      ),
+      data: (teams) {
+        if (teams.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.group_outlined,
+                  size: 64,
+                  color: AppColors.textTertiary,
+                ),
+                AppSpacing.gapH16,
+                Text(
+                  'No team created yet',
+                  style: AppTypography.bodyLarge.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                AppSpacing.gapH8,
+                Text(
+                  'Create a team to see live points',
+                  style: AppTypography.bodySmall.copyWith(
+                    color: AppColors.textTertiary,
+                  ),
+                ),
+                AppSpacing.gapH24,
+                ElevatedButton(
+                  onPressed: () => context.push('/create-team/$matchId'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                  ),
+                  child: const Text('Create Team'),
+                ),
+              ],
+            ),
+          );
+        }
+
+        return ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: teams.length,
+          itemBuilder: (context, index) {
+            final team = teams[index];
+            return _TeamCard(
+              team: team,
+              playerStats: playerStats,
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+/// Card showing a single fantasy team with live points.
+class _TeamCard extends StatelessWidget {
+  final FantasyTeamModel team;
+  final List<PlayerStatsModel> playerStats;
+
+  const _TeamCard({required this.team, required this.playerStats});
+
+  double _getPlayerPoints(String playerId) {
+    final stats = playerStats.where((s) => s.playerId == playerId).firstOrNull;
+    return stats?.fantasyPoints ?? 0.0;
+  }
+
+  double _getMultipliedPoints(FantasyTeamPlayerModel player) {
+    final basePoints = _getPlayerPoints(player.playerId);
+    if (player.isCaptain) return basePoints * 2.0;
+    if (player.isViceCaptain) return basePoints * 1.5;
+    return basePoints;
+  }
+
+  double get _totalTeamPoints {
+    double total = 0.0;
+    for (final player in team.players) {
+      total += _getMultipliedPoints(player);
+    }
+    return total;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: AppSpacing.borderRadiusMd,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Team header with name and total points
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              gradient: AppColors.primaryGradient,
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(12),
+              ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      team.teamName,
+                      style: AppTypography.titleMedium.copyWith(
+                        color: Colors.white,
+                      ),
+                    ),
+                    Text(
+                      '${team.playerCount} Players',
+                      style: AppTypography.bodySmall.copyWith(
+                        color: Colors.white70,
+                      ),
+                    ),
+                  ],
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      _totalTeamPoints.toStringAsFixed(1),
+                      style: AppTypography.headlineSmall.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    Text(
+                      'Total Points',
+                      style: AppTypography.labelSmall.copyWith(
+                        color: Colors.white70,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          // Player list
+          ...team.players.map((player) => _PlayerRow(
+                player: player,
+                points: _getMultipliedPoints(player),
+                basePoints: _getPlayerPoints(player.playerId),
+              )),
+          AppSpacing.gapH8,
+        ],
+      ),
+    );
+  }
+}
+
+/// Row showing a single player with live points.
+class _PlayerRow extends StatelessWidget {
+  final FantasyTeamPlayerModel player;
+  final double points;
+  final double basePoints;
+
+  const _PlayerRow({
+    required this.player,
+    required this.points,
+    required this.basePoints,
   });
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: isSelected ? AppColors.primary : AppColors.surface,
-          borderRadius: AppSpacing.borderRadiusFull,
-          border: Border.all(
-            color: isSelected ? AppColors.primary : AppColors.border,
-          ),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(color: AppColors.border.withOpacity(0.5)),
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              label,
-              style: AppTypography.labelMedium.copyWith(
-                color: isSelected ? Colors.white : AppColors.textSecondary,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+      ),
+      child: Row(
+        children: [
+          // Player avatar placeholder
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: AppColors.primary.withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Center(
+              child: Text(
+                player.playerName.isNotEmpty ? player.playerName[0] : '',
+                style: AppTypography.labelSmall.copyWith(
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
-            if (badge != null) ...[
-              const SizedBox(width: 6),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: isSelected
-                      ? Colors.white.withOpacity(0.2)
-                      : AppColors.primary.withOpacity(0.1),
-                  borderRadius: AppSpacing.borderRadiusFull,
+          ),
+          AppSpacing.gapW12,
+          // Player name and role
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        player.playerName,
+                        style: AppTypography.bodySmall.copyWith(
+                          fontWeight: FontWeight.w500,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (player.isCaptain) ...[
+                      AppSpacing.gapW4,
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 4,
+                          vertical: 1,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          'C',
+                          style: AppTypography.labelSmall.copyWith(
+                            color: Colors.white,
+                            fontSize: 9,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
+                    if (player.isViceCaptain) ...[
+                      AppSpacing.gapW4,
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 4,
+                          vertical: 1,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.secondary,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          'VC',
+                          style: AppTypography.labelSmall.copyWith(
+                            color: Colors.white,
+                            fontSize: 9,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
-                child: Text(
-                  badge!,
+                Text(
+                  player.playerRole,
                   style: AppTypography.labelSmall.copyWith(
-                    color: isSelected ? Colors.white : AppColors.primary,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 9,
+                    color: AppColors.textTertiary,
+                    fontSize: 10,
                   ),
                 ),
+              ],
+            ),
+          ),
+          // Multiplier info
+          if (player.isCaptain || player.isViceCaptain)
+            Container(
+              margin: const EdgeInsets.only(right: 8),
+              child: Text(
+                player.isCaptain ? '2x' : '1.5x',
+                style: AppTypography.labelSmall.copyWith(
+                  color: AppColors.textSecondary,
+                  fontSize: 10,
+                ),
               ),
-            ],
-          ],
-        ),
+            ),
+          // Points
+          Text(
+            points.toStringAsFixed(1),
+            style: AppTypography.titleSmall.copyWith(
+              color: AppColors.primary,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
       ),
     );
   }
