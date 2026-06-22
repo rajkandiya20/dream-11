@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -12,18 +13,21 @@ class HomeRepository {
 
   HomeRepository(this._client);
 
-  /// Fetch all matches with tournament relation, ordered by date.
+  /// Fetch all matches with tournament and teams relations, ordered by date.
   Future<List<MatchModel>> getMatches() async {
     try {
       final response = await _client
           .from('matches')
-          .select('*, tournament:tournaments(name, logo)')
+          .select('*, tournament:tournaments(name, logo), team_a:teams!team_a_id(name, logo, code), team_b:teams!team_b_id(name, logo, code)')
           .order('date_time');
 
-      return (response as List)
+      final matches = (response as List)
           .map((json) => MatchModel.fromJson(json as Map<String, dynamic>))
           .toList();
+      debugPrint('[HomeRepository] getMatches: fetched ${matches.length} matches');
+      return matches;
     } catch (e) {
+      debugPrint('[HomeRepository] getMatches error: $e');
       return [];
     }
   }
@@ -33,14 +37,17 @@ class HomeRepository {
     try {
       final response = await _client
           .from('matches')
-          .select('*, tournament:tournaments(name, logo)')
+          .select('*, tournament:tournaments(name, logo), team_a:teams!team_a_id(name, logo, code), team_b:teams!team_b_id(name, logo, code)')
           .inFilter('status', ['upcoming', 'scheduled'])
           .order('date_time', ascending: true);
 
-      return (response as List)
+      final matches = (response as List)
           .map((json) => MatchModel.fromJson(json as Map<String, dynamic>))
           .toList();
+      debugPrint('[HomeRepository] getUpcomingMatches: fetched ${matches.length} matches');
+      return matches;
     } catch (e) {
+      debugPrint('[HomeRepository] getUpcomingMatches error: $e');
       return [];
     }
   }
@@ -50,13 +57,16 @@ class HomeRepository {
     try {
       final response = await _client
           .from('matches')
-          .select('*, tournament:tournaments(name, logo)')
+          .select('*, tournament:tournaments(name, logo), team_a:teams!team_a_id(name, logo, code), team_b:teams!team_b_id(name, logo, code)')
           .eq('status', 'live');
 
-      return (response as List)
+      final matches = (response as List)
           .map((json) => MatchModel.fromJson(json as Map<String, dynamic>))
           .toList();
+      debugPrint('[HomeRepository] getLiveMatches: fetched ${matches.length} matches');
+      return matches;
     } catch (e) {
+      debugPrint('[HomeRepository] getLiveMatches error: $e');
       return [];
     }
   }
@@ -66,15 +76,18 @@ class HomeRepository {
     try {
       final response = await _client
           .from('matches')
-          .select('*, tournament:tournaments(name, logo)')
+          .select('*, tournament:tournaments(name, logo), team_a:teams!team_a_id(name, logo, code), team_b:teams!team_b_id(name, logo, code)')
           .eq('status', 'completed')
           .order('date_time', ascending: false)
           .limit(10);
 
-      return (response as List)
+      final matches = (response as List)
           .map((json) => MatchModel.fromJson(json as Map<String, dynamic>))
           .toList();
+      debugPrint('[HomeRepository] getCompletedMatches: fetched ${matches.length} matches');
+      return matches;
     } catch (e) {
+      debugPrint('[HomeRepository] getCompletedMatches error: $e');
       return [];
     }
   }

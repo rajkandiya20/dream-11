@@ -58,19 +58,35 @@ class MatchModel {
     this.createdAt,
   });
 
-  /// Create from JSON (Supabase response with tournament relation).
+  /// Create from JSON (Supabase response with tournament and teams relations).
   factory MatchModel.fromJson(Map<String, dynamic> json) {
+    // Parse nested team_a relation from joined teams table
+    final teamAData = json['team_a'] is Map<String, dynamic>
+        ? json['team_a'] as Map<String, dynamic>
+        : null;
+    final teamBData = json['team_b'] is Map<String, dynamic>
+        ? json['team_b'] as Map<String, dynamic>
+        : null;
+
     return MatchModel(
       id: json['id'] as String? ?? '',
       tournamentId: json['tournament_id'] as String?,
       teamAId: json['team_a_id'] as String?,
       teamBId: json['team_b_id'] as String?,
-      teamAName: json['team_a_name'] as String? ?? 'Team A',
-      teamBName: json['team_b_name'] as String? ?? 'Team B',
-      teamACode: json['team_a_code'] as String?,
-      teamBCode: json['team_b_code'] as String?,
-      teamAFlag: json['team_a_flag'] as String?,
-      teamBFlag: json['team_b_flag'] as String?,
+      teamAName: teamAData?['name'] as String? ??
+          json['team_a_name'] as String? ??
+          'Team A',
+      teamBName: teamBData?['name'] as String? ??
+          json['team_b_name'] as String? ??
+          'Team B',
+      teamACode: teamAData?['code'] as String? ??
+          json['team_a_code'] as String?,
+      teamBCode: teamBData?['code'] as String? ??
+          json['team_b_code'] as String?,
+      teamAFlag: teamAData?['logo'] as String? ??
+          json['team_a_flag'] as String?,
+      teamBFlag: teamBData?['logo'] as String? ??
+          json['team_b_flag'] as String?,
       dateTime: json['date_time'] != null
           ? DateTime.parse(json['date_time'] as String)
           : DateTime.now(),
