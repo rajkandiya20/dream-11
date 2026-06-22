@@ -3,13 +3,19 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../data/models/ball_by_ball_model.dart';
 import '../../data/models/scoreboard_model.dart';
 
 /// Player-by-player scorecard tab showing batting and bowling stats.
 class ScorecardTab extends StatelessWidget {
   final List<ScoreboardModel> scoreboard;
+  final List<BallByBallModel> ballByBall;
 
-  const ScorecardTab({super.key, required this.scoreboard});
+  const ScorecardTab({
+    super.key,
+    required this.scoreboard,
+    this.ballByBall = const [],
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -51,9 +57,27 @@ class ScorecardTab extends StatelessWidget {
     final bowlers =
         scoreboard.where((s) => s.oversBowled > 0 || s.wickets > 0).toList();
 
+    // Get recent balls (last 6) and this over balls from ball_by_ball data
+    final recentBalls = ballByBall.take(6).toList();
+    final currentOver = _getCurrentOverBalls();
+
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
+        // Recent Balls section
+        if (recentBalls.isNotEmpty) ...[
+          _SectionTitle(title: 'Recent Balls', icon: Icons.timeline),
+          AppSpacing.gapH8,
+          _RecentBallsRow(balls: recentBalls),
+          AppSpacing.gapH24,
+        ],
+        // This Over section
+        if (currentOver.isNotEmpty) ...[
+          _SectionTitle(title: 'This Over', icon: Icons.sports_cricket),
+          AppSpacing.gapH8,
+          _ThisOverRow(balls: currentOver),
+          AppSpacing.gapH24,
+        ],
         // Batting section
         if (batsmen.isNotEmpty) ...[
           _SectionTitle(title: 'Batting', icon: Icons.sports_cricket),
@@ -137,6 +161,17 @@ class ScorecardTab extends StatelessWidget {
       ],
     );
   }
+
+  /// Get all balls in the current (most recent) over.
+  List<BallByBallModel> _getCurrentOverBalls() {
+    if (ballByBall.isEmpty) return [];
+    final currentOver = ballByBall.first.overNumber;
+    return ballByBall
+        .where((b) => b.overNumber == currentOver)
+        .toList()
+        .reversed
+        .toList();
+  }
 }
 
 class _SectionTitle extends StatelessWidget {
@@ -153,6 +188,109 @@ class _SectionTitle extends StatelessWidget {
         AppSpacing.gapW8,
         Text(title, style: AppTypography.titleLarge),
       ],
+    );
+  }
+}
+
+/// Row displaying the last 6 balls.
+class _RecentBallsRow extends StatelessWidget {
+  final List<BallByBallModel> balls;
+
+  const _RecentBallsRow({required this.balls});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: AppSpacing.borderRadiusMd,
+        border: Border.all(color: AppColors.border.withOpacity(0.5)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: balls.map((ball) => _BallChip(ball: ball)).toList(),
+      ),
+    );
+  }
+}
+
+/// Row displaying all balls in the current over.
+class _ThisOverRow extends StatelessWidget {
+  final List<BallByBallModel> balls;
+
+  const _ThisOverRow({required this.balls});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: AppSpacing.borderRadiusMd,
+        border: Border.all(color: AppColors.border.withOpacity(0.5)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Over ${balls.isNotEmpty ? balls.first.overNumber : 0}',
+            style: AppTypography.labelSmall.copyWith(
+              color: AppColors.textSecondary,
+            ),
+          ),
+          AppSpacing.gapH8,
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: balls.map((ball) => _BallChip(ball: ball)).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Single ball chip widget.
+class _BallChip extends StatelessWidget {
+  final BallByBallModel ball;
+
+  const _BallChip({required this.ball});
+
+  Color get _backgroundColor {
+    if (ball.isWicket) return AppColors.error;
+    if (ball.isSix) return AppColors.primary;
+    if (ball.isBoundary) return AppColors.success;
+    if (ball.runs == 0 && ball.extras == 0) {
+      return AppColors.textTertiary.withOpacity(0.2);
+    }
+    return AppColors.secondary.withOpacity(0.1);
+  }
+
+  Color get _textColor {
+    if (ball.isWicket || ball.isSix || ball.isBoundary) return Colors.white;
+    return AppColors.textPrimary;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 36,
+      height: 36,
+      decoration: BoxDecoration(
+        color: _backgroundColor,
+        shape: BoxShape.circle,
+      ),
+      child: Center(
+        child: Text(
+          ball.displayText,
+          style: AppTypography.labelSmall.copyWith(
+            color: _textColor,
+            fontWeight: FontWeight.w600,
+            fontSize: 11,
+          ),
+        ),
+      ),
     );
   }
 }

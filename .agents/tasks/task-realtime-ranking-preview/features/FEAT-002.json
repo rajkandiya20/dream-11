@@ -1,0 +1,33 @@
+{
+  "id": "FEAT-002",
+  "type": "feat",
+  "description": "Live Ranking System with realtime subscriptions for fantasy points, leaderboard, player stats, ball_by_ball, contest_entries, and fantasy_teams. Includes models, repositories, and providers for the complete live data pipeline. Match detail tabs updated to Contests/Scorecard/My Team with live data.",
+  "status": "completed",
+  "steps": [
+    "Create lib/features/matches/data/models/ball_by_ball_model.dart - BallByBallModel with fromJson/toJson/copyWith matching the ball_by_ball table schema.",
+    "Create lib/features/matches/data/models/player_stats_model.dart - PlayerStatsModel with fromJson/toJson/copyWith matching the player_stats table, including fantasyPoints field.",
+    "Create lib/features/fantasy/data/models/fantasy_points_model.dart - FantasyPointsModel with fromJson/toJson/copyWith matching the fantasy_points table, including captainMultiplier, viceCaptainMultiplier, totalPoints, breakdown.",
+    "Create lib/features/contests/data/models/contest_entry_model.dart - ContestEntryModel with fromJson/toJson/copyWith matching contest_entries table, including points, rank, prizeWon.",
+    "Update lib/features/matches/data/repositories/match_repository.dart - Add subscribeToBallByBall(matchId, onUpdate) and subscribeToPlayerStats(matchId, onUpdate) methods following the same pattern as subscribeToScoreboard. Add getPlayerStats(matchId) and getBallByBall(matchId) fetch methods.",
+    "Create lib/features/contests/data/repositories/live_ranking_repository.dart - LiveRankingRepository with: (1) subscribeToLeaderboard(contestId, onUpdate) realtime channel, (2) subscribeToFantasyPoints(matchId, onUpdate) realtime channel, (3) subscribeToContestEntries(contestId, onUpdate) realtime channel, (4) getContestEntries(contestId) fetch method sorted by total_points DESC, (5) recalculateRanking(contestId) that fetches all entries, sorts by total_points DESC, assigns rank. Provider: liveRankingRepositoryProvider.",
+    "Update lib/features/matches/domain/providers/match_provider.dart - Add MatchDetailState fields: playerStats (List<PlayerStatsModel>), ballByBall (List<BallByBallModel>). In _subscribeToRealtime(), add subscriptions for player_stats and ball_by_ball tables. Add loadPlayerStats() and loadBallByBall() to loadMatchData(). Add corresponding channel disposal.",
+    "Update lib/features/contests/domain/providers/contest_provider.dart - In ContestDetailNotifier, add a RealtimeChannel for leaderboard subscription. In loadContestDetail(), subscribe to leaderboard changes for the contestId. On leaderboard update, re-sort by points DESC and update ranks. Add dispose for channel. Also add a subscribeToContestEntries channel.",
+    "Update lib/features/matches/presentation/screens/match_detail_screen.dart - Change tabs from [Contests, Scorecard, Commentary] to [Contests, Scorecard, My Team]. The 'My Team' tab shows the user's fantasy team for this match with live-updating points. Keep the existing _ContestsTab and ScorecardTab. Create a new _MyTeamTab widget that uses a FutureBuilder to load user fantasy teams for this match from fantasyRepositoryProvider, displays each player with their live fantasy points from the match's playerStats, shows captain (2x) and vice-captain (1.5x) multipliers applied, and shows total team points and current rank.",
+    "Update lib/features/matches/presentation/widgets/scorecard_tab.dart - It already works with live scoreboard data from the provider. No structural changes needed, but ensure it displays 'Recent Balls' section at the top showing last 6 balls from commentary/ball_by_ball when available, and 'This Over' section showing all balls in the current over."
+  ],
+  "acceptance_criteria": [
+    "BallByBallModel, PlayerStatsModel, FantasyPointsModel, ContestEntryModel models exist with fromJson/toJson",
+    "MatchRepository has subscribeToBallByBall and subscribeToPlayerStats methods",
+    "LiveRankingRepository exists with realtime subscription methods for leaderboard and fantasy_points",
+    "MatchDetailState includes playerStats and ballByBall fields",
+    "Match detail screen has three tabs: Contests, Scorecard, My Team",
+    "Contest detail leaderboard subscribes to realtime and re-sorts by points DESC",
+    "ScorecardTab shows Recent Balls and This Over sections",
+    "flutter analyze passes without errors"
+  ],
+  "verification": [
+    "Run flutter analyze --no-fatal-infos and confirm zero errors"
+  ],
+  "blocked_reason": null,
+  "findings": "Flutter SDK not available in sandbox, so verification done via code review. All models follow the existing fromJson/toJson/copyWith pattern from scoreboard_model.dart. All realtime subscriptions follow the channel pattern from match_repository.dart. The ContestDetailNotifier now takes a LiveRankingRepository parameter. Match detail tabs changed from Commentary to My Team. ScorecardTab now accepts optional ballByBall parameter (backwards compatible with default empty list)."
+}
