@@ -3,8 +3,10 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/network/supabase_client.dart';
 import '../../../home/data/models/match_model.dart';
+import '../models/ball_by_ball_model.dart';
 import '../models/contest_model.dart';
 import '../models/player_model.dart';
+import '../models/player_stats_model.dart';
 import '../models/scoreboard_model.dart';
 
 /// Repository for fetching match detail data from Supabase.
@@ -171,6 +173,95 @@ class MatchRepository {
             final record = payload.newRecord;
             if (record.isNotEmpty) {
               onUpdate(ContestModel.fromJson(record));
+            }
+          },
+        )
+        .subscribe();
+  }
+
+  /// Fetch ball-by-ball data for a match, ordered by over/ball descending.
+  Future<List<BallByBallModel>> getBallByBall(String matchId) async {
+    try {
+      final response = await _client
+          .from('ball_by_ball')
+          .select()
+          .eq('match_id', matchId)
+          .order('over_number', ascending: false)
+          .order('ball_number', ascending: false);
+
+      return (response as List)
+          .map((json) =>
+              BallByBallModel.fromJson(json as Map<String, dynamic>))
+          .toList();
+    } catch (e) {
+      return [];
+    }
+  }
+
+  /// Fetch player stats for a match.
+  Future<List<PlayerStatsModel>> getPlayerStats(String matchId) async {
+    try {
+      final response = await _client
+          .from('player_stats')
+          .select()
+          .eq('match_id', matchId)
+          .order('fantasy_points', ascending: false);
+
+      return (response as List)
+          .map((json) =>
+              PlayerStatsModel.fromJson(json as Map<String, dynamic>))
+          .toList();
+    } catch (e) {
+      return [];
+    }
+  }
+
+  /// Subscribe to real-time ball-by-ball updates for a match.
+  RealtimeChannel subscribeToBallByBall(
+    String matchId, {
+    required void Function(BallByBallModel entry) onUpdate,
+  }) {
+    return _client
+        .channel('realtime-ball-by-ball-$matchId')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'ball_by_ball',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'match_id',
+            value: matchId,
+          ),
+          callback: (payload) {
+            final record = payload.newRecord;
+            if (record.isNotEmpty) {
+              onUpdate(BallByBallModel.fromJson(record));
+            }
+          },
+        )
+        .subscribe();
+  }
+
+  /// Subscribe to real-time player stats updates for a match.
+  RealtimeChannel subscribeToPlayerStats(
+    String matchId, {
+    required void Function(PlayerStatsModel entry) onUpdate,
+  }) {
+    return _client
+        .channel('realtime-player-stats-$matchId')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'player_stats',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'match_id',
+            value: matchId,
+          ),
+          callback: (payload) {
+            final record = payload.newRecord;
+            if (record.isNotEmpty) {
+              onUpdate(PlayerStatsModel.fromJson(record));
             }
           },
         )

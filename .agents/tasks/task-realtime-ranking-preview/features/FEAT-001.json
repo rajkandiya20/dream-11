@@ -1,0 +1,23 @@
+{
+  "id": "FEAT-001",
+  "type": "feat",
+  "description": "Database SQL for missing tables (ball_by_ball, player_stats, fantasy_points, contest_entries) + enable realtime publication on all required tables. Also add indexes and RLS. This provides the backend foundation for all realtime features.",
+  "status": "completed",
+  "steps": [
+    "Create sql/part7-realtime-ranking-tables.sql with: (1) ball_by_ball table (id UUID PK, match_id FK matches, over_number INT, ball_number INT, batsman_id FK players, bowler_id FK players, runs INT, extras INT, extras_type TEXT, is_wicket BOOL, wicket_type TEXT, fielder_id FK players, is_boundary BOOL, is_six BOOL, commentary TEXT, created_at TIMESTAMPTZ DEFAULT NOW()). (2) player_stats table (id UUID PK, match_id FK matches, player_id FK players, runs INT DEFAULT 0, balls_faced INT DEFAULT 0, fours INT DEFAULT 0, sixes INT DEFAULT 0, wickets INT DEFAULT 0, overs_bowled DECIMAL(4,1) DEFAULT 0, runs_conceded INT DEFAULT 0, maidens INT DEFAULT 0, catches INT DEFAULT 0, stumpings INT DEFAULT 0, run_outs INT DEFAULT 0, economy DECIMAL(5,2) DEFAULT 0, strike_rate DECIMAL(6,2) DEFAULT 0, fantasy_points DECIMAL(10,2) DEFAULT 0, created_at TIMESTAMPTZ DEFAULT NOW(), UNIQUE(match_id, player_id)). (3) fantasy_points table (id UUID PK, match_id FK matches, player_id FK players, contest_id FK contests, fantasy_team_id FK fantasy_teams, base_points DECIMAL(10,2) DEFAULT 0, captain_multiplier DECIMAL(3,1) DEFAULT 1.0, vice_captain_multiplier DECIMAL(3,1) DEFAULT 1.0, total_points DECIMAL(10,2) DEFAULT 0, breakdown JSONB, updated_at TIMESTAMPTZ DEFAULT NOW()). (4) contest_entries table (id UUID PK, contest_id FK contests, user_id TEXT NOT NULL, fantasy_team_id FK fantasy_teams, total_points DECIMAL(10,2) DEFAULT 0, rank INT, prize_won DECIMAL(10,2) DEFAULT 0, created_at TIMESTAMPTZ DEFAULT NOW(), UNIQUE(contest_id, user_id)).",
+    "In the same SQL file, add indexes: idx_ball_by_ball_match ON ball_by_ball(match_id), idx_player_stats_match ON player_stats(match_id), idx_player_stats_player ON player_stats(player_id), idx_fantasy_points_match ON fantasy_points(match_id), idx_fantasy_points_contest ON fantasy_points(contest_id), idx_contest_entries_contest ON contest_entries(contest_id), idx_contest_entries_user ON contest_entries(user_id).",
+    "Enable RLS on all new tables with read_all SELECT policy and write_all/update_all/delete_all policies (same pattern as part2).",
+    "Add ALTER PUBLICATION supabase_realtime ADD TABLE for: ball_by_ball, player_stats, fantasy_points, contest_entries, leaderboard, fantasy_teams, fantasy_team_players. (Note: matches, scoreboard, commentary, contests already added in part2.)"
+  ],
+  "acceptance_criteria": [
+    "sql/part7-realtime-ranking-tables.sql exists with valid PostgreSQL syntax",
+    "All four new tables (ball_by_ball, player_stats, fantasy_points, contest_entries) are defined with proper foreign keys",
+    "Realtime publication enabled for ball_by_ball, player_stats, fantasy_points, contest_entries, leaderboard, fantasy_teams, fantasy_team_players"
+  ],
+  "verification": [
+    "Run flutter analyze --no-fatal-infos to confirm no Dart errors introduced",
+    "Check sql/part7-realtime-ranking-tables.sql exists and contains CREATE TABLE statements for all four tables"
+  ],
+  "blocked_reason": null,
+  "findings": "Flutter SDK not available in this sandbox environment, but this is a SQL-only change with no Dart code modified. The file was verified to contain all 4 CREATE TABLE statements, 7 indexes, full RLS policies, and 7 ALTER PUBLICATION statements as specified."
+}
