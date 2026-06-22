@@ -1,0 +1,31 @@
+{
+  "id": "FEAT-001",
+  "type": "feat",
+  "description": "Create the ball-by-ball scoring data layer: SQL migration for ball_by_ball table, a dedicated ScoringRepository with full ball-by-ball CRUD and scoring logic, a ScoringState and ScoringNotifier provider for live match state management, and scoring models.",
+  "status": "in_progress",
+  "steps": [
+    "Create sql/part7-ball-by-ball-scoring.sql with the ball_by_ball table definition: id (UUID PK), match_id (UUID FK to matches), innings (INTEGER), over_no (INTEGER), ball_no (INTEGER), batsman_id (UUID FK to players), non_striker_id (UUID FK to players), bowler_id (UUID FK to players), runs (INTEGER), extras (INTEGER default 0), extras_type (TEXT nullable - wide/no_ball/bye/leg_bye), is_wicket (BOOLEAN default false), dismissal_type (TEXT nullable), dismissed_player_id (UUID FK nullable), fielder_id (UUID FK nullable), is_legal (BOOLEAN default true), created_at (TIMESTAMPTZ). Add indexes on match_id, batsman_id, bowler_id. Enable realtime.",
+    "Create lib/features/admin/data/models/ball_model.dart - a BallEntry class with all ball_by_ball fields, fromJson/toJson methods.",
+    "Create lib/features/admin/data/models/innings_state.dart - InningsState model holding: current score, wickets, overs (as double e.g. 12.5), current batsman striker info (id, name, runs, balls, fours, sixes), non-striker info, current bowler info (id, name, overs, maidens, runs_conceded, wickets, economy), last 6 balls list, partnership runs/balls, fall_of_wickets list, target (for 2nd innings), toss_winner, elected_to.",
+    "Create lib/features/admin/data/repositories/scoring_repository.dart - ScoringRepository class with SupabaseClient dependency. Methods: insertBall(BallEntry), getBallsForInnings(matchId, innings), getMatchPlayers(matchId), updateMatchScore(matchId, data), updateScoreboard(matchId, playerId, data), undoLastBall(matchId, innings), getInningsState(matchId, innings). Each method has try/catch with debugPrint error logging and never silently fails.",
+    "Create lib/features/admin/domain/providers/scoring_provider.dart - ScoringState class with: matchId, innings (1 or 2), totalRuns, totalWickets, totalOvers (double), currentRunRate, target, requiredRunRate, striker (BatsmanState), nonStriker (BatsmanState), bowler (BowlerState), lastSixBalls (List), partnership, fallOfWickets, isOverComplete, isInningsComplete, teamAPlayers, teamBPlayers, tossWinner, electedTo, matchInfo, isLoading, error. Create ScoringNotifier (StateNotifier<ScoringState>) with methods: initMatch(matchId), recordRun(int runs), recordExtra(String type, int additionalRuns), recordWicket(String dismissalType, {String? dismissedPlayerId, int runsCompleted}), undoLastBall(), changeBowler(String playerId), changeStriker(), endOver(), endInnings(), retiredHurt(String playerId), penaltyRuns(int runs, String team). Provide scoringProvider as StateNotifierProvider.",
+    "Add a scoringRepositoryProvider in the repository file following the pattern of adminRepositoryProvider."
+  ],
+  "acceptance_criteria": [
+    "sql/part7-ball-by-ball-scoring.sql contains a valid CREATE TABLE statement for ball_by_ball with all required columns",
+    "BallEntry model has fromJson/toJson and covers all ball_by_ball table columns",
+    "ScoringRepository has insertBall, getBallsForInnings, undoLastBall methods that interact with Supabase",
+    "ScoringNotifier handles run scoring, extras (wide/no-ball/bye/leg-bye), wickets, undo, end over, end innings",
+    "Fantasy points calculation is integrated: runs=+1, four_bonus=+1, six_bonus=+2, wicket=+25, catch=+8, run_out=+6",
+    "All scoring actions produce debugPrint logs (Ball Saved, Score Updated, Fantasy Updated, Bowler Updated, Batsman Updated)",
+    "Errors from Supabase are surfaced via state.error - never silently fail"
+  ],
+  "verification": [
+    "Verify that all new .dart files have no obvious syntax errors (balanced braces, proper imports)",
+    "Verify that scoring_repository.dart imports supabase_client.dart correctly",
+    "Verify that scoring_provider.dart imports the repository and models",
+    "Verify the SQL file has proper CREATE TABLE with all specified columns"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}

@@ -1,0 +1,27 @@
+{
+  "project_type": "Flutter mobile app - Fantasy Cricket Platform",
+  "language": "Dart/Flutter",
+  "build_system": "Flutter SDK (not available in sandbox PATH), pubspec.yaml for deps",
+  "test_framework": "No test files exist in this project currently",
+  "build_command": "flutter build apk --release (not available in sandbox)",
+  "test_command": "flutter analyze (not available in sandbox)",
+  "verification_instructions": "Since Flutter SDK is not available in the sandbox, verification is limited to static analysis of code structure and ensuring files compile logically (no import errors, proper Dart syntax). Validate that all new files are properly imported and referenced.",
+  "snapshot_or_generated_files": null,
+  "setup_instructions": "Flutter SDK not available in sandbox. Work with source files directly.",
+  "environment_constraints": "INTEGRATIONS_ONLY network mode. No Flutter SDK available. No package install possible. No build/test execution. All verification must be done via code structure analysis.",
+  "contribution_requirements": "Clean Architecture pattern: data/repositories, domain/providers, presentation/screens+widgets. Use Riverpod for state management. Supabase for backend. GoRouter for navigation. Primary color #E11D48 (but user requests #E91E63 for scoring panel). Use AppColors, AppSpacing, AppTypography from core/theme/.",
+  "key_patterns": "AdminRepository class with SupabaseClient for CRUD ops. AdminNotifier (StateNotifier) manages AdminState with per-screen loading. Screens use ConsumerStatefulWidget. Nav drawer links admin screens. SQL schema has scoreboard table (player-level stats per match) and commentary table (ball-level). No ball_by_ball table exists yet.",
+  "relevant_files": [
+    "lib/features/admin/presentation/screens/admin_scoreboard_screen.dart",
+    "lib/features/admin/data/repositories/admin_repository.dart",
+    "lib/features/admin/domain/providers/admin_provider.dart",
+    "lib/features/admin/presentation/widgets/admin_nav_drawer.dart",
+    "lib/core/network/supabase_client.dart",
+    "lib/core/theme/app_colors.dart",
+    "lib/core/theme/app_spacing.dart",
+    "lib/core/theme/app_typography.dart",
+    "lib/core/router/app_router.dart",
+    "sql/part1-drop-and-create-tables.sql"
+  ],
+  "directory_structure": "lib/features/admin/ contains data/repositories/, domain/providers/, presentation/screens/ and presentation/widgets/. Core theme in lib/core/theme/. Router in lib/core/router/. SQL migrations in sql/."
+}

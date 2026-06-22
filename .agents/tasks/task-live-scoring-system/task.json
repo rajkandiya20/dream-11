@@ -1,0 +1,7 @@
+{
+  "task_id": "task-live-scoring-system",
+  "task_description": "Complete rewrite of the admin scoring panel with professional CricHeroes/Cricbuzz-style ball-by-ball live scoring. Includes new ball_by_ball SQL table, dedicated scoring repository and state management, professional UI with quick scoring buttons, extras, wickets, and advanced actions. Fantasy points auto-update on every ball.",
+  "status": "in_progress",
+  "feature_order": ["FEAT-001", "FEAT-002"],
+  "blocked_reason": null
+}
