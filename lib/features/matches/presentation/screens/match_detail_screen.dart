@@ -6,6 +6,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../shared/widgets/shimmer_loading.dart';
+import '../../../auth/domain/providers/auth_provider.dart';
 import '../../../contests/presentation/widgets/contest_card.dart';
 import '../../../fantasy/data/models/fantasy_team_model.dart';
 import '../../../fantasy/data/repositories/fantasy_repository.dart';
@@ -13,6 +14,17 @@ import '../../data/models/player_stats_model.dart';
 import '../../domain/providers/match_provider.dart';
 import '../widgets/match_header.dart';
 import '../widgets/scorecard_tab.dart';
+
+/// Provider that fetches user fantasy teams for a match, keyed by (userId, matchId).
+/// Cached by Riverpod so it does not re-fetch on every widget rebuild.
+final _userTeamsProvider = FutureProvider.family<List<FantasyTeamModel>,
+    ({String userId, String matchId})>((ref, params) async {
+  final repository = ref.watch(fantasyRepositoryProvider);
+  return repository.getUserTeamsForMatch(
+    userId: params.userId,
+    matchId: params.matchId,
+  );
+});
 
 /// Premium match detail screen with header, tabs for contests/scorecard/commentary.
 class MatchDetailScreen extends ConsumerWidget {
@@ -220,20 +232,57 @@ class _MyTeamTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final fantasyRepository = ref.watch(fantasyRepositoryProvider);
+    final authState = ref.watch(authProvider);
+    final userId = authState.user?.uid;
 
-    return FutureBuilder<List<FantasyTeamModel>>(
-      future: fantasyRepository.getUserTeamsForMatch(
-        userId: '', // Will use authenticated user
-        matchId: matchId,
+    if (userId == null || userId.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.lock_outline,
+              size: 64,
+              color: AppColors.textTertiary,
+            ),
+            AppSpacing.gapH16,
+            Text(
+              'Please log in to view your team',
+              style: AppTypography.bodyLarge.copyWith(
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final teamsAsync = ref.watch(
+      _userTeamsProvider((userId: userId, matchId: matchId)),
+    );
+
+    return teamsAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (_, __) => Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.error_outline,
+              size: 64,
+              color: AppColors.textTertiary,
+            ),
+            AppSpacing.gapH16,
+            Text(
+              'Failed to load teams',
+              style: AppTypography.bodyLarge.copyWith(
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ],
+        ),
       ),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        final teams = snapshot.data ?? [];
-
+      data: (teams) {
         if (teams.isEmpty) {
           return Center(
             child: Column(

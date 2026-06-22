@@ -169,6 +169,7 @@ class ContestDetailNotifier extends StateNotifier<ContestDetailState> {
         final list = List<LeaderboardEntry>.from(state.leaderboard);
         final index = list.indexWhere((e) => e.userId == entry.userId);
         if (index >= 0) {
+          // Update existing entry
           list[index] = LeaderboardEntry(
             id: list[index].id,
             contestId: list[index].contestId,
@@ -179,6 +180,18 @@ class ContestDetailNotifier extends StateNotifier<ContestDetailState> {
             prizeWon: entry.prizeWon,
             user: list[index].user,
           );
+        } else {
+          // Add new entry (INSERT event - new user joined mid-session)
+          list.add(LeaderboardEntry(
+            id: entry.id,
+            contestId: entry.contestId,
+            userId: entry.userId,
+            fantasyTeamId: entry.fantasyTeamId,
+            points: entry.totalPoints,
+            rank: list.length + 1,
+            prizeWon: entry.prizeWon,
+            user: null,
+          ));
         }
         // Sort by points DESC
         list.sort((a, b) => b.points.compareTo(a.points));

@@ -21,7 +21,7 @@ class LiveRankingRepository {
         .onPostgresChanges(
           event: PostgresChangeEvent.all,
           schema: 'public',
-          table: 'contest_entries',
+          table: 'leaderboard',
           filter: PostgresChangeFilter(
             type: PostgresChangeFilterType.eq,
             column: 'contest_id',

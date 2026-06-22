@@ -6,7 +6,7 @@ class ContestEntryModel {
   final String id;
   final String contestId;
   final String userId;
-  final String? fantasyTeamId;
+  final String fantasyTeamId;
   final double totalPoints;
   final int? rank;
   final double prizeWon;
@@ -16,7 +16,7 @@ class ContestEntryModel {
     required this.id,
     required this.contestId,
     required this.userId,
-    this.fantasyTeamId,
+    required this.fantasyTeamId,
     this.totalPoints = 0.0,
     this.rank,
     this.prizeWon = 0.0,
@@ -29,7 +29,7 @@ class ContestEntryModel {
       id: json['id'] as String? ?? '',
       contestId: json['contest_id'] as String? ?? '',
       userId: json['user_id'] as String? ?? '',
-      fantasyTeamId: json['fantasy_team_id'] as String?,
+      fantasyTeamId: json['fantasy_team_id'] as String? ?? '',
       totalPoints: (json['total_points'] as num?)?.toDouble() ?? 0.0,
       rank: json['rank'] as int?,
       prizeWon: (json['prize_won'] as num?)?.toDouble() ?? 0.0,
@@ -45,7 +45,7 @@ class ContestEntryModel {
       'id': id,
       'contest_id': contestId,
       'user_id': userId,
-      if (fantasyTeamId != null) 'fantasy_team_id': fantasyTeamId,
+      'fantasy_team_id': fantasyTeamId,
       'total_points': totalPoints,
       if (rank != null) 'rank': rank,
       'prize_won': prizeWon,

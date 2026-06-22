@@ -1,0 +1,25 @@
+{
+  "id": "FEAT-004",
+  "type": "fix",
+  "description": "Fix review issues: empty userId in My Team tab, duplicate contest_entries subscriptions, fantasyTeamId nullability mismatch, leaderboard not handling new entries, FutureBuilder rebuild issue.",
+  "status": "in_progress",
+  "steps": [
+    "Fix empty userId in _MyTeamTab - use Firebase Auth currentUser?.uid via authProvider",
+    "Fix duplicate subscriptions in LiveRankingRepository - subscribeToLeaderboard should watch 'leaderboard' table",
+    "Fix ContestEntryModel.fantasyTeamId to be non-nullable String with empty string fallback",
+    "Fix leaderboard update callback in ContestDetailNotifier to handle INSERT events (new entries)",
+    "Replace FutureBuilder in _MyTeamTab with a FutureProvider.family to avoid re-fetching on every rebuild"
+  ],
+  "acceptance_criteria": [
+    "My Team tab uses the authenticated user's uid from Firebase Auth",
+    "subscribeToLeaderboard watches the 'leaderboard' table, not 'contest_entries'",
+    "ContestEntryModel.fantasyTeamId is String (non-nullable) and toJson always includes it",
+    "Leaderboard update callback adds new entries when userId not found in current list",
+    "My Team tab uses a cached provider instead of creating a new future on every build"
+  ],
+  "verification": [
+    "Code review to confirm all fixes are correct since flutter SDK is not available"
+  ],
+  "blocked_reason": null,
+  "findings": null
+}
