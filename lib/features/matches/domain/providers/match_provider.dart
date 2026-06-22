@@ -2,8 +2,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../home/data/models/match_model.dart';
+import '../../data/models/ball_by_ball_model.dart';
 import '../../data/models/contest_model.dart';
 import '../../data/models/player_model.dart';
+import '../../data/models/player_stats_model.dart';
 import '../../data/models/scoreboard_model.dart';
 import '../../data/repositories/match_repository.dart';
 
@@ -14,6 +16,8 @@ class MatchDetailState {
   final List<PlayerModel> players;
   final List<ScoreboardModel> scoreboard;
   final List<CommentaryModel> commentary;
+  final List<PlayerStatsModel> playerStats;
+  final List<BallByBallModel> ballByBall;
   final bool isLoading;
   final String? errorMessage;
 
@@ -23,6 +27,8 @@ class MatchDetailState {
     this.players = const [],
     this.scoreboard = const [],
     this.commentary = const [],
+    this.playerStats = const [],
+    this.ballByBall = const [],
     this.isLoading = false,
     this.errorMessage,
   });
@@ -33,6 +39,8 @@ class MatchDetailState {
     List<PlayerModel>? players,
     List<ScoreboardModel>? scoreboard,
     List<CommentaryModel>? commentary,
+    List<PlayerStatsModel>? playerStats,
+    List<BallByBallModel>? ballByBall,
     bool? isLoading,
     String? errorMessage,
   }) {
@@ -42,6 +50,8 @@ class MatchDetailState {
       players: players ?? this.players,
       scoreboard: scoreboard ?? this.scoreboard,
       commentary: commentary ?? this.commentary,
+      playerStats: playerStats ?? this.playerStats,
+      ballByBall: ballByBall ?? this.ballByBall,
       isLoading: isLoading ?? this.isLoading,
       errorMessage: errorMessage,
     );
@@ -57,6 +67,8 @@ class MatchDetailNotifier extends StateNotifier<MatchDetailState> {
   RealtimeChannel? _scoreboardChannel;
   RealtimeChannel? _commentaryChannel;
   RealtimeChannel? _contestsChannel;
+  RealtimeChannel? _playerStatsChannel;
+  RealtimeChannel? _ballByBallChannel;
 
   MatchDetailNotifier(this._repository, this.matchId)
       : super(const MatchDetailState()) {
@@ -74,6 +86,8 @@ class MatchDetailNotifier extends StateNotifier<MatchDetailState> {
         _repository.getPlayersByMatch(matchId),
         _repository.getScoreboard(matchId),
         _repository.getCommentary(matchId),
+        _repository.getPlayerStats(matchId),
+        _repository.getBallByBall(matchId),
       ]);
 
       final match = results[0] as MatchModel?;
@@ -83,6 +97,8 @@ class MatchDetailNotifier extends StateNotifier<MatchDetailState> {
         players: results[2] as List<PlayerModel>,
         scoreboard: results[3] as List<ScoreboardModel>,
         commentary: results[4] as List<CommentaryModel>,
+        playerStats: results[5] as List<PlayerStatsModel>,
+        ballByBall: results[6] as List<BallByBallModel>,
         isLoading: false,
       );
 
@@ -135,6 +151,30 @@ class MatchDetailNotifier extends StateNotifier<MatchDetailState> {
         state = state.copyWith(contests: list);
       },
     );
+
+    _playerStatsChannel = _repository.subscribeToPlayerStats(
+      matchId,
+      onUpdate: (entry) {
+        final list = List<PlayerStatsModel>.from(state.playerStats);
+        final index = list.indexWhere((s) => s.id == entry.id);
+        if (index >= 0) {
+          list[index] = entry;
+        } else {
+          list.insert(0, entry);
+        }
+        list.sort((a, b) => b.fantasyPoints.compareTo(a.fantasyPoints));
+        state = state.copyWith(playerStats: list);
+      },
+    );
+
+    _ballByBallChannel = _repository.subscribeToBallByBall(
+      matchId,
+      onUpdate: (entry) {
+        final list = List<BallByBallModel>.from(state.ballByBall);
+        list.insert(0, entry);
+        state = state.copyWith(ballByBall: list);
+      },
+    );
   }
 
   /// Refresh match data.
@@ -152,6 +192,12 @@ class MatchDetailNotifier extends StateNotifier<MatchDetailState> {
     }
     if (_contestsChannel != null) {
       _repository.unsubscribe(_contestsChannel!);
+    }
+    if (_playerStatsChannel != null) {
+      _repository.unsubscribe(_playerStatsChannel!);
+    }
+    if (_ballByBallChannel != null) {
+      _repository.unsubscribe(_ballByBallChannel!);
     }
     super.dispose();
   }
@@ -180,4 +226,16 @@ final matchScoreboardProvider =
 final matchCommentaryProvider =
     Provider.family<List<CommentaryModel>, String>((ref, matchId) {
   return ref.watch(matchDetailProvider(matchId)).commentary;
+});
+
+/// Provider for match player stats only.
+final matchPlayerStatsProvider =
+    Provider.family<List<PlayerStatsModel>, String>((ref, matchId) {
+  return ref.watch(matchDetailProvider(matchId)).playerStats;
+});
+
+/// Provider for match ball-by-ball data only.
+final matchBallByBallProvider =
+    Provider.family<List<BallByBallModel>, String>((ref, matchId) {
+  return ref.watch(matchDetailProvider(matchId)).ballByBall;
 });

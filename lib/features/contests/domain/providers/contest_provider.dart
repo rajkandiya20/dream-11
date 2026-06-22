@@ -1,7 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../matches/data/models/contest_model.dart';
+import '../../data/models/contest_entry_model.dart';
 import '../../data/repositories/contest_repository.dart';
+import '../../data/repositories/live_ranking_repository.dart';
 
 /// State for contest list screen.
 class ContestListState {
@@ -110,11 +113,18 @@ class ContestDetailState {
 /// Notifier for contest detail.
 class ContestDetailNotifier extends StateNotifier<ContestDetailState> {
   final ContestRepository _repository;
+  final LiveRankingRepository _liveRankingRepository;
   final String contestId;
   final String? userId;
+  RealtimeChannel? _leaderboardChannel;
+  RealtimeChannel? _contestEntriesChannel;
 
-  ContestDetailNotifier(this._repository, this.contestId, this.userId)
-      : super(const ContestDetailState()) {
+  ContestDetailNotifier(
+    this._repository,
+    this._liveRankingRepository,
+    this.contestId,
+    this.userId,
+  ) : super(const ContestDetailState()) {
     loadContestDetail();
   }
 
@@ -139,12 +149,67 @@ class ContestDetailNotifier extends StateNotifier<ContestDetailState> {
         hasJoined: results.length > 2 ? results[2] as bool : false,
         isLoading: false,
       );
+
+      // Subscribe to realtime leaderboard updates
+      _subscribeToRealtime();
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
         errorMessage: 'Failed to load contest details.',
       );
     }
+  }
+
+  /// Subscribe to realtime leaderboard and contest entries changes.
+  void _subscribeToRealtime() {
+    _leaderboardChannel = _liveRankingRepository.subscribeToLeaderboard(
+      contestId,
+      onUpdate: (entry) {
+        // Re-sort leaderboard by points DESC and update ranks
+        final list = List<LeaderboardEntry>.from(state.leaderboard);
+        final index = list.indexWhere((e) => e.userId == entry.userId);
+        if (index >= 0) {
+          list[index] = LeaderboardEntry(
+            id: list[index].id,
+            contestId: list[index].contestId,
+            userId: list[index].userId,
+            fantasyTeamId: list[index].fantasyTeamId,
+            points: entry.totalPoints,
+            rank: list[index].rank,
+            prizeWon: entry.prizeWon,
+            user: list[index].user,
+          );
+        }
+        // Sort by points DESC
+        list.sort((a, b) => b.points.compareTo(a.points));
+        // Re-assign ranks
+        for (int i = 0; i < list.length; i++) {
+          list[i] = LeaderboardEntry(
+            id: list[i].id,
+            contestId: list[i].contestId,
+            userId: list[i].userId,
+            fantasyTeamId: list[i].fantasyTeamId,
+            points: list[i].points,
+            rank: i + 1,
+            prizeWon: list[i].prizeWon,
+            user: list[i].user,
+          );
+        }
+        state = state.copyWith(leaderboard: list);
+      },
+    );
+
+    _contestEntriesChannel = _liveRankingRepository.subscribeToContestEntries(
+      contestId,
+      onUpdate: (entry) {
+        // Refresh leaderboard when contest entries change
+        _repository.getLeaderboard(contestId).then((leaderboard) {
+          if (mounted) {
+            state = state.copyWith(leaderboard: leaderboard);
+          }
+        });
+      },
+    );
   }
 
   /// Join contest with a fantasy team.
@@ -169,6 +234,17 @@ class ContestDetailNotifier extends StateNotifier<ContestDetailState> {
   Future<void> refresh() async {
     await loadContestDetail();
   }
+
+  @override
+  void dispose() {
+    if (_leaderboardChannel != null) {
+      _liveRankingRepository.unsubscribe(_leaderboardChannel!);
+    }
+    if (_contestEntriesChannel != null) {
+      _liveRankingRepository.unsubscribe(_contestEntriesChannel!);
+    }
+    super.dispose();
+  }
 }
 
 /// Family provider for contest list keyed by matchId.
@@ -182,6 +258,7 @@ final contestListProvider = StateNotifierProvider.family<ContestListNotifier,
 final contestDetailProvider = StateNotifierProvider.family<
     ContestDetailNotifier, ContestDetailState, String>((ref, contestId) {
   final repository = ref.watch(contestRepositoryProvider);
+  final liveRankingRepository = ref.watch(liveRankingRepositoryProvider);
   // Get user ID from auth state if available.
-  return ContestDetailNotifier(repository, contestId, null);
+  return ContestDetailNotifier(repository, liveRankingRepository, contestId, null);
 });
