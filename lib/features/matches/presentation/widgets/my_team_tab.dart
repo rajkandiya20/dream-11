@@ -108,7 +108,7 @@ class MyTeamTab extends ConsumerWidget {
                 child: OutlinedButton.icon(
                   onPressed: () => context.push('/create-team/$matchId'),
                   icon: const Icon(Icons.add),
-                  label: const Text('Edit Team'),
+                  label: const Text('Create New Team'),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppColors.primary,
                     padding: const EdgeInsets.symmetric(vertical: 12),

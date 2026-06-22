@@ -8,7 +8,9 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/cached_image.dart';
+import '../../../auth/domain/providers/auth_provider.dart';
 import '../../../matches/data/models/player_model.dart';
+import '../../../matches/domain/providers/match_provider.dart';
 import '../../domain/providers/fantasy_provider.dart';
 
 /// Captain and vice-captain selection screen with multiplier info.
@@ -269,6 +271,13 @@ class _BottomBar extends ConsumerWidget {
 
                       if (result != null) {
                         debugPrint('[CaptainSelection] Team saved successfully: ${result.id}');
+                        // Invalidate cached teams so My Team tab picks up the new team
+                        final user = ref.read(currentUserProvider);
+                        if (user != null) {
+                          ref.invalidate(userTeamsForMatchProvider(
+                            (matchId: matchId, userId: user.uid),
+                          ));
+                        }
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(

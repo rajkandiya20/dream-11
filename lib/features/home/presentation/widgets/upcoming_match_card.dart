@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
@@ -225,7 +224,6 @@ class _TeamLogo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    debugPrint('[_TeamLogo] flag: $flag, code: $code');
     if (flag != null && flag!.isNotEmpty) {
       return CachedImage(
         imageUrl: flag!,
