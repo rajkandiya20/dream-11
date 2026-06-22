@@ -1,9 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/theme/app_colors.dart';
 import '../../domain/providers/admin_provider.dart';
+import '../../domain/providers/scoring_provider.dart';
 import '../widgets/admin_nav_drawer.dart';
+import '../widgets/scoring/advanced_actions_widget.dart';
+import '../widgets/scoring/batsman_section_widget.dart';
+import '../widgets/scoring/bowler_section_widget.dart';
+import '../widgets/scoring/extras_buttons_widget.dart';
+import '../widgets/scoring/last_balls_widget.dart';
+import '../widgets/scoring/live_scorecard_widget.dart';
+import '../widgets/scoring/match_header_widget.dart';
+import '../widgets/scoring/run_buttons_widget.dart';
+import '../widgets/scoring/select_batsman_dialog.dart';
+import '../widgets/scoring/select_bowler_dialog.dart';
+import '../widgets/scoring/wicket_buttons_widget.dart';
 
 class AdminScoreboardScreen extends ConsumerStatefulWidget {
   const AdminScoreboardScreen({super.key});
@@ -15,14 +26,9 @@ class AdminScoreboardScreen extends ConsumerStatefulWidget {
 
 class _AdminScoreboardScreenState
     extends ConsumerState<AdminScoreboardScreen> {
-  bool _loading = false;
-  List<Map<String, dynamic>> _matches = [];
-  List<Map<String, dynamic>> _scoreboard = [];
   String? _selectedMatchId;
-
-  // Toss fields
-  String? _tossWinner;
-  bool _batFirst = true;
+  List<Map<String, dynamic>> _matches = [];
+  bool _matchInitialized = false;
 
   @override
   void initState() {
@@ -33,567 +39,327 @@ class _AdminScoreboardScreenState
   Future<void> _loadMatches() async {
     await ref.read(adminProvider.notifier).loadMatches();
     final s = ref.read(adminProvider);
+    if (mounted) {
+      setState(() {
+        _matches = s.matches;
+      });
+    }
+  }
+
+  Future<void> _initMatch(String matchId) async {
     setState(() {
-      _matches = s.matches;
+      _selectedMatchId = matchId;
+      _matchInitialized = false;
     });
-  }
-
-  Future<void> _loadScoreboard() async {
-    if (_selectedMatchId == null) return;
-    setState(() => _loading = true);
-    try {
-      await ref.read(adminProvider.notifier).loadScoreboard(_selectedMatchId!);
-      final s = ref.read(adminProvider);
-      setState(() {
-        _scoreboard = s.scoreboard;
-        _loading = false;
-      });
-    } catch (e) {
-      setState(() {
-        _scoreboard = [];
-        _loading = false;
-      });
+    await ref.read(scoringProvider.notifier).initMatch(matchId);
+    if (mounted) {
+      setState(() => _matchInitialized = true);
     }
   }
 
-  double _calcFantasyPoints(Map<String, dynamic> entry) {
-    final runs = (entry['runs'] as num?)?.toDouble() ?? 0;
-    final fours = (entry['fours'] as num?)?.toDouble() ?? 0;
-    final sixes = (entry['sixes'] as num?)?.toDouble() ?? 0;
-    final wickets = (entry['wickets'] as num?)?.toDouble() ?? 0;
-    final catches = (entry['catches'] as num?)?.toDouble() ?? 0;
-    final stumpings = (entry['stumpings'] as num?)?.toDouble() ?? 0;
-    final runOuts = (entry['run_outs'] as num?)?.toDouble() ?? 0;
-
-    double points = 0;
-    points += runs * 1;
-    points += fours * 1;
-    points += sixes * 2;
-    points += wickets * 25;
-    points += catches * 8;
-    points += stumpings * 12;
-    points += runOuts * 6;
-
-    return points;
-  }
-
-  double _calcStrikeRate(num runs, num balls) {
-    if (balls == 0) return 0;
-    return (runs / balls) * 100;
-  }
-
-  double _calcEconomy(num runsConceded, num oversBowled) {
-    if (oversBowled == 0) return 0;
-    return runsConceded / oversBowled;
-  }
-
-  void _snack(String msg) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    double totalRuns = 0;
-    double totalOvers = 0;
-    int totalWickets = 0;
-
-    for (final entry in _scoreboard) {
-      totalRuns += (entry['runs'] as num?)?.toDouble() ?? 0;
-      totalOvers += (entry['overs'] as num?)?.toDouble() ?? 0;
-      totalWickets += (entry['wickets'] as num?)?.toInt() ?? 0;
-    }
-
-    final currentRunRate = totalOvers > 0 ? totalRuns / totalOvers : 0.0;
-
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
-      drawer: const AdminNavDrawer(currentRoute: '/admin/scoreboard'),
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: Builder(
-          builder: (ctx) => IconButton(
-            icon: const Icon(Icons.menu, color: Color(0xFF0F172A)),
-            onPressed: () => Scaffold.of(ctx).openDrawer(),
-          ),
-        ),
-        title: const Text(
-          'Scoreboard',
-          style: TextStyle(
-            color: Color(0xFF0F172A),
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh, color: Color(0xFF0F172A)),
-            onPressed: _loadScoreboard,
-          ),
-          const SizedBox(width: 4),
-        ],
-      ),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            // Match dropdown
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-              child: DropdownButtonFormField<String>(
-                value: _selectedMatchId,
-                decoration: const InputDecoration(
-                  labelText: 'Select Match',
-                  border: OutlineInputBorder(),
-                ),
-                items: _matches
-                    .map((m) => DropdownMenuItem<String>(
-                          value: m['id'] as String,
-                          child: Text(
-                            '${m['team_a_name'] ?? '-'} vs ${m['team_b_name'] ?? '-'}',
-                          ),
-                        ))
-                    .toList(),
-                onChanged: (v) {
-                  setState(() => _selectedMatchId = v);
-                  _loadScoreboard();
-                },
-              ),
-            ),
-
-            if (_selectedMatchId != null) ...[
-              // Toss section
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-                child: Card(
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Toss',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 16,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        DropdownButtonFormField<String>(
-                          value: _tossWinner,
-                          decoration: const InputDecoration(
-                            labelText: 'Toss Winner',
-                            border: OutlineInputBorder(),
-                          ),
-                          items: _getTeamNames()
-                              .map((name) => DropdownMenuItem(
-                                    value: name,
-                                    child: Text(name),
-                                  ))
-                              .toList(),
-                          onChanged: (v) =>
-                              setState(() => _tossWinner = v),
-                        ),
-                        const SizedBox(height: 12),
-                        SwitchListTile(
-                          title: const Text('Bat First'),
-                          value: _batFirst,
-                          onChanged: (v) =>
-                              setState(() => _batFirst = v),
-                          activeColor: AppColors.primary,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-
-              // Stats summary
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                child: Card(
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Match Stats',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 16,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        _statRow('Current Run Rate',
-                            currentRunRate.toStringAsFixed(2)),
-                        _statRow(
-                            'Total Runs', totalRuns.toStringAsFixed(0)),
-                        _statRow(
-                            'Total Overs', totalOvers.toStringAsFixed(1)),
-                        _statRow('Total Wickets', '$totalWickets'),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-
-              // Add score entry button
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(16),
-                child: ElevatedButton.icon(
-                  onPressed: _showAddScoreDialog,
-                  icon: const Icon(Icons.add, color: Colors.white),
-                  label: const Text(
-                    '+ Add Score Entry',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 16,
-                    ),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                ),
-              ),
-
-              // Player scores list
-              if (_loading)
-                const Padding(
-                  padding: EdgeInsets.all(32),
-                  child: Center(
-                    child: CircularProgressIndicator(
-                      color: Color(0xFFE11D48),
-                    ),
-                  ),
-                )
-              else if (_scoreboard.isEmpty)
-                _buildEmpty()
-              else
-                ..._scoreboard
-                    .map((entry) => _buildScoreCard(entry))
-                    .toList(),
-            ] else
-              _buildEmpty(),
-          ],
-        ),
-      ),
-    );
-  }
-
-  List<String> _getTeamNames() {
-    if (_selectedMatchId == null) return [];
+  String _getTeamAName() {
+    if (_selectedMatchId == null) return 'Team A';
     final match = _matches.firstWhere(
       (m) => m['id'] == _selectedMatchId,
       orElse: () => <String, dynamic>{},
     );
-    final teamA = match['team_a_name'] as String? ?? 'Team A';
-    final teamB = match['team_b_name'] as String? ?? 'Team B';
-    return [teamA, teamB];
+    return match['team_a_name'] as String? ?? 'Team A';
   }
 
-  Widget _statRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: const TextStyle(color: Color(0xFF64748B))),
-          Text(
-            value,
-            style: const TextStyle(fontWeight: FontWeight.w600),
+  String _getTeamBName() {
+    if (_selectedMatchId == null) return 'Team B';
+    final match = _matches.firstWhere(
+      (m) => m['id'] == _selectedMatchId,
+      orElse: () => <String, dynamic>{},
+    );
+    return match['team_b_name'] as String? ?? 'Team B';
+  }
+
+  String? _getTournamentName() {
+    if (_selectedMatchId == null) return null;
+    final match = _matches.firstWhere(
+      (m) => m['id'] == _selectedMatchId,
+      orElse: () => <String, dynamic>{},
+    );
+    return match['tournament_name'] as String?;
+  }
+
+  void _showError(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: const Color(0xFFF44336),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  void _handleRunTapped(int runs) {
+    final scoring = ref.read(scoringProvider);
+    if (scoring.striker == null) {
+      _showSelectStrikerDialog();
+      return;
+    }
+    if (scoring.bowler == null) {
+      _showSelectBowlerDialog();
+      return;
+    }
+    ref.read(scoringProvider.notifier).recordRun(runs);
+  }
+
+  void _handleExtraTapped(String type, int additionalRuns) {
+    final scoring = ref.read(scoringProvider);
+    if (scoring.striker == null) {
+      _showSelectStrikerDialog();
+      return;
+    }
+    if (scoring.bowler == null) {
+      _showSelectBowlerDialog();
+      return;
+    }
+    ref.read(scoringProvider.notifier).recordExtra(type, additionalRuns);
+  }
+
+  void _handleWicketTapped(String dismissalType) {
+    final scoring = ref.read(scoringProvider);
+    if (scoring.striker == null) {
+      _showSelectStrikerDialog();
+      return;
+    }
+    if (scoring.bowler == null) {
+      _showSelectBowlerDialog();
+      return;
+    }
+
+    // For caught and run out, show fielder selection first
+    if (dismissalType == 'caught' || dismissalType == 'run_out') {
+      _showFielderSelectionDialog(dismissalType);
+    } else {
+      ref
+          .read(scoringProvider.notifier)
+          .recordWicket(dismissalType)
+          .then((_) => _promptNextBatsman());
+    }
+  }
+
+  void _showFielderSelectionDialog(String dismissalType) {
+    final scoring = ref.read(scoringProvider);
+    // Fielding team players (opposite of batting team)
+    final fieldingPlayers = scoring.innings == 1
+        ? scoring.teamBPlayers
+        : scoring.teamAPlayers;
+
+    SelectBowlerDialog.show(
+      context: context,
+      players: fieldingPlayers,
+      title: 'Select Fielder',
+      onSelected: (fielderId, _) {
+        ref
+            .read(scoringProvider.notifier)
+            .recordWicket(dismissalType, fielderId: fielderId)
+            .then((_) => _promptNextBatsman());
+      },
+    );
+  }
+
+  void _promptNextBatsman() {
+    final scoring = ref.read(scoringProvider);
+    if (scoring.isInningsComplete) return;
+
+    // Get batting team players
+    final battingPlayers = scoring.innings == 1
+        ? scoring.teamAPlayers
+        : scoring.teamBPlayers;
+
+    if (battingPlayers.isEmpty) return;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      SelectBatsmanDialog.show(
+        context: context,
+        players: battingPlayers,
+        title: 'Select Next Batsman',
+        onSelected: (playerId, playerName) {
+          ref.read(scoringProvider.notifier).setStriker(playerId, playerName);
+        },
+      );
+    });
+  }
+
+  void _showSelectStrikerDialog() {
+    final scoring = ref.read(scoringProvider);
+    final battingPlayers = scoring.innings == 1
+        ? scoring.teamAPlayers
+        : scoring.teamBPlayers;
+
+    SelectBatsmanDialog.show(
+      context: context,
+      players: battingPlayers,
+      title: 'Select Striker',
+      onSelected: (playerId, playerName) {
+        ref.read(scoringProvider.notifier).setStriker(playerId, playerName);
+      },
+    );
+  }
+
+  void _showSelectNonStrikerDialog() {
+    final scoring = ref.read(scoringProvider);
+    final battingPlayers = scoring.innings == 1
+        ? scoring.teamAPlayers
+        : scoring.teamBPlayers;
+
+    SelectBatsmanDialog.show(
+      context: context,
+      players: battingPlayers,
+      title: 'Select Non-Striker',
+      onSelected: (playerId, playerName) {
+        ref.read(scoringProvider.notifier).setNonStriker(playerId, playerName);
+      },
+    );
+  }
+
+  void _showSelectBowlerDialog() {
+    final scoring = ref.read(scoringProvider);
+    // Bowling team is opposite of batting team
+    final bowlingPlayers = scoring.innings == 1
+        ? scoring.teamBPlayers
+        : scoring.teamAPlayers;
+
+    SelectBowlerDialog.show(
+      context: context,
+      players: bowlingPlayers,
+      title: 'Select Bowler',
+      onSelected: (playerId, playerName) {
+        ref.read(scoringProvider.notifier).changeBowler(playerId);
+      },
+    );
+  }
+
+  void _handleEndOver() {
+    ref.read(scoringProvider.notifier).endOver();
+    _showSelectBowlerDialog();
+  }
+
+  void _handleEndInnings() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text(
+          'End Innings?',
+          style: TextStyle(fontWeight: FontWeight.w700),
+        ),
+        content: const Text(
+          'Are you sure you want to end this innings?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFE91E63),
+            ),
+            onPressed: () {
+              Navigator.pop(ctx);
+              ref.read(scoringProvider.notifier).endInnings();
+            },
+            child: const Text(
+              'End Innings',
+              style: TextStyle(color: Colors.white),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildEmpty() => Padding(
-        padding: const EdgeInsets.all(24),
-        child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(
-                Icons.scoreboard,
-                size: 64,
-                color: Color(0xFFE11D48),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                _selectedMatchId == null
-                    ? 'No Scoreboard Entries Found'
-                    : 'No Scoreboard Entries Found',
-                style: const TextStyle(
-                    fontWeight: FontWeight.w700, fontSize: 20),
-              ),
-            ],
+  void _handleRetiredHurt() {
+    final scoring = ref.read(scoringProvider);
+    final options = <Map<String, String>>[];
+    if (scoring.striker != null) {
+      options.add({'id': scoring.striker!.id, 'name': scoring.striker!.name});
+    }
+    if (scoring.nonStriker != null) {
+      options.add({
+        'id': scoring.nonStriker!.id,
+        'name': scoring.nonStriker!.name,
+      });
+    }
+
+    if (options.isEmpty) {
+      _showError('No batsman currently batting');
+      return;
+    }
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text(
+          'Retired Hurt',
+          style: TextStyle(fontWeight: FontWeight.w700),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: options.map((p) {
+            return ListTile(
+              title: Text(p['name'] ?? ''),
+              onTap: () {
+                Navigator.pop(ctx);
+                ref.read(scoringProvider.notifier).retiredHurt(p['id']!);
+                _promptNextBatsman();
+              },
+            );
+          }).toList(),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
           ),
-        ),
-      );
-
-  Widget _buildScoreCard(Map<String, dynamic> entry) {
-    final player = entry['player'] as Map<String, dynamic>?;
-    final playerName = player?['name'] ?? 'Unknown';
-    final playerRole = player?['role'] ?? '';
-    final runs = (entry['runs'] as num?)?.toInt() ?? 0;
-    final balls = (entry['balls_faced'] as num?)?.toInt() ?? 0;
-    final wickets = (entry['wickets'] as num?)?.toInt() ?? 0;
-    final overs = (entry['overs'] as num?)?.toDouble() ?? 0;
-    final fours = (entry['fours'] as num?)?.toInt() ?? 0;
-    final sixes = (entry['sixes'] as num?)?.toInt() ?? 0;
-    final strikeRate = _calcStrikeRate(runs, balls);
-    final economy = _calcEconomy(
-      (entry['runs_conceded'] as num?)?.toDouble() ?? 0,
-      overs,
-    );
-    final fantasyPoints = _calcFantasyPoints(entry);
-
-    return Card(
-      margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  playerName,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 15,
-                  ),
-                ),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFE11D48).withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    '${fantasyPoints.toStringAsFixed(0)} pts',
-                    style: const TextStyle(
-                      color: Color(0xFFE11D48),
-                      fontWeight: FontWeight.w700,
-                      fontSize: 12,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            if (playerRole.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 2),
-                child: Text(
-                  playerRole,
-                  style: const TextStyle(
-                    color: Color(0xFF64748B),
-                    fontSize: 12,
-                  ),
-                ),
-              ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 16,
-              runSpacing: 4,
-              children: [
-                _miniStat('R', '$runs'),
-                _miniStat('B', '$balls'),
-                _miniStat('4s', '$fours'),
-                _miniStat('6s', '$sixes'),
-                _miniStat('W', '$wickets'),
-                _miniStat('Ov', overs.toStringAsFixed(1)),
-                _miniStat('SR', strikeRate.toStringAsFixed(1)),
-                _miniStat('Eco', economy.toStringAsFixed(2)),
-              ],
-            ),
-          ],
-        ),
+        ],
       ),
     );
   }
 
-  Widget _miniStat(String label, String value) {
-    return Column(
-      children: [
-        Text(
-          value,
-          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
-        ),
-        Text(
-          label,
-          style: const TextStyle(color: Color(0xFF64748B), fontSize: 10),
-        ),
-      ],
-    );
-  }
-
-  void _showAddScoreDialog() {
-    final runsCtrl = TextEditingController(text: '0');
-    final wicketsCtrl = TextEditingController(text: '0');
-    final oversCtrl = TextEditingController(text: '0');
-    final ballsCtrl = TextEditingController(text: '0');
-    final extrasCtrl = TextEditingController(text: '0');
-    final foursCtrl = TextEditingController(text: '0');
-    final sixesCtrl = TextEditingController(text: '0');
-    final runsConcededCtrl = TextEditingController(text: '0');
-    final catchesCtrl = TextEditingController(text: '0');
-    final stumpingsCtrl = TextEditingController(text: '0');
-    final runOutsCtrl = TextEditingController(text: '0');
-    String? selectedPlayerId;
-
-    final players = _scoreboard
-        .where((e) => e['player'] != null)
-        .map((e) => {
-              'id': e['player_id'],
-              'name': (e['player'] as Map)['name'],
-            })
-        .toList();
+  void _handlePenaltyRuns() {
+    final runsCtrl = TextEditingController(text: '5');
+    String team = 'batting';
 
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setS) => AlertDialog(
           title: const Text(
-            'Add Score Entry',
+            'Penalty Runs',
             style: TextStyle(fontWeight: FontWeight.w700),
           ),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (players.isNotEmpty)
-                  DropdownButtonFormField<String>(
-                    value: selectedPlayerId,
-                    decoration: const InputDecoration(
-                      labelText: 'Player',
-                      border: OutlineInputBorder(),
-                    ),
-                    items: players
-                        .map((p) => DropdownMenuItem<String>(
-                              value: p['id'] as String?,
-                              child: Text(p['name']?.toString() ?? '-'),
-                            ))
-                        .toList(),
-                    onChanged: (v) => setS(() => selectedPlayerId = v),
-                  ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: runsCtrl,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Runs',
-                    border: OutlineInputBorder(),
-                  ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: runsCtrl,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Runs',
+                  border: OutlineInputBorder(),
                 ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: wicketsCtrl,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Wickets',
-                    border: OutlineInputBorder(),
-                  ),
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                value: team,
+                decoration: const InputDecoration(
+                  labelText: 'Awarded To',
+                  border: OutlineInputBorder(),
                 ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: oversCtrl,
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
-                  decoration: const InputDecoration(
-                    labelText: 'Overs (e.g. 4.2)',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: ballsCtrl,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Balls Faced',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: extrasCtrl,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Extras',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: foursCtrl,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Fours (4s)',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: sixesCtrl,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Sixes (6s)',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: runsConcededCtrl,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Runs Conceded',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: catchesCtrl,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Catches',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: stumpingsCtrl,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Stumpings',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: runOutsCtrl,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Run Outs',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-              ],
-            ),
+                items: const [
+                  DropdownMenuItem(value: 'batting', child: Text('Batting')),
+                  DropdownMenuItem(value: 'bowling', child: Text('Bowling')),
+                ],
+                onChanged: (v) => setS(() => team = v ?? 'batting'),
+              ),
+            ],
           ),
           actions: [
             TextButton(
@@ -602,61 +368,265 @@ class _AdminScoreboardScreenState
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
+                backgroundColor: const Color(0xFFE91E63),
               ),
-              onPressed: () async {
-                if (selectedPlayerId == null && players.isNotEmpty) return;
+              onPressed: () {
                 Navigator.pop(ctx);
-
-                final runs = int.tryParse(runsCtrl.text) ?? 0;
-                final fours = int.tryParse(foursCtrl.text) ?? 0;
-                final sixes = int.tryParse(sixesCtrl.text) ?? 0;
-                final wickets = int.tryParse(wicketsCtrl.text) ?? 0;
-                final catches = int.tryParse(catchesCtrl.text) ?? 0;
-                final stumpings = int.tryParse(stumpingsCtrl.text) ?? 0;
-                final runOuts = int.tryParse(runOutsCtrl.text) ?? 0;
-
-                final pts = _calcFantasyPoints({
-                  'runs': runs,
-                  'fours': fours,
-                  'sixes': sixes,
-                  'wickets': wickets,
-                  'catches': catches,
-                  'stumpings': stumpings,
-                  'run_outs': runOuts,
-                });
-
-                final data = <String, dynamic>{
-                  'match_id': _selectedMatchId,
-                  'player_id': selectedPlayerId,
-                  'runs': runs,
-                  'wickets': wickets,
-                  'overs': double.tryParse(oversCtrl.text) ?? 0,
-                  'balls_faced': int.tryParse(ballsCtrl.text) ?? 0,
-                  'extras': int.tryParse(extrasCtrl.text) ?? 0,
-                  'fours': fours,
-                  'sixes': sixes,
-                  'runs_conceded':
-                      int.tryParse(runsConcededCtrl.text) ?? 0,
-                  'catches': catches,
-                  'stumpings': stumpings,
-                  'run_outs': runOuts,
-                  'points': pts,
-                };
-
-                final ok = await ref
-                    .read(adminProvider.notifier)
-                    .upsertScoreboard(data);
-                if (ok) {
-                  _loadScoreboard();
-                  _snack('Score entry saved!');
-                } else {
-                  _snack('Could not save score entry');
-                }
+                final runs = int.tryParse(runsCtrl.text) ?? 5;
+                ref.read(scoringProvider.notifier).penaltyRuns(runs, team);
               },
-              child:
-                  const Text('Save', style: TextStyle(color: Colors.white)),
+              child: const Text(
+                'Award',
+                style: TextStyle(color: Colors.white),
+              ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _handleDeclare() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text(
+          'Declare Innings?',
+          style: TextStyle(fontWeight: FontWeight.w700),
+        ),
+        content: const Text(
+          'Are you sure you want to declare this innings?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFE91E63),
+            ),
+            onPressed: () {
+              Navigator.pop(ctx);
+              ref.read(scoringProvider.notifier).endInnings();
+            },
+            child: const Text(
+              'Declare',
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scoring = ref.watch(scoringProvider);
+
+    // Show error snackbar when state has error
+    ref.listen<ScoringState>(scoringProvider, (prev, next) {
+      if (next.error != null && next.error != prev?.error) {
+        _showError(next.error!);
+      }
+      // Auto-popup bowler dialog when over is complete
+      if (next.isOverComplete && prev?.isOverComplete != true) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _showSelectBowlerDialog();
+        });
+      }
+    });
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8FAFC),
+      drawer: const AdminNavDrawer(currentRoute: '/admin/scoreboard'),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFFE91E63),
+        elevation: 0,
+        leading: Builder(
+          builder: (ctx) => IconButton(
+            icon: const Icon(Icons.menu, color: Colors.white),
+            onPressed: () => Scaffold.of(ctx).openDrawer(),
+          ),
+        ),
+        title: const Text(
+          'Live Scorer',
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w700,
+            fontSize: 18,
+          ),
+        ),
+        actions: [
+          if (_matchInitialized && scoring.striker == null)
+            IconButton(
+              icon: const Icon(Icons.person_add, color: Colors.white),
+              onPressed: _showSelectStrikerDialog,
+              tooltip: 'Set Striker',
+            ),
+          if (_matchInitialized && scoring.nonStriker == null)
+            IconButton(
+              icon: const Icon(Icons.person_add_alt, color: Colors.white),
+              onPressed: _showSelectNonStrikerDialog,
+              tooltip: 'Set Non-Striker',
+            ),
+          if (_matchInitialized && scoring.bowler == null)
+            IconButton(
+              icon: const Icon(Icons.sports_baseball, color: Colors.white),
+              onPressed: _showSelectBowlerDialog,
+              tooltip: 'Set Bowler',
+            ),
+          const SizedBox(width: 4),
+        ],
+      ),
+      body: _buildBody(scoring),
+    );
+  }
+
+  Widget _buildBody(ScoringState scoring) {
+    if (_selectedMatchId == null || !_matchInitialized) {
+      return _buildMatchSelection();
+    }
+
+    if (scoring.isLoading) {
+      return const Center(
+        child: CircularProgressIndicator(
+          color: Color(0xFFE91E63),
+        ),
+      );
+    }
+
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      child: Column(
+        children: [
+          // Match Header
+          MatchHeaderWidget(
+            teamAName: _getTeamAName(),
+            teamBName: _getTeamBName(),
+            currentInnings: scoring.innings,
+            tournamentName: _getTournamentName(),
+          ),
+          // Live Scorecard
+          LiveScorecardWidget(
+            totalRuns: scoring.totalRuns,
+            totalWickets: scoring.totalWickets,
+            totalOvers: scoring.totalOvers,
+            currentRunRate: scoring.currentRunRate,
+            target: scoring.target,
+            requiredRunRate: scoring.requiredRunRate,
+            tossWinner: scoring.tossWinner,
+            electedTo: scoring.electedTo,
+          ),
+          // Batsman Section
+          BatsmanSectionWidget(
+            striker: scoring.striker,
+            nonStriker: scoring.nonStriker,
+            onSwapStrike: scoring.striker != null && scoring.nonStriker != null
+                ? () => ref.read(scoringProvider.notifier).changeStriker()
+                : null,
+          ),
+          // Bowler Section
+          BowlerSectionWidget(bowler: scoring.bowler),
+          // Last 6 Balls
+          LastBallsWidget(lastSixBalls: scoring.lastSixBalls),
+          const SizedBox(height: 8),
+          // Run Buttons
+          RunButtonsWidget(onRunTapped: _handleRunTapped),
+          // Extras Buttons
+          ExtrasButtonsWidget(onExtraTapped: _handleExtraTapped),
+          // Wicket Buttons
+          WicketButtonsWidget(onWicketTapped: _handleWicketTapped),
+          // Advanced Actions
+          AdvancedActionsWidget(
+            onUndo: () => ref.read(scoringProvider.notifier).undoLastBall(),
+            onChangeBowler: _showSelectBowlerDialog,
+            onRetiredHurt: _handleRetiredHurt,
+            onPenaltyRuns: _handlePenaltyRuns,
+            onEndOver: _handleEndOver,
+            onEndInnings: _handleEndInnings,
+            onDeclare: _handleDeclare,
+          ),
+          const SizedBox(height: 24),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMatchSelection() {
+    return SingleChildScrollView(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            const SizedBox(height: 40),
+            const Icon(
+              Icons.sports_cricket,
+              size: 72,
+              color: Color(0xFFE91E63),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Live Cricket Scorer',
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF1A1A2E),
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Select a match to start ball-by-ball scoring',
+              style: TextStyle(
+                fontSize: 14,
+                color: Color(0xFF64748B),
+              ),
+            ),
+            const SizedBox(height: 32),
+            DropdownButtonFormField<String>(
+              value: _selectedMatchId,
+              decoration: InputDecoration(
+                labelText: 'Select Match',
+                prefixIcon: const Icon(
+                  Icons.sports,
+                  color: Color(0xFFE91E63),
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(
+                    color: Color(0xFFE91E63),
+                    width: 2,
+                  ),
+                ),
+              ),
+              items: _matches
+                  .map((m) => DropdownMenuItem<String>(
+                        value: m['id'] as String,
+                        child: Text(
+                          '${m['team_a_name'] ?? '-'} vs ${m['team_b_name'] ?? '-'}',
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ))
+                  .toList(),
+              onChanged: (v) {
+                if (v != null) _initMatch(v);
+              },
+            ),
+            const SizedBox(height: 24),
+            if (_matches.isEmpty) ...[
+              const SizedBox(height: 16),
+              const Text(
+                'No matches available. Create a match first.',
+                style: TextStyle(
+                  color: Color(0xFF94A3B8),
+                  fontSize: 13,
+                ),
+              ),
+            ],
           ],
         ),
       ),

@@ -2,7 +2,7 @@
   "id": "FEAT-002",
   "type": "feat",
   "description": "Replace the existing admin_scoreboard_screen.dart with a professional cricket scoring panel UI (CricHeroes/Cricbuzz style). The screen should have: match selection header, live scorecard display, batsman/bowler sections, last 6 balls indicator, quick scoring buttons (0-6), extras buttons, wicket types, and advanced actions. Theme uses #E91E63 primary per user request. Mobile-first, fast one-hand scoring.",
-  "status": "pending",
+  "status": "in_progress",
   "steps": [
     "Create lib/features/admin/presentation/widgets/scoring/ directory with the following widget files:",
     "Create lib/features/admin/presentation/widgets/scoring/match_header_widget.dart - Shows tournament name, match name (Team A vs Team B), LIVE badge, current innings indicator. Uses #E91E63 primary color with gradient header.",
