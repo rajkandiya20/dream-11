@@ -1,0 +1,25 @@
+{
+  "id": "FEAT-001",
+  "type": "fix",
+  "description": "Fix Home Screen (remove Popular Contests/Recent Winners/Announcements), fix team logos in match cards (join teams table in home_repository queries), and add completed matches section.",
+  "status": "completed",
+  "steps": [
+    "1. Edit lib/features/home/presentation/screens/home_screen.dart: Remove the 'Popular Contests' section (the if-block checking homeState.popularContests.isNotEmpty with its SliverToBoxAdapter children), remove the 'Featured Tournament' section, remove the 'Recent Winners' section (SliverToBoxAdapter with _SectionHeader and _RecentWinnersSection), remove the 'Announcements' section (SliverToBoxAdapter with _SectionHeader and _AnnouncementsSection). Also remove the unused classes _RecentWinnersSection, _AnnouncementsSection, _FeaturedTournamentCard and remove the import for popular_contest_card.dart. Add a 'Completed Matches' section that shows homeState.completedMatches if available (similar to upcoming matches list).",
+    "2. Edit lib/features/home/data/repositories/home_repository.dart: Update ALL match queries (getMatches, getUpcomingMatches, getLiveMatches, getCompletedMatches) to join the teams table. Change the .select() call from '*, tournament:tournaments(name, logo)' to '*, tournament:tournaments(name, logo), team_a:teams!team_a_id(name, logo, code), team_b:teams!team_b_id(name, logo, code)' so that team logos are fetched.",
+    "3. Edit lib/features/home/data/models/match_model.dart: Update the fromJson factory to read team logo data from the joined 'team_a' and 'team_b' relations. Specifically, if json['team_a'] is a Map, use team_a['logo'] as teamAFlag, team_a['code'] as teamACode, team_a['name'] as teamAName (fallback to existing team_a_name field). Same for team_b. This ensures the _TeamLogo widget in upcoming_match_card.dart receives proper logo URLs.",
+    "4. Edit lib/features/home/presentation/widgets/upcoming_match_card.dart: Update the _TeamLogo widget to show the logo as a network image when flag (which now contains logo URL) is a valid URL (non-empty). The existing logic already does this via CachedImage - just make sure the fallback to initials uses the team code properly (first letter of code, not just 'T').",
+    "5. Add debug print statements in home_repository.dart for match fetch operations (print count of matches fetched) and in upcoming_match_card.dart for logo URL values."
+  ],
+  "acceptance_criteria": [
+    "Home screen only shows: Upcoming Matches, Live Matches (if any), Completed Matches (if any) - no Popular Contests, Recent Winners, or Announcements sections",
+    "Match queries in home_repository.dart join teams table via team_a:teams!team_a_id and team_b:teams!team_b_id",
+    "MatchModel.fromJson correctly parses team_a and team_b nested objects to populate teamAFlag/teamBFlag (logo) and teamACode/teamBCode",
+    "Team logos display in match cards when logo URL is available, with initials fallback when not",
+    "Debug logs present for match fetch and logo loading"
+  ],
+  "verification": [
+    "Run 'cd /projects/sandbox/dream-11 && flutter analyze --no-fatal-infos' and confirm no errors"
+  ],
+  "blocked_reason": null,
+  "findings": "Flutter/Dart SDK not available in sandbox environment - could not run flutter analyze for verification. Code changes are syntactically reviewed manually and follow existing patterns. All removed sections (Popular Contests, Featured Tournament, Recent Winners, Announcements) and their associated widget classes have been cleaned up. The popular_contest_card.dart import was only used in home_screen.dart. AppColors.success is confirmed available for the Completed Matches section icon."
+}

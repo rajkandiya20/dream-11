@@ -99,47 +99,85 @@ class HomeNotifier extends StateNotifier<HomeState> {
   }
 
   /// Handle a real-time match update.
+  ///
+  /// Real-time Postgres payloads only contain flat row data without joined
+  /// relations (team logos, names, codes, tournament). We merge only the
+  /// scalar fields that can change at runtime into the existing model so
+  /// that logo/code/name/tournament data is preserved.
   void _handleMatchUpdate(MatchModel updatedMatch) {
+    // Find the existing match from any list to preserve joined relation data.
+    final existingMatch = _findExistingMatch(updatedMatch.id);
+
+    // Merge: keep the existing team logos/codes/names/tournament, update only
+    // the scalar fields that real-time payloads actually carry.
+    final mergedMatch = existingMatch != null
+        ? existingMatch.copyWith(
+            status: updatedMatch.status,
+            live: updatedMatch.live,
+            currentOver: updatedMatch.currentOver,
+            currentScoreA: updatedMatch.currentScoreA,
+            currentScoreB: updatedMatch.currentScoreB,
+            teamAScore: updatedMatch.teamAScore,
+            teamBScore: updatedMatch.teamBScore,
+            result: updatedMatch.result,
+            winnerTeamId: updatedMatch.winnerTeamId,
+          )
+        : updatedMatch;
+
     // Update in live matches
-    if (updatedMatch.isLive) {
+    if (mergedMatch.isLive) {
       final liveList = List<MatchModel>.from(state.liveMatches);
-      final index = liveList.indexWhere((m) => m.id == updatedMatch.id);
+      final index = liveList.indexWhere((m) => m.id == mergedMatch.id);
       if (index >= 0) {
-        liveList[index] = updatedMatch;
+        liveList[index] = mergedMatch;
       } else {
-        liveList.insert(0, updatedMatch);
+        liveList.insert(0, mergedMatch);
       }
       state = state.copyWith(liveMatches: liveList);
 
       // Remove from upcoming if it went live
       final upcomingList = List<MatchModel>.from(state.upcomingMatches)
-        ..removeWhere((m) => m.id == updatedMatch.id);
+        ..removeWhere((m) => m.id == mergedMatch.id);
       state = state.copyWith(upcomingMatches: upcomingList);
     }
 
     // Update in upcoming matches
-    if (updatedMatch.isUpcoming) {
+    if (mergedMatch.isUpcoming) {
       final upcomingList = List<MatchModel>.from(state.upcomingMatches);
-      final index = upcomingList.indexWhere((m) => m.id == updatedMatch.id);
+      final index = upcomingList.indexWhere((m) => m.id == mergedMatch.id);
       if (index >= 0) {
-        upcomingList[index] = updatedMatch;
+        upcomingList[index] = mergedMatch;
       }
       state = state.copyWith(upcomingMatches: upcomingList);
     }
 
     // Move to completed if match is done
-    if (updatedMatch.isCompleted) {
+    if (mergedMatch.isCompleted) {
       final liveList = List<MatchModel>.from(state.liveMatches)
-        ..removeWhere((m) => m.id == updatedMatch.id);
+        ..removeWhere((m) => m.id == mergedMatch.id);
       final completedList = List<MatchModel>.from(state.completedMatches);
-      if (!completedList.any((m) => m.id == updatedMatch.id)) {
-        completedList.insert(0, updatedMatch);
+      if (!completedList.any((m) => m.id == mergedMatch.id)) {
+        completedList.insert(0, mergedMatch);
       }
       state = state.copyWith(
         liveMatches: liveList,
         completedMatches: completedList,
       );
     }
+  }
+
+  /// Find an existing match by ID across all match lists.
+  MatchModel? _findExistingMatch(String matchId) {
+    for (final match in state.liveMatches) {
+      if (match.id == matchId) return match;
+    }
+    for (final match in state.upcomingMatches) {
+      if (match.id == matchId) return match;
+    }
+    for (final match in state.completedMatches) {
+      if (match.id == matchId) return match;
+    }
+    return null;
   }
 
   /// Refresh all data.

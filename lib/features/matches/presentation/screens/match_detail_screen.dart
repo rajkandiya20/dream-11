@@ -8,11 +8,11 @@ import '../../../../core/theme/app_typography.dart';
 import '../../../../shared/widgets/shimmer_loading.dart';
 import '../../../contests/presentation/widgets/contest_card.dart';
 import '../../domain/providers/match_provider.dart';
-import '../widgets/commentary_tab.dart';
+import '../widgets/my_team_tab.dart';
 import '../widgets/match_header.dart';
 import '../widgets/scorecard_tab.dart';
 
-/// Premium match detail screen with header, tabs for contests/scorecard/commentary.
+/// Premium match detail screen with header, tabs for contests/scorecard/my team.
 class MatchDetailScreen extends ConsumerWidget {
   final String matchId;
 
@@ -74,7 +74,7 @@ class MatchDetailScreen extends ConsumerWidget {
                                       'Contests (${state.contests.length})',
                                 ),
                                 const Tab(text: 'Scorecard'),
-                                const Tab(text: 'Commentary'),
+                                const Tab(text: 'My Team'),
                               ],
                             ),
                           ),
@@ -90,8 +90,8 @@ class MatchDetailScreen extends ConsumerWidget {
                         ),
                         // Scorecard Tab
                         ScorecardTab(scoreboard: state.scoreboard),
-                        // Commentary Tab
-                        CommentaryTab(commentary: state.commentary),
+                        // My Team Tab
+                        MyTeamTab(matchId: matchId),
                       ],
                     ),
                   ),

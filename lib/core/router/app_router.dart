@@ -60,7 +60,7 @@ class AppRoutes {
 
   // Fantasy Team
   static const String createTeam = '/create-team/:matchId';
-  static const String captainSelection = '/captain-selection';
+  static const String captainSelection = '/captain-selection/:matchId';
   static const String fantasyTeam = '/fantasy-team/:teamId';
 
   // Wallet
@@ -239,7 +239,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.captainSelection,
         name: 'captainSelection',
-        builder: (context, state) => const CaptainSelectionScreen(),
+        builder: (context, state) => CaptainSelectionScreen(
+          matchId: state.pathParameters['matchId']!,
+        ),
       ),
       GoRoute(
         path: AppRoutes.fantasyTeam,

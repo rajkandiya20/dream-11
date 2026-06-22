@@ -10,7 +10,6 @@ import '../../../../shared/widgets/shimmer_loading.dart';
 import '../../domain/providers/home_provider.dart';
 import '../widgets/hero_banner.dart';
 import '../widgets/live_match_card.dart';
-import '../widgets/popular_contest_card.dart';
 import '../widgets/upcoming_match_card.dart';
 
 /// Premium home screen with hero banner, live matches, upcoming matches,
@@ -111,72 +110,36 @@ class HomeScreen extends ConsumerWidget {
                         ),
                       ),
                     ],
-                    // Popular Contests Section
-                    if (homeState.popularContests.isNotEmpty) ...[
+                    // Popular Contests Section - REMOVED
+                    // Featured Tournament Section - REMOVED
+                    // Recent Winners Section - REMOVED
+                    // Announcements Section - REMOVED
+                    // Completed Matches Section
+                    if (homeState.completedMatches.isNotEmpty) ...[
                       SliverToBoxAdapter(
                         child: _SectionHeader(
-                          title: 'Popular Contests',
-                          icon: Icons.emoji_events_outlined,
-                          iconColor: AppColors.warning,
+                          title: 'Completed Matches',
+                          icon: Icons.check_circle_outline,
+                          iconColor: AppColors.success,
                         ),
                       ),
-                      SliverToBoxAdapter(
-                        child: SizedBox(
-                          height: 170,
-                          child: ListView.builder(
-                            scrollDirection: Axis.horizontal,
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            itemCount: homeState.popularContests.length,
-                            itemBuilder: (context, index) {
-                              final contest = homeState.popularContests[index];
-                              return PopularContestCard(
-                                contest: contest,
-                                onTap: () => context.push(
-                                  '/contests/${contest.id}',
-                                ),
-                              );
-                            },
-                          ),
+                      SliverList(
+                        delegate: SliverChildBuilderDelegate(
+                          (context, index) {
+                            final match = homeState.completedMatches[index];
+                            return UpcomingMatchCard(
+                              match: match,
+                              onTap: () => context.push(
+                                '/matches/${match.id}',
+                              ),
+                            );
+                          },
+                          childCount: homeState.completedMatches.length > 5
+                              ? 5
+                              : homeState.completedMatches.length,
                         ),
                       ),
                     ],
-                    // Featured Tournament Section
-                    if (homeState.tournaments.isNotEmpty) ...[
-                      SliverToBoxAdapter(
-                        child: _SectionHeader(
-                          title: 'Featured Tournament',
-                          icon: Icons.star_outline,
-                          iconColor: AppColors.info,
-                        ),
-                      ),
-                      SliverToBoxAdapter(
-                        child: _FeaturedTournamentCard(
-                          tournament: homeState.tournaments.first,
-                        ),
-                      ),
-                    ],
-                    // Recent Winners Section
-                    SliverToBoxAdapter(
-                      child: _SectionHeader(
-                        title: 'Recent Winners',
-                        icon: Icons.workspace_premium,
-                        iconColor: AppColors.warning,
-                      ),
-                    ),
-                    SliverToBoxAdapter(
-                      child: _RecentWinnersSection(),
-                    ),
-                    // Announcements Section
-                    SliverToBoxAdapter(
-                      child: _SectionHeader(
-                        title: 'Announcements',
-                        icon: Icons.campaign_outlined,
-                        iconColor: AppColors.info,
-                      ),
-                    ),
-                    SliverToBoxAdapter(
-                      child: _AnnouncementsSection(),
-                    ),
                     // Bottom spacing
                     const SliverToBoxAdapter(
                       child: SizedBox(height: 100),
@@ -281,180 +244,6 @@ class _SectionHeader extends StatelessWidget {
             const Spacer(),
             trailing!,
           ],
-        ],
-      ),
-    );
-  }
-}
-
-/// Featured tournament card.
-class _FeaturedTournamentCard extends StatelessWidget {
-  final dynamic tournament;
-
-  const _FeaturedTournamentCard({required this.tournament});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF1E293B), Color(0xFF0F172A)],
-        ),
-        borderRadius: AppSpacing.borderRadiusLg,
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.secondary.withOpacity(0.2),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.1),
-              borderRadius: AppSpacing.borderRadiusSm,
-            ),
-            child: const Center(
-              child: Icon(
-                Icons.emoji_events,
-                color: AppColors.warning,
-                size: 24,
-              ),
-            ),
-          ),
-          AppSpacing.gapW16,
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  tournament.name,
-                  style: AppTypography.titleLarge.copyWith(
-                    color: Colors.white,
-                  ),
-                ),
-                AppSpacing.gapH4,
-                Text(
-                  tournament.description ?? 'Join the excitement!',
-                  style: AppTypography.bodySmall.copyWith(
-                    color: Colors.white.withOpacity(0.7),
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-          const Icon(
-            Icons.chevron_right,
-            color: Colors.white54,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Recent winners section placeholder.
-class _RecentWinnersSection extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 100,
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: AppSpacing.borderRadiusMd,
-        border: Border.all(color: AppColors.border.withOpacity(0.5)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: AppColors.warning.withOpacity(0.1),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.workspace_premium,
-              color: AppColors.warning,
-              size: 20,
-            ),
-          ),
-          AppSpacing.gapW12,
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  'Winners will appear here',
-                  style: AppTypography.titleSmall,
-                ),
-                AppSpacing.gapH4,
-                Text(
-                  'Join contests to see recent winners',
-                  style: AppTypography.bodySmall,
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Announcements section.
-class _AnnouncementsSection extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.info.withOpacity(0.05),
-        borderRadius: AppSpacing.borderRadiusMd,
-        border: Border.all(color: AppColors.info.withOpacity(0.2)),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            Icons.info_outline,
-            color: AppColors.info,
-            size: 20,
-          ),
-          AppSpacing.gapW12,
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Welcome to DreamTeam Fantasy!',
-                  style: AppTypography.titleSmall.copyWith(
-                    color: AppColors.info,
-                  ),
-                ),
-                AppSpacing.gapH4,
-                Text(
-                  'Create your dream team and compete with others. Good luck!',
-                  style: AppTypography.bodySmall.copyWith(
-                    color: AppColors.infoDark,
-                  ),
-                ),
-              ],
-            ),
-          ),
         ],
       ),
     );

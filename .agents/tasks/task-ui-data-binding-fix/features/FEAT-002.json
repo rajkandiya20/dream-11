@@ -1,0 +1,33 @@
+{
+  "id": "FEAT-002",
+  "type": "fix",
+  "description": "Replace Commentary tab with My Team tab in Match Detail Screen, fix Captain/VC selection screen to show selected players, add team creation validation, and add debug logs throughout the fantasy team flow.",
+  "status": "completed",
+  "steps": [
+    "1. Create lib/features/matches/presentation/widgets/my_team_tab.dart: A new widget that shows the user's created fantasy teams for the current match. It should accept matchId as a parameter, use a ConsumerWidget that reads from a provider to fetch the user's teams for this match (using fantasyRepositoryProvider and currentUserProvider). Display: team name, captain name, vice captain name, player count, total points, created time. If no team exists, show 'No Team Created Yet' message. Include an 'Edit Team' button that navigates to create-team/:matchId (only if match is not live/completed).",
+    "2. Edit lib/features/matches/presentation/screens/match_detail_screen.dart: Replace the Commentary tab text with 'My Team', replace the CommentaryTab widget in TabBarView with the new MyTeamTab(matchId: matchId) widget. Update the import to use my_team_tab.dart instead of commentary_tab.dart. Remove the commentary_tab import.",
+    "3. Edit lib/features/matches/domain/providers/match_provider.dart: Add a new provider 'userTeamsForMatchProvider' that is a FutureProvider.family<List<FantasyTeamModel>, ({String matchId, String userId})> which calls fantasyRepository.getUserTeamsForMatch.",
+    "4. Edit lib/features/fantasy/presentation/screens/captain_selection_screen.dart: The CaptainSelectionScreen currently shows a placeholder. It needs the matchId to read from teamBuilderProvider(matchId). Update the route in app_router.dart to pass matchId as a path parameter: change from '/captain-selection' to '/captain-selection/:matchId'. Update the CaptainSelectionScreen to accept matchId. Replace _CaptainPlayerList placeholder with actual list that reads teamBuilderProvider(matchId).selectedPlayers and displays them with C/VC selection buttons using the existing CaptainPlayerRow widget.",
+    "5. Edit lib/features/fantasy/presentation/screens/create_team_screen.dart: Change the 'SELECT CAPTAIN' navigation to pass the matchId: context.push('/captain-selection/${widget.matchId}'). This ensures the captain selection screen can access the team builder state.",
+    "6. Edit lib/core/router/app_router.dart: Update the captainSelection route from '/captain-selection' to '/captain-selection/:matchId' and pass matchId to CaptainSelectionScreen.",
+    "7. Update the _BottomBar in captain_selection_screen.dart to be a proper ConsumerWidget that reads the teamBuilderProvider(matchId), validates that captainId and viceCaptainId are both set before enabling the SAVE TEAM button. On save: call notifier.saveTeam(), show a success snackbar, and navigate back to match detail. Add validation that both captain and vice captain must be selected.",
+    "8. Add team creation validation in create_team_screen.dart: before navigating to captain selection, verify exactly 11 players, min 1 WK, min 1 Bowler, min 1 Batsman (these checks already exist in state.isValidTeam but add a snackbar if validation fails).",
+    "9. Add debug print statements for: selected players count when navigating to captain screen, captain/VC selection events, team save request/success/failure, team logo fetch in MyTeamTab."
+  ],
+  "acceptance_criteria": [
+    "Match Detail tabs show: Contests, Scorecard, My Team (no Commentary tab)",
+    "My Team tab displays user's fantasy teams for the match with team name, captain, vice captain, player count, points, and created time",
+    "My Team tab shows 'No Team Created Yet' when no teams exist",
+    "Captain selection screen receives matchId and displays the 11 selected players from teamBuilderProvider",
+    "Users can tap C or VC buttons to assign captain/vice captain roles",
+    "SAVE TEAM button is disabled until both captain and vice captain are selected",
+    "Team creation validates: 11 players, min 1 WK, min 1 Bowler, min 1 Batsman before proceeding to captain selection",
+    "After saving team, user can see it in the My Team tab",
+    "Debug logs are present for player count, captain selection, VC selection, team save, logo fetch"
+  ],
+  "verification": [
+    "Run 'cd /projects/sandbox/dream-11 && flutter analyze --no-fatal-infos' and confirm no errors"
+  ],
+  "blocked_reason": null,
+  "findings": "Flutter/Dart SDK not available in sandbox - could not run flutter analyze for verification. Code changes are syntactically and logically reviewed manually and follow existing patterns. The teamBuilderProvider was updated to pass userId from currentUserProvider so saveTeam works. The userTeamsForMatchProvider uses a Dart record type for the family parameter ({String matchId, String userId}). The Commentary tab is still available as a widget file but is no longer imported from match_detail_screen."
+}
