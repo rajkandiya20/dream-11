@@ -185,29 +185,37 @@ class AdminRepository {
     }
   }
 
-  /// Create a match.
-  Future<Map<String, dynamic>?> createMatch(Map<String, dynamic> data) async {
-    try {
-      debugPrint('AdminRepo createMatch data: $data');
-      final response =
-          await _client.from('matches').insert(data).select().single();
-      debugPrint('AdminRepo createMatch OK');
-      return response;
-    } catch (e) {
-      debugPrint('AdminRepo createMatch ERROR: $e');
-      lastError = e.toString();
-      return null;
-    }
-  }
-
-  /// Update a match.
+  /// Update a match. If status changes to 'completed', triggers prize distribution.
   Future<bool> updateMatch(String id, Map<String, dynamic> data) async {
     try {
       await _client.from('matches').update(data).eq('id', id);
+      // Task #14: Trigger prize distribution when match completes
+      if (data['status'] == 'completed') {
+        await _triggerPrizeDistribution(id);
+      }
       return true;
     } catch (e) {
       debugPrint('AdminRepo error: $e');
       return false;
+    }
+  }
+
+  /// Queue prize distribution via notification_queue (processed by Edge Function)
+  /// or directly call via RPC if available.
+  Future<void> _triggerPrizeDistribution(String matchId) async {
+    try {
+      // Try RPC first (fastest)
+      await _client.rpc('distribute_match_prizes',
+          params: {'p_match_id': matchId});
+    } catch (_) {
+      // Fallback: queue it
+      await _client.from('notification_queue').insert({
+        'title':   'prize_distribution',
+        'message': matchId,
+        'type':    'system',
+        'data':    {'match_id': matchId, 'action': 'distribute_prizes'},
+        'status':  'pending',
+      });
     }
   }
 
@@ -461,17 +469,16 @@ class AdminRepository {
 
   /// Set match players for a match and team.
   /// Deletes existing entries for the match+team and inserts new ones.
+  /// Also sends a lineup notification to all users.
   Future<bool> setMatchPlayers(
       String matchId, List<String> playerIds, String teamId) async {
     try {
-      // Delete existing match_players for this match and team
       await _client
           .from('match_players')
           .delete()
           .eq('match_id', matchId)
           .eq('team_id', teamId);
 
-      // Insert new match players
       if (playerIds.isNotEmpty) {
         final rows = playerIds
             .map((playerId) => {
@@ -483,10 +490,64 @@ class AdminRepository {
         await _client.from('match_players').insert(rows);
       }
 
+      // Task #10: Send lineup notification to all users
+      await _sendBroadcastNotification(
+        title: '📋 Playing XI Announced!',
+        message: 'Lineups are now available. Create your Dream Team now!',
+        type: 'lineup',
+        data: {'match_id': matchId},
+      );
+
       return true;
     } catch (e) {
       debugPrint('AdminRepo error: $e');
       return false;
+    }
+  }
+
+  /// Create a match and notify users.
+  Future<Map<String, dynamic>?> createMatch(Map<String, dynamic> data) async {
+    try {
+      debugPrint('AdminRepo createMatch data: $data');
+      final response =
+          await _client.from('matches').insert(data).select().single();
+
+      // Task #10: Notify all users about new match
+      final teamA = data['team_a_name'] ?? 'Team A';
+      final teamB = data['team_b_name'] ?? 'Team B';
+      await _sendBroadcastNotification(
+        title: '🏏 New Match Added!',
+        message: '$teamA vs $teamB — Create your team and join contests!',
+        type: 'match',
+        data: {'match_id': response['id']},
+      );
+
+      debugPrint('AdminRepo createMatch OK');
+      return response;
+    } catch (e) {
+      debugPrint('AdminRepo createMatch ERROR: $e');
+      lastError = e.toString();
+      return null;
+    }
+  }
+
+  /// Internal: queue a broadcast notification for Edge Function to send via FCM.
+  Future<void> _sendBroadcastNotification({
+    required String title,
+    required String message,
+    required String type,
+    Map<String, dynamic>? data,
+  }) async {
+    try {
+      await _client.from('notification_queue').insert({
+        'title': title,
+        'message': message,
+        'type': type,
+        'data': data ?? {},
+        'status': 'pending',
+      });
+    } catch (e) {
+      debugPrint('Notification queue error: $e');
     }
   }
 
@@ -613,6 +674,15 @@ class AdminRepository {
           .update({'balance': currentBalance + amount})
           .eq('user_id', userId);
 
+      // Task #14: Notify user that deposit was approved
+      await _client.from('notifications').insert({
+        'user_id': userId,
+        'title':   '✅ Deposit Approved!',
+        'message': '₹${amount.toStringAsFixed(0)} has been added to your wallet.',
+        'type':    'general',
+        'is_read': false,
+      });
+
       return true;
     } catch (e) {
       debugPrint('AdminRepo error: $e');
@@ -679,6 +749,15 @@ class AdminRepository {
           .from('wallets')
           .update({'balance': newBalance, 'winnings': newWinnings})
           .eq('user_id', userId);
+
+      // Task #14: Notify user that withdrawal was processed
+      await _client.from('notifications').insert({
+        'user_id': userId,
+        'title':   '💸 Withdrawal Processed!',
+        'message': '₹${amount.toStringAsFixed(0)} has been sent to your account.',
+        'type':    'general',
+        'is_read': false,
+      });
 
       return true;
     } catch (e) {

@@ -156,6 +156,10 @@ class WalletNotifier extends StateNotifier<WalletState> {
   Future<bool> withdraw({
     required double amount,
     required String paymentMethod,
+    String? upiId,
+    String? accountNo,
+    String? ifscCode,
+    String? accountName,
   }) async {
     if (_userId == null) return false;
 
@@ -172,6 +176,10 @@ class WalletNotifier extends StateNotifier<WalletState> {
       userId: _userId!,
       amount: amount,
       paymentMethod: paymentMethod,
+      upiId: upiId,
+      accountNo: accountNo,
+      ifscCode: ifscCode,
+      accountName: accountName,
     );
 
     if (transaction != null) {

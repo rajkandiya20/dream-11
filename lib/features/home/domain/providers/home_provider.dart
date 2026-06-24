@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../../core/network/supabase_client.dart';
 import '../../../matches/data/models/contest_model.dart';
 import '../../data/models/match_model.dart';
 import '../../data/models/tournament_model.dart';
@@ -53,9 +56,12 @@ class HomeState {
 /// Home state notifier managing data fetching and real-time subscriptions.
 class HomeNotifier extends StateNotifier<HomeState> {
   final HomeRepository _repository;
+  final SupabaseClient _client;
   RealtimeChannel? _matchesChannel;
+  // Timers for auto-starting matches when countdown hits 0
+  final Map<String, Timer> _autoStartTimers = {};
 
-  HomeNotifier(this._repository) : super(const HomeState()) {
+  HomeNotifier(this._repository, this._client) : super(const HomeState()) {
     loadData();
     _subscribeToMatches();
   }
@@ -81,11 +87,55 @@ class HomeNotifier extends StateNotifier<HomeState> {
         popularContests: results[4] as List<ContestModel>,
         isLoading: false,
       );
+
+      // Schedule auto-start timers for all upcoming matches
+      _scheduleAutoStartTimers(state.upcomingMatches);
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
         errorMessage: 'Failed to load data. Pull to refresh.',
       );
+    }
+  }
+
+  // ── Tasks #4 & #5: Schedule auto-start timers ─────────────────────────────
+
+  /// For each upcoming match, schedule a timer that fires when the match
+  /// dateTime is reached and auto-updates its status to 'live' in Supabase.
+  void _scheduleAutoStartTimers(List<MatchModel> upcomingMatches) {
+    // Cancel existing timers
+    for (final t in _autoStartTimers.values) {
+      t.cancel();
+    }
+    _autoStartTimers.clear();
+
+    for (final match in upcomingMatches) {
+      final delay = match.dateTime.difference(DateTime.now());
+      if (delay.isNegative || delay.inSeconds <= 0) {
+        // Match time already passed but still showing upcoming — auto-start now
+        _autoStartMatch(match.id);
+        continue;
+      }
+      // Only schedule if < 24 hours away (prevent too many long-lived timers)
+      if (delay.inHours < 24) {
+        _autoStartTimers[match.id] = Timer(delay, () {
+          _autoStartMatch(match.id);
+        });
+      }
+    }
+  }
+
+  /// Update match status to 'live' in Supabase and refresh local state.
+  Future<void> _autoStartMatch(String matchId) async {
+    try {
+      await _client
+          .from('matches')
+          .update({'status': 'live', 'live': true})
+          .eq('id', matchId);
+      // Refresh to pick up the change
+      await loadData();
+    } catch (_) {
+      // Silently fail — real-time subscription will handle the update
     }
   }
 
@@ -187,6 +237,10 @@ class HomeNotifier extends StateNotifier<HomeState> {
 
   @override
   void dispose() {
+    for (final t in _autoStartTimers.values) {
+      t.cancel();
+    }
+    _autoStartTimers.clear();
     if (_matchesChannel != null) {
       _repository.unsubscribe(_matchesChannel!);
     }
@@ -197,7 +251,8 @@ class HomeNotifier extends StateNotifier<HomeState> {
 /// Provider for home state.
 final homeProvider = StateNotifierProvider<HomeNotifier, HomeState>((ref) {
   final repository = ref.watch(homeRepositoryProvider);
-  return HomeNotifier(repository);
+  final client = ref.watch(supabaseClientProvider);
+  return HomeNotifier(repository, client);
 });
 
 /// Provider for live matches only.
