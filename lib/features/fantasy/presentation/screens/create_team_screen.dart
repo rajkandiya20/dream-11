@@ -58,6 +58,174 @@ class _CreateTeamScreenState extends ConsumerState<CreateTeamScreen> {
     final state = ref.watch(teamBuilderProvider(widget.matchId));
     final notifier = ref.read(teamBuilderProvider(widget.matchId).notifier);
 
+    // Group players by role
+    final wkPlayers = state.players.where((p) => p.role == 'WK').toList();
+    final batPlayers = state.players.where((p) => p.role == 'Batsman').toList();
+    final arPlayers = state.players.where((p) => p.role == 'All-rounder').toList();
+    final bowlPlayers = state.players.where((p) => p.role == 'Bowler').toList();
+
+    return Scaffold(
+      backgroundColor: AppColors.scaffoldBackground,
+      body: Column(
+        children: [
+          // Dream11-style Black/Red Header
+          Container(
+            padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top),
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Color(0xFF0F172A), Color(0xFF1E293B)],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+              ),
+            ),
+            child: Column(
+              children: [
+                // Top bar
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                  child: Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.arrow_back, color: Colors.white),
+                        onPressed: () => context.pop(),
+                      ),
+                      Expanded(
+                        child: Text(
+                          'Create Team',
+                          style: AppTypography.titleLarge.copyWith(color: Colors.white),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                      const SizedBox(width: 48),
+                    ],
+                  ),
+                ),
+                // Credits + Count row
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withOpacity(0.15),
+                    border: Border(
+                      top: BorderSide(color: AppColors.primary.withOpacity(0.3)),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      // Players selected
+                      Row(children: [
+                        const Icon(Icons.people, color: Colors.white, size: 18),
+                        const SizedBox(width: 6),
+                        Text(
+                          '${state.selectedCount}/11 Players',
+                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 14),
+                        ),
+                      ]),
+                      // Credits
+                      Row(children: [
+                        const Icon(Icons.monetization_on, color: Color(0xFFFCD34D), size: 18),
+                        const SizedBox(width: 6),
+                        Text(
+                          '${(100.0 - state.creditsUsed).toStringAsFixed(1)} Credits Left',
+                          style: const TextStyle(color: Color(0xFFFCD34D), fontWeight: FontWeight.w600, fontSize: 14),
+                        ),
+                      ]),
+                    ],
+                  ),
+                ),
+                // Role count badges
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      _RoleBadge(label: 'WK', count: state.wkCount, max: 4),
+                      _RoleBadge(label: 'BAT', count: state.batCount, max: 6),
+                      _RoleBadge(label: 'AR', count: state.arCount, max: 4),
+                      _RoleBadge(label: 'BOWL', count: state.bowlCount, max: 6),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Player list grouped by category
+          Expanded(
+            child: _isLoadingPlayers
+                ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+                : ListView(
+                    padding: const EdgeInsets.only(bottom: 80),
+                    children: [
+                      if (wkPlayers.isNotEmpty) _buildSection('WICKET-KEEPERS', 'WK', wkPlayers, state, notifier),
+                      if (batPlayers.isNotEmpty) _buildSection('BATTERS', 'BAT', batPlayers, state, notifier),
+                      if (arPlayers.isNotEmpty) _buildSection('ALL-ROUNDERS', 'AR', arPlayers, state, notifier),
+                      if (bowlPlayers.isNotEmpty) _buildSection('BOWLERS', 'BOWL', bowlPlayers, state, notifier),
+                    ],
+                  ),
+          ),
+        ],
+      ),
+      // Bottom sticky bar
+      bottomNavigationBar: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 8, offset: const Offset(0, -2))],
+        ),
+        child: SafeArea(
+          child: AppButton(
+            label: state.selectedCount == 11 ? 'NEXT →' : 'SELECT ${11 - state.selectedCount} MORE',
+            onPressed: state.selectedCount == 11
+                ? () => context.push('/captain-selection')
+                : null,
+            isLoading: false,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSection(String title, String roleCode, List<PlayerModel> players, dynamic state, dynamic notifier) {
+    final selectedCount = players.where((p) => state.selectedPlayers.contains(p.id)).length;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Section header
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          color: const Color(0xFFF1F5F9),
+          child: Row(
+            children: [
+              Text(
+                title,
+                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 1, color: Color(0xFF64748B)),
+              ),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: selectedCount > 0 ? AppColors.primary.withOpacity(0.1) : Colors.transparent,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  '$selectedCount selected',
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: selectedCount > 0 ? AppColors.primary : const Color(0xFF94A3B8)),
+                ),
+              ),
+            ],
+          ),
+        ),
+        // Players
+        ...players.map((player) => PlayerCard(
+          player: player,
+          isSelected: state.selectedPlayers.contains(player.id),
+          onTap: () => notifier.togglePlayer(player),
+        )),
+      ],
+    );
+  }
+
     return Scaffold(
       backgroundColor: AppColors.scaffoldBackground,
       appBar: AppBar(
@@ -367,4 +535,3 @@ class _TeamPreviewSheet extends StatelessWidget {
       ),
     );
   }
-}

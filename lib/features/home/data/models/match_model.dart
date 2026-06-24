@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'tournament_model.dart';
 
 /// Match model matching the matches table schema in Supabase.
@@ -62,6 +63,8 @@ class MatchModel {
   factory MatchModel.fromJson(Map<String, dynamic> json) {
     // Parse nested team data from joined teams table
     final teamAData = json['team_a'] as Map<String, dynamic>?;
+    final teamBData2 = json['team_b'] as Map<String, dynamic>?;
+    debugPrint('[MatchModel] teamA join: ${teamAData != null}, teamB join: ${teamBData2 != null}, teamA logo: ${teamAData?["logo"]}');
     final teamBData = json['team_b'] as Map<String, dynamic>?;
 
     return MatchModel(
