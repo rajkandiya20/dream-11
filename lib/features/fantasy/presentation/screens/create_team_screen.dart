@@ -229,13 +229,13 @@ class _CreateTeamScreenState extends ConsumerState<CreateTeamScreen> {
     return Scaffold(
       backgroundColor: AppColors.scaffoldBackground,
       appBar: AppBar(
-        backgroundColor: AppColors.surface,
+        backgroundColor: const Color(0xFF0F172A),
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: AppColors.textPrimary),
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => context.pop(),
         ),
-        title: Text('Create Team', style: AppTypography.titleLarge),
+        title: Text('Create Team', style: AppTypography.titleLarge.copyWith(color: Colors.white)),
         centerTitle: true,
         actions: [
           TextButton(
@@ -283,11 +283,11 @@ class _CreateTeamScreenState extends ConsumerState<CreateTeamScreen> {
               decoration: InputDecoration(
                 hintText: 'Search players...',
                 hintStyle: AppTypography.bodySmall.copyWith(
-                  color: AppColors.textTertiary,
+                  color: Colors.white38,
                 ),
                 prefixIcon: const Icon(
                   Icons.search,
-                  color: AppColors.textTertiary,
+                  color: Colors.white38,
                   size: 20,
                 ),
                 suffixIcon: _searchController.text.isNotEmpty
@@ -331,7 +331,7 @@ class _CreateTeamScreenState extends ConsumerState<CreateTeamScreen> {
                             Icon(
                               Icons.search_off,
                               size: 48,
-                              color: AppColors.textTertiary,
+                              color: Colors.white38,
                             ),
                             AppSpacing.gapH12,
                             Text(
