@@ -10,9 +10,9 @@ import '../../../matches/data/repositories/match_repository.dart';
 import '../../domain/providers/fantasy_provider.dart';
 import '../widgets/player_card.dart';
 
-/// Player selection screen — Dream11-style grouped layout.
-/// [contestId] is optional. When provided the saved team will be
-/// linked to that contest and joinContest() will be called after saving.
+/// Dream11-style player selection screen.
+/// Top: horizontal role filter tabs (WK | BAT | AR | BOWL | ALL)
+/// Below: filtered player list.
 class CreateTeamScreen extends ConsumerStatefulWidget {
   final String matchId;
   final String? contestId;
@@ -27,13 +27,37 @@ class CreateTeamScreen extends ConsumerStatefulWidget {
   ConsumerState<CreateTeamScreen> createState() => _CreateTeamScreenState();
 }
 
-class _CreateTeamScreenState extends ConsumerState<CreateTeamScreen> {
+class _CreateTeamScreenState extends ConsumerState<CreateTeamScreen>
+    with SingleTickerProviderStateMixin {
   bool _isLoadingPlayers = true;
+  late TabController _tabController;
+
+  // Tab → PlayerRoleFilter mapping
+  static const _tabs = [
+    ('ALL', PlayerRoleFilter.all),
+    ('WK', PlayerRoleFilter.wk),
+    ('BAT', PlayerRoleFilter.bat),
+    ('AR', PlayerRoleFilter.ar),
+    ('BOWL', PlayerRoleFilter.bowl),
+  ];
 
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: _tabs.length, vsync: this);
+    _tabController.addListener(() {
+      if (!_tabController.indexIsChanging) return;
+      ref
+          .read(teamBuilderProvider(widget.matchId).notifier)
+          .setFilter(_tabs[_tabController.index].$2);
+    });
     _loadPlayers();
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadPlayers() async {
@@ -49,12 +73,6 @@ class _CreateTeamScreenState extends ConsumerState<CreateTeamScreen> {
   Widget build(BuildContext context) {
     final state = ref.watch(teamBuilderProvider(widget.matchId));
     final notifier = ref.read(teamBuilderProvider(widget.matchId).notifier);
-
-    // Group players by role
-    final wkPlayers   = state.availablePlayers.where((p) => p.role == 'WK').toList();
-    final batPlayers  = state.availablePlayers.where((p) => p.role == 'Batsman').toList();
-    final arPlayers   = state.availablePlayers.where((p) => p.role == 'All-rounder').toList();
-    final bowlPlayers = state.availablePlayers.where((p) => p.role == 'Bowler').toList();
 
     return Scaffold(
       backgroundColor: AppColors.scaffoldBackground,
@@ -74,21 +92,23 @@ class _CreateTeamScreenState extends ConsumerState<CreateTeamScreen> {
               children: [
                 // Top bar
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 8, vertical: 8),
                   child: Row(
                     children: [
                       IconButton(
-                        icon: const Icon(Icons.arrow_back, color: Colors.white),
+                        icon: const Icon(Icons.arrow_back,
+                            color: Colors.white),
                         onPressed: () => context.pop(),
                       ),
                       Expanded(
                         child: Text(
                           'Create Team',
-                          style: AppTypography.titleLarge.copyWith(color: Colors.white),
+                          style: AppTypography.titleLarge
+                              .copyWith(color: Colors.white),
                           textAlign: TextAlign.center,
                         ),
                       ),
-                      // Reset button
                       TextButton(
                         onPressed: state.selectedPlayers.isNotEmpty
                             ? () => notifier.reset()
@@ -105,20 +125,24 @@ class _CreateTeamScreenState extends ConsumerState<CreateTeamScreen> {
                     ],
                   ),
                 ),
+
                 // Credits + player count row
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 16, vertical: 10),
                   decoration: BoxDecoration(
                     color: AppColors.primary.withOpacity(0.15),
                     border: Border(
-                      top: BorderSide(color: AppColors.primary.withOpacity(0.3)),
+                      top: BorderSide(
+                          color: AppColors.primary.withOpacity(0.3)),
                     ),
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Row(children: [
-                        const Icon(Icons.people, color: Colors.white, size: 18),
+                        const Icon(Icons.people,
+                            color: Colors.white, size: 18),
                         const SizedBox(width: 6),
                         Text(
                           '${state.selectedCount}/11 Players',
@@ -133,7 +157,7 @@ class _CreateTeamScreenState extends ConsumerState<CreateTeamScreen> {
                             color: Color(0xFFFCD34D), size: 18),
                         const SizedBox(width: 6),
                         Text(
-                          '${(100.0 - state.creditsUsed).toStringAsFixed(1)} Credits Left',
+                          '${state.creditsRemaining.toStringAsFixed(1)} Credits Left',
                           style: const TextStyle(
                               color: Color(0xFFFCD34D),
                               fontWeight: FontWeight.w600,
@@ -143,46 +167,161 @@ class _CreateTeamScreenState extends ConsumerState<CreateTeamScreen> {
                     ],
                   ),
                 ),
-                // Role count badges
+
+                // ── FIX #3: Role count badges (tappable) ─────────────
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 16, vertical: 8),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
-                      _RoleBadge(label: 'WK',   count: state.wkCount,   max: 4),
-                      _RoleBadge(label: 'BAT',  count: state.batCount,  max: 6),
-                      _RoleBadge(label: 'AR',   count: state.arCount,   max: 4),
-                      _RoleBadge(label: 'BOWL', count: state.bowlCount, max: 6),
+                      _RoleBadge(
+                        label: 'WK',
+                        count: state.wkCount,
+                        min: 1,
+                        max: 4,
+                        isActive: state.activeFilter ==
+                            PlayerRoleFilter.wk,
+                        onTap: () {
+                          notifier.setFilter(PlayerRoleFilter.wk);
+                          _tabController.animateTo(1);
+                        },
+                      ),
+                      _RoleBadge(
+                        label: 'BAT',
+                        count: state.batCount,
+                        min: 3,
+                        max: 6,
+                        isActive: state.activeFilter ==
+                            PlayerRoleFilter.bat,
+                        onTap: () {
+                          notifier.setFilter(PlayerRoleFilter.bat);
+                          _tabController.animateTo(2);
+                        },
+                      ),
+                      _RoleBadge(
+                        label: 'AR',
+                        count: state.arCount,
+                        min: 1,
+                        max: 4,
+                        isActive: state.activeFilter ==
+                            PlayerRoleFilter.ar,
+                        onTap: () {
+                          notifier.setFilter(PlayerRoleFilter.ar);
+                          _tabController.animateTo(3);
+                        },
+                      ),
+                      _RoleBadge(
+                        label: 'BOWL',
+                        count: state.bowlCount,
+                        min: 3,
+                        max: 6,
+                        isActive: state.activeFilter ==
+                            PlayerRoleFilter.bowl,
+                        onTap: () {
+                          notifier.setFilter(PlayerRoleFilter.bowl);
+                          _tabController.animateTo(4);
+                        },
+                      ),
                     ],
                   ),
+                ),
+
+                // ── FIX #3: Horizontal role filter tabs ───────────────
+                TabBar(
+                  controller: _tabController,
+                  isScrollable: true,
+                  tabAlignment: TabAlignment.start,
+                  labelColor: Colors.white,
+                  unselectedLabelColor: Colors.white54,
+                  indicatorColor: AppColors.primary,
+                  indicatorWeight: 3,
+                  labelStyle: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                  ),
+                  unselectedLabelStyle: const TextStyle(
+                    fontWeight: FontWeight.w500,
+                    fontSize: 13,
+                  ),
+                  tabs: _tabs.map((t) {
+                    final (label, filter) = t;
+                    final count = _filterCount(state, filter);
+                    return Tab(
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(label),
+                          if (count > 0) ...[
+                            const SizedBox(width: 4),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 1),
+                              decoration: BoxDecoration(
+                                color: AppColors.primary,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                '$count',
+                                style: const TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.white),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    );
+                  }).toList(),
                 ),
               ],
             ),
           ),
 
-          // ── Player list ──────────────────────────────────────────────
+          // ── Player list (filtered by active tab) ─────────────────────
           Expanded(
             child: _isLoadingPlayers
                 ? const Center(
-                    child: CircularProgressIndicator(color: AppColors.primary))
-                : ListView(
-                    padding: const EdgeInsets.only(bottom: 80),
-                    children: [
-                      if (wkPlayers.isNotEmpty)
-                        _buildSection('WICKET-KEEPERS', wkPlayers, state, notifier),
-                      if (batPlayers.isNotEmpty)
-                        _buildSection('BATTERS', batPlayers, state, notifier),
-                      if (arPlayers.isNotEmpty)
-                        _buildSection('ALL-ROUNDERS', arPlayers, state, notifier),
-                      if (bowlPlayers.isNotEmpty)
-                        _buildSection('BOWLERS', bowlPlayers, state, notifier),
-                    ],
-                  ),
+                    child: CircularProgressIndicator(
+                        color: AppColors.primary))
+                : state.filteredPlayers.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.person_search,
+                                size: 48,
+                                color:
+                                    AppColors.textTertiary.withOpacity(0.5)),
+                            const SizedBox(height: 12),
+                            Text('No players found',
+                                style: AppTypography.bodyMedium.copyWith(
+                                    color: AppColors.textSecondary)),
+                          ],
+                        ),
+                      )
+                    : ListView.builder(
+                        padding: const EdgeInsets.only(bottom: 80),
+                        itemCount: state.filteredPlayers.length,
+                        itemBuilder: (context, index) {
+                          final player = state.filteredPlayers[index];
+                          final isSelected = state.isSelected(player.id);
+                          final isDisabled =
+                              !isSelected && !state.canAddPlayer(player);
+                          return PlayerSelectionCard(
+                            player: player,
+                            isSelected: isSelected,
+                            isDisabled: isDisabled,
+                            onTap: () => notifier.togglePlayer(player),
+                          );
+                        },
+                      ),
           ),
         ],
       ),
 
-      // ── Bottom sticky bar ────────────────────────────────────────────
+      // ── Bottom sticky NEXT button ──────────────────────────────────────
       bottomNavigationBar: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
@@ -201,22 +340,19 @@ class _CreateTeamScreenState extends ConsumerState<CreateTeamScreen> {
                 : 'SELECT ${11 - state.selectedCount} MORE',
             onPressed: state.selectedCount == 11
                 ? () {
-                    // Validate minimum role constraints
                     if (!state.isValidTeam) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
                           content: Text(
-                              'Team must have min 1 WK, 3 BAT, 1 AR and 3 BOWL'),
+                              'Min: 1 WK · 3 BAT · 1 AR · 3 BOWL'),
                           backgroundColor: Colors.red,
                         ),
                       );
                       return;
                     }
-                    // Pass both matchId AND contestId to captain selection
-                    final extra = widget.contestId;
                     context.push(
                       '/captain-selection/${widget.matchId}',
-                      extra: extra,
+                      extra: widget.contestId,
                     );
                   }
                 : null,
@@ -227,99 +363,87 @@ class _CreateTeamScreenState extends ConsumerState<CreateTeamScreen> {
     );
   }
 
-  Widget _buildSection(
-    String title,
-    List<PlayerModel> players,
-    dynamic state,
-    dynamic notifier,
-  ) {
-    final selectedCount =
-        players.where((p) => state.selectedPlayers.any((s) => s.id == p.id)).length;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Section header
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          color: const Color(0xFFF1F5F9),
-          child: Row(
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1,
-                    color: Color(0xFF64748B)),
-              ),
-              const Spacer(),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: selectedCount > 0
-                      ? AppColors.primary.withOpacity(0.1)
-                      : Colors.transparent,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Text(
-                  '$selectedCount selected',
-                  style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: selectedCount > 0
-                          ? AppColors.primary
-                          : const Color(0xFF94A3B8)),
-                ),
-              ),
-            ],
-          ),
-        ),
-        // Players
-        ...players.map((player) => PlayerSelectionCard(
-              player: player,
-              isSelected: state.selectedPlayers.any((p) => p.id == player.id),
-              isDisabled: !state.canAddPlayer(player) &&
-                  !state.selectedPlayers.any((p) => p.id == player.id),
-              onTap: () => notifier.togglePlayer(player),
-            )),
-      ],
-    );
+  /// Returns the count of available players for a given filter tab.
+  int _filterCount(TeamBuilderState state, PlayerRoleFilter filter) {
+    if (filter == PlayerRoleFilter.all) return 0;
+    final role = {
+      PlayerRoleFilter.wk: 'WK',
+      PlayerRoleFilter.bat: 'Batsman',
+      PlayerRoleFilter.ar: 'All-rounder',
+      PlayerRoleFilter.bowl: 'Bowler',
+    }[filter];
+    return state.availablePlayers.where((p) => p.role == role).length;
   }
 }
 
-/// Small role badge showing count / max.
+// ─────────────────────────────────────────────────────────────────────────────
+// Role count badge (header) — tappable to switch tab
+// ─────────────────────────────────────────────────────────────────────────────
+
 class _RoleBadge extends StatelessWidget {
   final String label;
   final int count;
+  final int min;
   final int max;
+  final bool isActive;
+  final VoidCallback onTap;
 
-  const _RoleBadge(
-      {required this.label, required this.count, required this.max});
+  const _RoleBadge({
+    required this.label,
+    required this.count,
+    required this.min,
+    required this.max,
+    required this.isActive,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final isComplete = count >= min;
     final isFull = count >= max;
-    return Column(
-      children: [
-        Text(
-          label,
-          style: TextStyle(
-              color: isFull ? AppColors.success : Colors.white54,
-              fontSize: 11,
-              fontWeight: FontWeight.w600),
+    final Color color = isFull
+        ? AppColors.success
+        : isComplete
+            ? Colors.white
+            : Colors.white54;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: isActive
+              ? AppColors.primary.withOpacity(0.25)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: isActive
+                ? AppColors.primary
+                : Colors.white.withOpacity(0.1),
+            width: 1,
+          ),
         ),
-        const SizedBox(height: 2),
-        Text(
-          '$count',
-          style: TextStyle(
-              color: isFull ? AppColors.success : Colors.white,
-              fontSize: 16,
-              fontWeight: FontWeight.w700),
+        child: Column(
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                  color: color,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              '$count',
+              style: TextStyle(
+                  color: color,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700),
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 }

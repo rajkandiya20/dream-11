@@ -61,11 +61,13 @@ class MatchModel {
 
   /// Create from JSON (Supabase response with tournament and team relations).
   factory MatchModel.fromJson(Map<String, dynamic> json) {
-    // Parse nested team data from joined teams table
-    final teamAData = json['team_a'] as Map<String, dynamic>?;
-    final teamBData2 = json['team_b'] as Map<String, dynamic>?;
-    debugPrint('[MatchModel] teamA join: ${teamAData != null}, teamB join: ${teamBData2 != null}, teamA logo: ${teamAData?["logo"]}');
-    final teamBData = json['team_b'] as Map<String, dynamic>?;
+    // FIX #8: Handle BOTH join aliases:
+    // home_repository uses: team_a:teams!team_a_id → json['team_a']
+    // match_repository uses: team_a_details:teams!matches_team_a_id_fkey → json['team_a_details']
+    final teamAData = (json['team_a'] as Map<String, dynamic>?)
+        ?? (json['team_a_details'] as Map<String, dynamic>?);
+    final teamBData = (json['team_b'] as Map<String, dynamic>?)
+        ?? (json['team_b_details'] as Map<String, dynamic>?);
 
     return MatchModel(
       id: json['id'] as String? ?? '',
@@ -76,8 +78,13 @@ class MatchModel {
       teamBName: teamBData?['name'] as String? ?? json['team_b_name'] as String? ?? 'Team B',
       teamACode: teamAData?['code'] as String? ?? json['team_a_code'] as String?,
       teamBCode: teamBData?['code'] as String? ?? json['team_b_code'] as String?,
-      teamAFlag: teamAData?['logo'] as String? ?? json['team_a_flag'] as String?,
-      teamBFlag: teamBData?['logo'] as String? ?? json['team_b_flag'] as String?,
+      // FIX #8: Read logo from join data OR flat column team_a_flag
+      teamAFlag: teamAData?['logo'] as String?
+          ?? teamAData?['flag'] as String?
+          ?? json['team_a_flag'] as String?,
+      teamBFlag: teamBData?['logo'] as String?
+          ?? teamBData?['flag'] as String?
+          ?? json['team_b_flag'] as String?,
       dateTime: json['date_time'] != null
           ? DateTime.parse(json['date_time'] as String)
           : DateTime.now(),

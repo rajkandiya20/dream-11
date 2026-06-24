@@ -10,13 +10,14 @@ import '../../../auth/domain/providers/auth_provider.dart';
 import '../../../contests/presentation/widgets/contest_card.dart';
 import '../../../fantasy/data/models/fantasy_team_model.dart';
 import '../../../fantasy/data/repositories/fantasy_repository.dart';
+import '../../../fantasy/presentation/screens/team_preview_screen.dart';
+import '../../data/models/player_model.dart';
 import '../../data/models/player_stats_model.dart';
 import '../../domain/providers/match_provider.dart';
 import '../widgets/match_header.dart';
 import '../widgets/scorecard_tab.dart';
 
 /// Provider that fetches user fantasy teams for a match, keyed by (userId, matchId).
-/// Cached by Riverpod so it does not re-fetch on every widget rebuild.
 final _userTeamsProvider = FutureProvider.family<List<FantasyTeamModel>,
     ({String userId, String matchId})>((ref, params) async {
   final repository = ref.watch(fantasyRepositoryProvider);
@@ -26,7 +27,7 @@ final _userTeamsProvider = FutureProvider.family<List<FantasyTeamModel>,
   );
 });
 
-/// Premium match detail screen with header, tabs for contests/scorecard/commentary.
+/// Premium match detail screen.
 class MatchDetailScreen extends ConsumerWidget {
   final String matchId;
 
@@ -50,7 +51,6 @@ class MatchDetailScreen extends ConsumerWidget {
                   child: NestedScrollView(
                     headerSliverBuilder: (context, innerBoxIsScrolled) {
                       return [
-                        // Custom App Bar with match header
                         SliverAppBar(
                           expandedHeight: 220,
                           pinned: true,
@@ -71,7 +71,6 @@ class MatchDetailScreen extends ConsumerWidget {
                             background: MatchHeader(match: state.match!),
                           ),
                         ),
-                        // Tab bar
                         SliverPersistentHeader(
                           pinned: true,
                           delegate: _TabBarDelegate(
@@ -83,10 +82,7 @@ class MatchDetailScreen extends ConsumerWidget {
                               indicatorColor: AppColors.primary,
                               indicatorWeight: 3,
                               tabs: [
-                                Tab(
-                                  text:
-                                      'Contests (${state.contests.length})',
-                                ),
+                                Tab(text: 'Contests (${state.contests.length})'),
                                 const Tab(text: 'Scorecard'),
                                 const Tab(text: 'My Team'),
                               ],
@@ -97,19 +93,13 @@ class MatchDetailScreen extends ConsumerWidget {
                     },
                     body: TabBarView(
                       children: [
-                        // Contests Tab
-                        _ContestsTab(
-                          matchId: matchId,
-                          state: state,
-                        ),
-                        // Scorecard Tab
-                        ScorecardTab(
-                          scoreboard: state.scoreboard,
-                        ),
-                        // My Team Tab
+                        _ContestsTab(matchId: matchId, state: state),
+                        ScorecardTab(scoreboard: state.scoreboard),
+                        // ── FIX #1: Pass playerStats for live points ──
                         _MyTeamTab(
                           matchId: matchId,
                           playerStats: state.playerStats,
+                          players: state.players,
                         ),
                       ],
                     ),
@@ -119,7 +109,10 @@ class MatchDetailScreen extends ConsumerWidget {
   }
 }
 
-/// Contests tab content.
+// ─────────────────────────────────────────────────────────────────────────────
+// Contests Tab
+// ─────────────────────────────────────────────────────────────────────────────
+
 class _ContestsTab extends StatelessWidget {
   final String matchId;
   final MatchDetailState state;
@@ -133,18 +126,12 @@ class _ContestsTab extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.emoji_events_outlined,
-              size: 64,
-              color: AppColors.textTertiary,
-            ),
+            Icon(Icons.emoji_events_outlined,
+                size: 64, color: AppColors.textTertiary),
             AppSpacing.gapH16,
-            Text(
-              'No contests available yet',
-              style: AppTypography.bodyLarge.copyWith(
-                color: AppColors.textSecondary,
-              ),
-            ),
+            Text('No contests available yet',
+                style: AppTypography.bodyLarge
+                    .copyWith(color: AppColors.textSecondary)),
           ],
         ),
       );
@@ -155,7 +142,6 @@ class _ContestsTab extends StatelessWidget {
       itemCount: state.contests.length + 1,
       itemBuilder: (context, index) {
         if (index == 0) {
-          // Create Team CTA
           return Container(
             margin: const EdgeInsets.only(bottom: 16),
             padding: const EdgeInsets.all(16),
@@ -171,37 +157,28 @@ class _ContestsTab extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'Create Your Team',
-                        style: AppTypography.titleMedium.copyWith(
-                          color: Colors.white,
-                        ),
-                      ),
-                      Text(
-                        'Pick 11 players and join contests',
-                        style: AppTypography.bodySmall.copyWith(
-                          color: Colors.white70,
-                        ),
-                      ),
+                      Text('Create Your Team',
+                          style: AppTypography.titleMedium
+                              .copyWith(color: Colors.white)),
+                      Text('Pick 11 players and join contests',
+                          style: AppTypography.bodySmall
+                              .copyWith(color: Colors.white70)),
                     ],
                   ),
                 ),
                 GestureDetector(
                   onTap: () => context.push('/create-team/$matchId'),
                   child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 8),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: AppSpacing.borderRadiusFull,
                     ),
-                    child: Text(
-                      'CREATE',
-                      style: AppTypography.labelMedium.copyWith(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
+                    child: Text('CREATE',
+                        style: AppTypography.labelMedium.copyWith(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w700)),
                   ),
                 ),
               ],
@@ -222,15 +199,37 @@ class _ContestsTab extends StatelessWidget {
   }
 }
 
-/// My Team tab showing user's fantasy team with live points.
-class _MyTeamTab extends ConsumerWidget {
+// ─────────────────────────────────────────────────────────────────────────────
+// FIX #1: My Team Tab — Horizontal swipeable cards like Dream11
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _MyTeamTab extends ConsumerStatefulWidget {
   final String matchId;
   final List<PlayerStatsModel> playerStats;
+  final List<PlayerModel> players;
 
-  const _MyTeamTab({required this.matchId, required this.playerStats});
+  const _MyTeamTab({
+    required this.matchId,
+    required this.playerStats,
+    required this.players,
+  });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_MyTeamTab> createState() => _MyTeamTabState();
+}
+
+class _MyTeamTabState extends ConsumerState<_MyTeamTab> {
+  int _selectedTeamIndex = 0;
+  final PageController _pageController = PageController();
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
     final userId = authState.user?.uid;
 
@@ -239,47 +238,27 @@ class _MyTeamTab extends ConsumerWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.lock_outline,
-              size: 64,
-              color: AppColors.textTertiary,
-            ),
+            Icon(Icons.lock_outline, size: 64, color: AppColors.textTertiary),
             AppSpacing.gapH16,
-            Text(
-              'Please log in to view your team',
-              style: AppTypography.bodyLarge.copyWith(
-                color: AppColors.textSecondary,
-              ),
-            ),
+            Text('Please log in to view your team',
+                style: AppTypography.bodyLarge
+                    .copyWith(color: AppColors.textSecondary)),
           ],
         ),
       );
     }
 
     final teamsAsync = ref.watch(
-      _userTeamsProvider((userId: userId, matchId: matchId)),
+      _userTeamsProvider((userId: userId, matchId: widget.matchId)),
     );
 
     return teamsAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
+      loading: () =>
+          const Center(child: CircularProgressIndicator(color: AppColors.primary)),
       error: (_, __) => Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.error_outline,
-              size: 64,
-              color: AppColors.textTertiary,
-            ),
-            AppSpacing.gapH16,
-            Text(
-              'Failed to load teams',
-              style: AppTypography.bodyLarge.copyWith(
-                color: AppColors.textSecondary,
-              ),
-            ),
-          ],
-        ),
+        child: Text('Failed to load teams',
+            style:
+                AppTypography.bodyLarge.copyWith(color: AppColors.textSecondary)),
       ),
       data: (teams) {
         if (teams.isEmpty) {
@@ -287,186 +266,436 @@ class _MyTeamTab extends ConsumerWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(
-                  Icons.group_outlined,
-                  size: 64,
-                  color: AppColors.textTertiary,
-                ),
+                Icon(Icons.group_outlined,
+                    size: 64, color: AppColors.textTertiary),
                 AppSpacing.gapH16,
-                Text(
-                  'No team created yet',
-                  style: AppTypography.bodyLarge.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
-                ),
+                Text('No team created yet',
+                    style: AppTypography.bodyLarge
+                        .copyWith(color: AppColors.textSecondary)),
                 AppSpacing.gapH8,
-                Text(
-                  'Create a team to see live points',
-                  style: AppTypography.bodySmall.copyWith(
-                    color: AppColors.textTertiary,
-                  ),
-                ),
+                Text('Create a team to see live points',
+                    style: AppTypography.bodySmall
+                        .copyWith(color: AppColors.textTertiary)),
                 AppSpacing.gapH24,
                 ElevatedButton(
-                  onPressed: () => context.push('/create-team/$matchId'),
+                  onPressed: () =>
+                      context.push('/create-team/${widget.matchId}'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                  ),
-                  child: const Text('Create Team'),
+                      backgroundColor: AppColors.primary),
+                  child: const Text('Create Team',
+                      style: TextStyle(color: Colors.white)),
                 ),
               ],
             ),
           );
         }
 
-        return ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: teams.length,
-          itemBuilder: (context, index) {
-            final team = teams[index];
-            return _TeamCard(
-              team: team,
-              playerStats: playerStats,
-            );
-          },
+        return Column(
+          children: [
+            // ── Horizontal team selector tabs (Team 1 | Team 2 | ...) ──
+            if (teams.length > 1)
+              Container(
+                color: AppColors.surface,
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 16, vertical: 8),
+                  child: Row(
+                    children: List.generate(teams.length, (i) {
+                      final isActive = _selectedTeamIndex == i;
+                      return GestureDetector(
+                        onTap: () {
+                          setState(() => _selectedTeamIndex = i);
+                          _pageController.animateToPage(
+                            i,
+                            duration: const Duration(milliseconds: 300),
+                            curve: Curves.easeInOut,
+                          );
+                        },
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          margin: const EdgeInsets.only(right: 8),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 18, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: isActive
+                                ? AppColors.primary
+                                : AppColors.primary.withOpacity(0.08),
+                            borderRadius: AppSpacing.borderRadiusFull,
+                            border: Border.all(
+                              color: isActive
+                                  ? AppColors.primary
+                                  : AppColors.primary.withOpacity(0.3),
+                            ),
+                          ),
+                          child: Text(
+                            'Team ${i + 1}',
+                            style: AppTypography.labelMedium.copyWith(
+                              color: isActive
+                                  ? Colors.white
+                                  : AppColors.primary,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      );
+                    }),
+                  ),
+                ),
+              ),
+
+            // ── PageView of team cards ──
+            Expanded(
+              child: PageView.builder(
+                controller: _pageController,
+                itemCount: teams.length,
+                onPageChanged: (i) =>
+                    setState(() => _selectedTeamIndex = i),
+                itemBuilder: (context, i) {
+                  return _TeamDetailCard(
+                    team: teams[i],
+                    teamNumber: i + 1,
+                    playerStats: widget.playerStats,
+                    allMatchPlayers: widget.players,
+                  );
+                },
+              ),
+            ),
+          ],
         );
       },
     );
   }
 }
 
-/// Card showing a single fantasy team with live points.
-class _TeamCard extends StatelessWidget {
-  final FantasyTeamModel team;
-  final List<PlayerStatsModel> playerStats;
+// ─────────────────────────────────────────────────────────────────────────────
+// FIX #2: Team Detail Card with View Team cricket ground button
+// ─────────────────────────────────────────────────────────────────────────────
 
-  const _TeamCard({required this.team, required this.playerStats});
+class _TeamDetailCard extends StatelessWidget {
+  final FantasyTeamModel team;
+  final int teamNumber;
+  final List<PlayerStatsModel> playerStats;
+  final List<PlayerModel> allMatchPlayers;
+
+  const _TeamDetailCard({
+    required this.team,
+    required this.teamNumber,
+    required this.playerStats,
+    required this.allMatchPlayers,
+  });
 
   double _getPlayerPoints(String playerId) {
-    final stats = playerStats.where((s) => s.playerId == playerId).firstOrNull;
+    final stats =
+        playerStats.where((s) => s.playerId == playerId).firstOrNull;
     return stats?.fantasyPoints ?? 0.0;
   }
 
   double _getMultipliedPoints(FantasyTeamPlayerModel player) {
-    final basePoints = _getPlayerPoints(player.playerId);
-    if (player.isCaptain) return basePoints * 2.0;
-    if (player.isViceCaptain) return basePoints * 1.5;
-    return basePoints;
+    final base = _getPlayerPoints(player.playerId);
+    if (player.isCaptain) return base * 2.0;
+    if (player.isViceCaptain) return base * 1.5;
+    return base;
   }
 
-  double get _totalTeamPoints {
-    double total = 0.0;
-    for (final player in team.players) {
-      total += _getMultipliedPoints(player);
+  double get _totalPoints {
+    double total = 0;
+    for (final p in team.players) {
+      total += _getMultipliedPoints(p);
     }
     return total;
   }
 
+  /// Build full PlayerModel list from the team's player IDs
+  /// using the match's player list so image/role data is available.
+  List<PlayerModel> _getFullPlayers() {
+    return team.players.map((tp) {
+      // Try to find the full player from match players
+      final full = allMatchPlayers
+          .where((p) => p.id == tp.playerId)
+          .firstOrNull;
+      if (full != null) return full;
+      // Fallback: minimal PlayerModel from team data
+      return PlayerModel(
+        id: tp.playerId,
+        name: tp.playerName,
+        role: tp.playerRole,
+        teamName: '',
+        credits: 0,
+        points: _getPlayerPoints(tp.playerId),
+      );
+    }).toList();
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: AppSpacing.borderRadiusMd,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Team header with name and total points
+          // ── Team header card ──
           Container(
-            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              gradient: AppColors.primaryGradient,
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(12),
-              ),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      team.teamName,
-                      style: AppTypography.titleMedium.copyWith(
-                        color: Colors.white,
-                      ),
-                    ),
-                    Text(
-                      '${team.playerCount} Players',
-                      style: AppTypography.bodySmall.copyWith(
-                        color: Colors.white70,
-                      ),
-                    ),
-                  ],
+              color: AppColors.surface,
+              borderRadius: AppSpacing.borderRadiusMd,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.06),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
                 ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      _totalTeamPoints.toStringAsFixed(1),
-                      style: AppTypography.headlineSmall.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
+              ],
+            ),
+            child: Column(
+              children: [
+                // Gradient header
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    gradient: AppColors.primaryGradient,
+                    borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(12)),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            team.teamName.isEmpty ||
+                                    team.teamName == 'My Team'
+                                ? 'Team $teamNumber'
+                                : team.teamName,
+                            style: AppTypography.titleMedium
+                                .copyWith(color: Colors.white),
+                          ),
+                          Text(
+                            '${team.playerCount} Players',
+                            style: AppTypography.bodySmall
+                                .copyWith(color: Colors.white70),
+                          ),
+                        ],
                       ),
-                    ),
-                    Text(
-                      'Total Points',
-                      style: AppTypography.labelSmall.copyWith(
-                        color: Colors.white70,
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            _totalPoints.toStringAsFixed(1),
+                            style: AppTypography.headlineSmall.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700),
+                          ),
+                          Text('Total Points',
+                              style: AppTypography.labelSmall
+                                  .copyWith(color: Colors.white70)),
+                        ],
                       ),
+                    ],
+                  ),
+                ),
+
+                // C and VC info row
+                Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: _CaptainChip(
+                          label: 'C',
+                          name: team.players
+                                  .where((p) => p.isCaptain)
+                                  .firstOrNull
+                                  ?.playerName ??
+                              '—',
+                          color: AppColors.primary,
+                        ),
+                      ),
+                      AppSpacing.gapW8,
+                      Expanded(
+                        child: _CaptainChip(
+                          label: 'VC',
+                          name: team.players
+                                  .where((p) => p.isViceCaptain)
+                                  .firstOrNull
+                                  ?.playerName ??
+                              '—',
+                          color: AppColors.info,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // ── VIEW TEAM button ──
+                Padding(
+                  padding:
+                      const EdgeInsets.only(left: 12, right: 12, bottom: 12),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.primary,
+                        side: BorderSide(color: AppColors.primary),
+                        padding:
+                            const EdgeInsets.symmetric(vertical: 10),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: AppSpacing.borderRadiusMd),
+                      ),
+                      icon: const Icon(Icons.sports_cricket, size: 18),
+                      label: const Text('VIEW TEAM',
+                          style: TextStyle(fontWeight: FontWeight.w700)),
+                      onPressed: () {
+                        final fullPlayers = _getFullPlayers();
+                        // Build points map for captain/VC multiplier display
+                        final pointsMap = <String, double>{};
+                        for (final p in team.players) {
+                          pointsMap[p.playerId] =
+                              _getPlayerPoints(p.playerId);
+                        }
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => TeamPreviewScreen(
+                              players: fullPlayers,
+                              captainId: team.captainId,
+                              viceCaptainId: team.viceCaptainId,
+                              playerPoints: pointsMap,
+                            ),
+                          ),
+                        );
+                      },
                     ),
-                  ],
+                  ),
                 ),
               ],
             ),
           ),
-          // Player list
-          ...team.players.map((player) => _PlayerRow(
-                player: player,
-                points: _getMultipliedPoints(player),
-                basePoints: _getPlayerPoints(player.playerId),
-              )),
-          AppSpacing.gapH8,
+
+          AppSpacing.gapH16,
+
+          // ── Player list ──
+          Container(
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: AppSpacing.borderRadiusMd,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.04),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Column(
+              children: [
+                // Header
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 16, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: AppColors.scaffoldBackground,
+                    borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(12)),
+                    border: Border(
+                        bottom: BorderSide(color: AppColors.border)),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                          child: Text('Player',
+                              style: AppTypography.labelSmall.copyWith(
+                                  fontWeight: FontWeight.w700))),
+                      SizedBox(
+                          width: 50,
+                          child: Text('Role',
+                              style: AppTypography.labelSmall.copyWith(
+                                  fontWeight: FontWeight.w700),
+                              textAlign: TextAlign.center)),
+                      SizedBox(
+                          width: 60,
+                          child: Text('Points',
+                              style: AppTypography.labelSmall.copyWith(
+                                  fontWeight: FontWeight.w700),
+                              textAlign: TextAlign.center)),
+                    ],
+                  ),
+                ),
+                ...team.players.map((player) => _PlayerRow(
+                      player: player,
+                      points: _getMultipliedPoints(player),
+                    )),
+              ],
+            ),
+          ),
         ],
       ),
     );
   }
 }
 
-/// Row showing a single player with live points.
+class _CaptainChip extends StatelessWidget {
+  final String label;
+  final String name;
+  final Color color;
+
+  const _CaptainChip(
+      {required this.label, required this.name, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.07),
+        borderRadius: AppSpacing.borderRadiusSm,
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 22,
+            height: 22,
+            decoration:
+                BoxDecoration(color: color, shape: BoxShape.circle),
+            child: Center(
+              child: Text(label,
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800)),
+            ),
+          ),
+          AppSpacing.gapW8,
+          Expanded(
+            child: Text(name,
+                style: AppTypography.bodySmall.copyWith(
+                    fontWeight: FontWeight.w600),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _PlayerRow extends StatelessWidget {
   final FantasyTeamPlayerModel player;
   final double points;
-  final double basePoints;
 
-  const _PlayerRow({
-    required this.player,
-    required this.points,
-    required this.basePoints,
-  });
+  const _PlayerRow({required this.player, required this.points});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(color: AppColors.border.withOpacity(0.5)),
-        ),
+        border:
+            Border(bottom: BorderSide(color: AppColors.border.withOpacity(0.4))),
       ),
       child: Row(
         children: [
-          // Player avatar placeholder
+          // Avatar
           Container(
             width: 32,
             height: 32,
@@ -476,137 +705,138 @@ class _PlayerRow extends StatelessWidget {
             ),
             child: Center(
               child: Text(
-                player.playerName.isNotEmpty ? player.playerName[0] : '',
+                player.playerName.isNotEmpty ? player.playerName[0] : '?',
                 style: AppTypography.labelSmall.copyWith(
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.w600,
-                ),
+                    color: AppColors.primary, fontWeight: FontWeight.w600),
               ),
             ),
           ),
-          AppSpacing.gapW12,
-          // Player name and role
+          AppSpacing.gapW8,
+          // Name + C/VC badge
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Row(
               children: [
-                Row(
-                  children: [
-                    Flexible(
-                      child: Text(
-                        player.playerName,
-                        style: AppTypography.bodySmall.copyWith(
-                          fontWeight: FontWeight.w500,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    if (player.isCaptain) ...[
-                      AppSpacing.gapW4,
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 4,
-                          vertical: 1,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppColors.primary,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          'C',
-                          style: AppTypography.labelSmall.copyWith(
-                            color: Colors.white,
-                            fontSize: 9,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ],
-                    if (player.isViceCaptain) ...[
-                      AppSpacing.gapW4,
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 4,
-                          vertical: 1,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppColors.secondary,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          'VC',
-                          style: AppTypography.labelSmall.copyWith(
-                            color: Colors.white,
-                            fontSize: 9,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-                Text(
-                  player.playerRole,
-                  style: AppTypography.labelSmall.copyWith(
-                    color: AppColors.textTertiary,
-                    fontSize: 10,
+                Flexible(
+                  child: Text(
+                    player.playerName,
+                    style: AppTypography.bodySmall
+                        .copyWith(fontWeight: FontWeight.w500),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
+                if (player.isCaptain) ...[
+                  AppSpacing.gapW4,
+                  _Badge(label: 'C', color: AppColors.primary),
+                ],
+                if (player.isViceCaptain) ...[
+                  AppSpacing.gapW4,
+                  _Badge(label: 'VC', color: AppColors.info),
+                ],
               ],
             ),
           ),
-          // Multiplier info
-          if (player.isCaptain || player.isViceCaptain)
-            Container(
-              margin: const EdgeInsets.only(right: 8),
-              child: Text(
-                player.isCaptain ? '2x' : '1.5x',
-                style: AppTypography.labelSmall.copyWith(
-                  color: AppColors.textSecondary,
-                  fontSize: 10,
-                ),
-              ),
+          // Role
+          SizedBox(
+            width: 50,
+            child: Text(
+              _roleShort(player.playerRole),
+              style: AppTypography.labelSmall
+                  .copyWith(color: AppColors.textSecondary),
+              textAlign: TextAlign.center,
             ),
-          // Points
-          Text(
-            points.toStringAsFixed(1),
-            style: AppTypography.titleSmall.copyWith(
-              color: AppColors.primary,
-              fontWeight: FontWeight.w600,
+          ),
+          // Points + multiplier
+          SizedBox(
+            width: 60,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  points.toStringAsFixed(1),
+                  style: AppTypography.titleSmall.copyWith(
+                      color: AppColors.primary, fontWeight: FontWeight.w700),
+                ),
+                if (player.isCaptain || player.isViceCaptain)
+                  Text(
+                    player.isCaptain ? '2x' : '1.5x',
+                    style: AppTypography.labelSmall
+                        .copyWith(color: AppColors.textTertiary, fontSize: 9),
+                  ),
+              ],
             ),
           ),
         ],
       ),
     );
   }
+
+  String _roleShort(String role) {
+    switch (role) {
+      case 'WK':
+        return 'WK';
+      case 'Batsman':
+        return 'BAT';
+      case 'All-rounder':
+        return 'AR';
+      case 'Bowler':
+        return 'BOWL';
+      default:
+        return role.isNotEmpty ? role.substring(0, 2).toUpperCase() : '—';
+    }
+  }
 }
 
-/// Tab bar delegate for persistent header.
+class _Badge extends StatelessWidget {
+  final String label;
+  final Color color;
+
+  const _Badge({required this.label, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding:
+          const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(label,
+          style: const TextStyle(
+              color: Colors.white,
+              fontSize: 9,
+              fontWeight: FontWeight.w800)),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Tab bar delegate
+// ─────────────────────────────────────────────────────────────────────────────
+
 class _TabBarDelegate extends SliverPersistentHeaderDelegate {
   final TabBar tabBar;
-
   _TabBarDelegate(this.tabBar);
 
   @override
   double get minExtent => tabBar.preferredSize.height;
-
   @override
   double get maxExtent => tabBar.preferredSize.height;
 
   @override
   Widget build(
       BuildContext context, double shrinkOffset, bool overlapsContent) {
-    return Container(
-      color: AppColors.surface,
-      child: tabBar,
-    );
+    return Container(color: AppColors.surface, child: tabBar);
   }
 
   @override
   bool shouldRebuild(_TabBarDelegate oldDelegate) => false;
 }
 
-/// Loading state for match detail.
+// ─────────────────────────────────────────────────────────────────────────────
+// Loading / Error states
+// ─────────────────────────────────────────────────────────────────────────────
+
 class _LoadingState extends StatelessWidget {
   const _LoadingState();
 
@@ -634,10 +864,8 @@ class _LoadingState extends StatelessWidget {
   }
 }
 
-/// Error state with retry.
 class _ErrorState extends StatelessWidget {
   final VoidCallback onRetry;
-
   const _ErrorState({required this.onRetry});
 
   @override
@@ -647,28 +875,11 @@ class _ErrorState extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.error_outline,
-              size: 64,
-              color: AppColors.error,
-            ),
+            Icon(Icons.error_outline, size: 64, color: AppColors.error),
             AppSpacing.gapH16,
-            Text(
-              'Failed to load match',
-              style: AppTypography.headlineSmall,
-            ),
-            AppSpacing.gapH8,
-            Text(
-              'Please try again',
-              style: AppTypography.bodyMedium.copyWith(
-                color: AppColors.textSecondary,
-              ),
-            ),
+            Text('Failed to load match', style: AppTypography.headlineSmall),
             AppSpacing.gapH24,
-            ElevatedButton(
-              onPressed: onRetry,
-              child: const Text('Retry'),
-            ),
+            ElevatedButton(onPressed: onRetry, child: const Text('Retry')),
           ],
         ),
       ),

@@ -105,8 +105,14 @@ class DepositPromptDialog extends ConsumerWidget {
                       borderRadius: AppSpacing.borderRadiusMd),
                 ),
                 onPressed: () {
-                  Navigator.of(context).pop(); // close dialog
-                  context.push('/wallet');     // open wallet screen
+                  // FIX #6: Close dialog first, then navigate.
+                  // Using Navigator.of(context).pop() + context.go() avoids
+                  // the keyReservation assertion crash from nested navigators.
+                  Navigator.of(context).pop();
+                  // Small delay to let dialog close before route push
+                  Future.microtask(() {
+                    if (context.mounted) context.go('/wallet');
+                  });
                 },
                 child: Text('ADD ₹${shortfall.toStringAsFixed(0)} TO WALLET',
                     style: AppTypography.labelLarge
