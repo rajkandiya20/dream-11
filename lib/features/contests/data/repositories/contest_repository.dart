@@ -250,23 +250,44 @@ class ContestRepository {
       }
 
       // ── 7. Insert into contest_entries (used by LiveRankingRepository) ─
-      await _client.from('contest_entries').upsert({
-        'contest_id': contestId,
-        'user_id': userId,
-        'fantasy_team_id': fantasyTeamId,
-        'total_points': 0,
-        'prize_won': 0,
-      }, onConflict: 'contest_id,user_id');
+      // FIX #5: Don't use upsert with onConflict — DB may not have a unique
+      // constraint. Instead check first, then insert only if not exists.
+      final existingEntry = await _client
+          .from('contest_entries')
+          .select('id')
+          .eq('contest_id', contestId)
+          .eq('user_id', userId)
+          .maybeSingle();
+
+      if (existingEntry == null) {
+        await _client.from('contest_entries').insert({
+          'contest_id': contestId,
+          'user_id': userId,
+          'fantasy_team_id': fantasyTeamId,
+          'total_points': 0,
+          'prize_won': 0,
+        });
+      }
 
       // ── 8. Insert into leaderboard ────────────────────────────────────
-      await _client.from('leaderboard').upsert({
-        'contest_id': contestId,
-        'user_id': userId,
-        'fantasy_team_id': fantasyTeamId,
-        'points': 0,
-        'rank': 0,
-        'prize_won': 0,
-      }, onConflict: 'contest_id,user_id');
+      // FIX #5: Same pattern — check first, then insert.
+      final existingLeaderboard = await _client
+          .from('leaderboard')
+          .select('id')
+          .eq('contest_id', contestId)
+          .eq('user_id', userId)
+          .maybeSingle();
+
+      if (existingLeaderboard == null) {
+        await _client.from('leaderboard').insert({
+          'contest_id': contestId,
+          'user_id': userId,
+          'fantasy_team_id': fantasyTeamId,
+          'points': 0,
+          'rank': 0,
+          'prize_won': 0,
+        });
+      }
 
       // ── 9. Increment joined_teams counter ─────────────────────────────
       try {
@@ -370,7 +391,7 @@ class ContestRepository {
     required String userId,
   }) async {
     try {
-      // Check both tables for maximum reliability
+      // FIX #5: Check both tables. Use count=exact to avoid fetching full rows.
       final leaderboardRow = await _client
           .from('leaderboard')
           .select('id')

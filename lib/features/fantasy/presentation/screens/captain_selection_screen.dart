@@ -296,10 +296,11 @@ class _BottomBar extends ConsumerWidget {
                         );
                       }
 
-                      // 3. Pop back to match detail (pop both captain + create screens)
+                      // 3. FIX #4: Safe navigation back — use go() instead of
+                      //    double pop() which causes keyReservation assertion crash.
                       if (context.mounted) {
-                        context.pop(); // captain selection
-                        context.pop(); // create team
+                        // GoRouter's go() replaces the entire stack safely.
+                        context.go('/matches/${widget.matchId}');
                       }
                     }
                   : null,

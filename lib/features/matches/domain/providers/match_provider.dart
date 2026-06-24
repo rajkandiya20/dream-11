@@ -102,10 +102,10 @@ class MatchDetailNotifier extends StateNotifier<MatchDetailState> {
         isLoading: false,
       );
 
-      // Subscribe to real-time updates if match is live.
-      if (match?.isLive == true) {
-        _subscribeToRealtime();
-      }
+      // FIX #7: Always subscribe to real-time — not just when isLive.
+      // This covers: match goes live after screen opens, and scoring updates.
+      _unsubscribeAll();
+      _subscribeToRealtime();
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
@@ -115,6 +115,8 @@ class MatchDetailNotifier extends StateNotifier<MatchDetailState> {
   }
 
   /// Subscribe to real-time scoreboard and commentary updates.
+  /// FIX #7: Always subscribe regardless of live status.
+  /// Also listen to `scoreboard` table for fantasy points updates from admin scoring.
   void _subscribeToRealtime() {
     _scoreboardChannel = _repository.subscribeToScoreboard(
       matchId,
@@ -128,6 +130,26 @@ class MatchDetailNotifier extends StateNotifier<MatchDetailState> {
         }
         list.sort((a, b) => b.points.compareTo(a.points));
         state = state.copyWith(scoreboard: list);
+
+        // FIX #7: Sync fantasy points from scoreboard → playerStats.
+        // Admin scores to `scoreboard.points` — reflect that in playerStats
+        // so the My Team tab shows live points immediately.
+        final statsList = List<PlayerStatsModel>.from(state.playerStats);
+        final statIdx =
+            statsList.indexWhere((s) => s.playerId == entry.playerId);
+        if (statIdx >= 0) {
+          statsList[statIdx] =
+              statsList[statIdx].copyWith(fantasyPoints: entry.points);
+        } else {
+          // Create a minimal entry if not present yet
+          statsList.add(PlayerStatsModel(
+            id: entry.id,
+            matchId: matchId,
+            playerId: entry.playerId,
+            fantasyPoints: entry.points,
+          ));
+        }
+        state = state.copyWith(playerStats: statsList);
       },
     );
 
@@ -177,6 +199,30 @@ class MatchDetailNotifier extends StateNotifier<MatchDetailState> {
     );
   }
 
+  /// Unsubscribe all active channels before re-subscribing.
+  void _unsubscribeAll() {
+    if (_scoreboardChannel != null) {
+      _repository.unsubscribe(_scoreboardChannel!);
+      _scoreboardChannel = null;
+    }
+    if (_commentaryChannel != null) {
+      _repository.unsubscribe(_commentaryChannel!);
+      _commentaryChannel = null;
+    }
+    if (_contestsChannel != null) {
+      _repository.unsubscribe(_contestsChannel!);
+      _contestsChannel = null;
+    }
+    if (_playerStatsChannel != null) {
+      _repository.unsubscribe(_playerStatsChannel!);
+      _playerStatsChannel = null;
+    }
+    if (_ballByBallChannel != null) {
+      _repository.unsubscribe(_ballByBallChannel!);
+      _ballByBallChannel = null;
+    }
+  }
+
   /// Refresh match data.
   Future<void> refresh() async {
     await loadMatchData();
@@ -184,21 +230,7 @@ class MatchDetailNotifier extends StateNotifier<MatchDetailState> {
 
   @override
   void dispose() {
-    if (_scoreboardChannel != null) {
-      _repository.unsubscribe(_scoreboardChannel!);
-    }
-    if (_commentaryChannel != null) {
-      _repository.unsubscribe(_commentaryChannel!);
-    }
-    if (_contestsChannel != null) {
-      _repository.unsubscribe(_contestsChannel!);
-    }
-    if (_playerStatsChannel != null) {
-      _repository.unsubscribe(_playerStatsChannel!);
-    }
-    if (_ballByBallChannel != null) {
-      _repository.unsubscribe(_ballByBallChannel!);
-    }
+    _unsubscribeAll();
     super.dispose();
   }
 }
