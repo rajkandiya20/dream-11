@@ -113,7 +113,7 @@ class DepositPromptDialog extends ConsumerWidget {
                         .copyWith(color: Colors.white)),
               ),
             ),
-            AppSpacing.gapH10,
+            AppSpacing.gapH8,
 
             // Cancel button
             SizedBox(
