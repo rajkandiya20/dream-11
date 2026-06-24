@@ -183,7 +183,7 @@ class _HomeAppBar extends ConsumerWidget {
             child: Icon(Icons.sports_cricket, color: Colors.white, size: 18),
           ),
         ),
-        AppSpacing.gapW10,
+        AppSpacing.gapW8,
         Text('DreamTeam', style: AppTypography.headlineMedium),
         const Spacer(),
         // Notification bell

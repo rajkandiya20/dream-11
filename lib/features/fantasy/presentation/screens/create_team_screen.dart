@@ -355,7 +355,6 @@ class _CreateTeamScreenState extends ConsumerState<CreateTeamScreen>
                           );
                         },
                       ),
-                    ),
                   ), // Expanded (list)
               ],
             ), // Column
