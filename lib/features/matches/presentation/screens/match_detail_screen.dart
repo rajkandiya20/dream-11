@@ -428,7 +428,7 @@ class _TeamDetailCard extends StatelessWidget {
   /// Build full PlayerModel list from the team's player IDs
   /// using the match's player list so image/role data is available.
   List<PlayerModel> _getFullPlayers() {
-    return team.players.map((tp) {
+    return team.players.map<PlayerModel>((tp) {
       // Try to find the full player from match players
       final full = allMatchPlayers
           .where((p) => p.id == tp.playerId)
@@ -439,7 +439,6 @@ class _TeamDetailCard extends StatelessWidget {
         id: tp.playerId,
         name: tp.playerName,
         role: tp.playerRole,
-        teamName: '',
         credits: 0,
         points: _getPlayerPoints(tp.playerId),
       );

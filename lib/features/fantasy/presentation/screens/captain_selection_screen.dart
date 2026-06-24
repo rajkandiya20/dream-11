@@ -300,7 +300,7 @@ class _BottomBar extends ConsumerWidget {
                       //    double pop() which causes keyReservation assertion crash.
                       if (context.mounted) {
                         // GoRouter's go() replaces the entire stack safely.
-                        context.go('/matches/${widget.matchId}');
+                        context.go('/matches/$matchId');
                       }
                     }
                   : null,

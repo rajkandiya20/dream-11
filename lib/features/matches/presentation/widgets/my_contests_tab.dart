@@ -42,8 +42,8 @@ final myContestsForMatchProvider = FutureProvider.family<
         points: myEntry?.points ?? 0.0,
         rank: myEntry?.rank ?? 0,
         prizeWon: myEntry?.prizeWon ?? 0.0,
-        totalPrizePositions: contest.maxWinners,
-        isCompleted: contest.isCompleted,
+        totalPrizePositions: (contest.maxTeams ~/ 3).clamp(1, contest.maxTeams),
+        isCompleted: contest.status == 'completed',
       ));
     }
   }
