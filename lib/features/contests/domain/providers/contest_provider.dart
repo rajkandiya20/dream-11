@@ -1,10 +1,15 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../auth/domain/providers/auth_provider.dart';
 import '../../../matches/data/models/contest_model.dart';
 import '../../data/models/contest_entry_model.dart';
 import '../../data/repositories/contest_repository.dart';
 import '../../data/repositories/live_ranking_repository.dart';
+
+// Re-export result types so screens can import from one place.
+export '../../data/repositories/contest_repository.dart'
+    show JoinContestResult, JoinContestFailReason;
 
 /// State for contest list screen.
 class ContestListState {
@@ -226,21 +231,31 @@ class ContestDetailNotifier extends StateNotifier<ContestDetailState> {
   }
 
   /// Join contest with a fantasy team.
-  Future<bool> joinContest(String fantasyTeamId) async {
-    if (userId == null) return false;
+  /// Returns a [JoinContestResult] so the UI can surface the correct message.
+  Future<JoinContestResult> joinContestWithResult(String fantasyTeamId) async {
+    if (userId == null) {
+      return const JoinContestResult.failure(
+          JoinContestFailReason.unknown, 'You must be logged in to join a contest.');
+    }
 
-    final success = await _repository.joinContest(
+    final result = await _repository.joinContestWithResult(
       contestId: contestId,
       userId: userId!,
       fantasyTeamId: fantasyTeamId,
     );
 
-    if (success) {
+    if (result.success) {
       state = state.copyWith(hasJoined: true);
       await loadContestDetail();
     }
 
-    return success;
+    return result;
+  }
+
+  /// Backwards-compatible bool wrapper.
+  Future<bool> joinContest(String fantasyTeamId) async {
+    final result = await joinContestWithResult(fantasyTeamId);
+    return result.success;
   }
 
   /// Refresh contest detail.
@@ -272,6 +287,8 @@ final contestDetailProvider = StateNotifierProvider.family<
     ContestDetailNotifier, ContestDetailState, String>((ref, contestId) {
   final repository = ref.watch(contestRepositoryProvider);
   final liveRankingRepository = ref.watch(liveRankingRepositoryProvider);
-  // Get user ID from auth state if available.
-  return ContestDetailNotifier(repository, liveRankingRepository, contestId, null);
+  // Inject the authenticated user's ID so hasUserJoinedContest and joinContest work correctly.
+  final userId = ref.watch(authProvider).user?.uid;
+  return ContestDetailNotifier(
+      repository, liveRankingRepository, contestId, userId);
 });

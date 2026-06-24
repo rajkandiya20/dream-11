@@ -4,7 +4,36 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/network/supabase_client.dart';
 import '../../../matches/data/models/contest_model.dart';
 
-/// Leaderboard entry model for contest details.
+// ─────────────────────────────────────────────────────────────────────────────
+// Result type returned by joinContest so callers know WHY it failed.
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum JoinContestFailReason {
+  insufficientBalance,
+  alreadyJoined,
+  contestFull,
+  contestClosed,
+  unknown,
+}
+
+class JoinContestResult {
+  final bool success;
+  final JoinContestFailReason? failReason;
+  final String? message;
+
+  const JoinContestResult.success()
+      : success = true,
+        failReason = null,
+        message = null;
+
+  const JoinContestResult.failure(this.failReason, this.message)
+      : success = false;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Leaderboard entry model
+// ─────────────────────────────────────────────────────────────────────────────
+
 class LeaderboardEntry {
   final String id;
   final String contestId;
@@ -41,44 +70,44 @@ class LeaderboardEntry {
     );
   }
 
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'contest_id': contestId,
-      'user_id': userId,
-      if (fantasyTeamId != null) 'fantasy_team_id': fantasyTeamId,
-      'points': points,
-      'rank': rank,
-      'prize_won': prizeWon,
-    };
-  }
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'contest_id': contestId,
+        'user_id': userId,
+        if (fantasyTeamId != null) 'fantasy_team_id': fantasyTeamId,
+        'points': points,
+        'rank': rank,
+        'prize_won': prizeWon,
+      };
 
   String get username => user?.username ?? 'User';
   String? get avatarUrl => user?.avatarUrl;
 }
 
-/// Lightweight user info embedded in leaderboard.
 class LeaderboardUserInfo {
   final String? username;
   final String? avatarUrl;
 
   const LeaderboardUserInfo({this.username, this.avatarUrl});
 
-  factory LeaderboardUserInfo.fromJson(Map<String, dynamic> json) {
-    return LeaderboardUserInfo(
-      username: json['username'] as String?,
-      avatarUrl: json['avatar_url'] as String?,
-    );
-  }
+  factory LeaderboardUserInfo.fromJson(Map<String, dynamic> json) =>
+      LeaderboardUserInfo(
+        username: json['username'] as String?,
+        avatarUrl: json['avatar_url'] as String?,
+      );
 }
 
-/// Repository for contest operations with Supabase.
+// ─────────────────────────────────────────────────────────────────────────────
+// Contest Repository
+// ─────────────────────────────────────────────────────────────────────────────
+
 class ContestRepository {
   final SupabaseClient _client;
 
   ContestRepository(this._client);
 
-  /// Fetch contests for a match with optional filters.
+  // ── Contests ─────────────────────────────────────────────────────────────
+
   Future<List<ContestModel>> getContestsByMatch(
     String matchId, {
     String? contestType,
@@ -86,25 +115,20 @@ class ContestRepository {
     double? minPrizePool,
   }) async {
     try {
-      var query = _client
-          .from('contests')
-          .select()
-          .eq('match_id', matchId);
+      var query =
+          _client.from('contests').select().eq('match_id', matchId);
 
-      if (contestType != null) {
-        query = query.eq('contest_type', contestType);
-      }
+      if (contestType != null) query = query.eq('contest_type', contestType);
 
-      final response = await query.order('prize_pool', ascending: false);
+      final response =
+          await query.order('prize_pool', ascending: false);
 
       List<ContestModel> contests = (response as List)
           .map((json) => ContestModel.fromJson(json as Map<String, dynamic>))
           .toList();
 
-      // Client-side filters for range queries.
       if (maxEntryFee != null) {
-        contests =
-            contests.where((c) => c.entryFee <= maxEntryFee).toList();
+        contests = contests.where((c) => c.entryFee <= maxEntryFee).toList();
       }
       if (minPrizePool != null) {
         contests =
@@ -112,12 +136,11 @@ class ContestRepository {
       }
 
       return contests;
-    } catch (e) {
+    } catch (_) {
       return [];
     }
   }
 
-  /// Fetch a single contest by ID.
   Future<ContestModel?> getContestById(String contestId) async {
     try {
       final response = await _client
@@ -125,54 +148,206 @@ class ContestRepository {
           .select()
           .eq('id', contestId)
           .single();
-
       return ContestModel.fromJson(response);
-    } catch (e) {
+    } catch (_) {
       return null;
     }
   }
 
-  /// Join a contest (increment joined_teams and create leaderboard entry).
-  Future<bool> joinContest({
+  // ── Join Contest (with wallet debit + transaction record) ─────────────────
+
+  /// Full contest-join flow:
+  ///  1. Load contest and verify it is still open and not full.
+  ///  2. Check the user has not already joined.
+  ///  3. For paid contests: verify wallet balance ≥ entry fee.
+  ///  4. Debit entry fee from wallet (balance column).
+  ///  5. Create a `contest_join` transaction record.
+  ///  6. Insert into `contest_entries` table (used by live ranking).
+  ///  7. Insert into `leaderboard` table.
+  ///  8. Increment `joined_teams` counter on the contest.
+  ///
+  /// Returns a [JoinContestResult] so the UI can show the right error message.
+  Future<JoinContestResult> joinContestWithResult({
     required String contestId,
     required String userId,
     required String fantasyTeamId,
   }) async {
     try {
-      // Insert leaderboard entry
-      await _client.from('leaderboard').insert({
+      // ── 1. Load contest ───────────────────────────────────────────────
+      final contest = await getContestById(contestId);
+      if (contest == null) {
+        return const JoinContestResult.failure(
+            JoinContestFailReason.unknown, 'Contest not found.');
+      }
+
+      // ── 2. Check contest is still open ────────────────────────────────
+      if (!contest.isOpen) {
+        return const JoinContestResult.failure(
+            JoinContestFailReason.contestClosed,
+            'This contest is closed.');
+      }
+      if (contest.isFull) {
+        return const JoinContestResult.failure(
+            JoinContestFailReason.contestFull,
+            'This contest is full.');
+      }
+
+      // ── 3. Check not already joined ───────────────────────────────────
+      final alreadyJoined = await hasUserJoinedContest(
+        contestId: contestId,
+        userId: userId,
+      );
+      if (alreadyJoined) {
+        return const JoinContestResult.failure(
+            JoinContestFailReason.alreadyJoined,
+            'You have already joined this contest with a team.');
+      }
+
+      // ── 4. Wallet balance check for paid contests ─────────────────────
+      if (!contest.isFree && contest.entryFee > 0) {
+        final walletRow = await _client
+            .from('wallets')
+            .select('balance, bonus, winnings')
+            .eq('user_id', userId)
+            .maybeSingle();
+
+        if (walletRow == null) {
+          return const JoinContestResult.failure(
+              JoinContestFailReason.insufficientBalance,
+              'Wallet not found. Please add money to your wallet.');
+        }
+
+        final balance  = (walletRow['balance']  as num?)?.toDouble() ?? 0.0;
+        final bonus    = (walletRow['bonus']     as num?)?.toDouble() ?? 0.0;
+        final winnings = (walletRow['winnings']  as num?)?.toDouble() ?? 0.0;
+        final total    = balance + bonus + winnings;
+
+        if (total < contest.entryFee) {
+          return JoinContestResult.failure(
+            JoinContestFailReason.insufficientBalance,
+            'Insufficient balance. You need ₹${contest.entryFee.toStringAsFixed(0)} but have ₹${total.toStringAsFixed(0)}.',
+          );
+        }
+
+        // ── 5. Debit entry fee (prefer balance → winnings → bonus) ───────
+        await _debitWallet(
+          userId: userId,
+          amount: contest.entryFee,
+          balance: balance,
+          winnings: winnings,
+          bonus: bonus,
+        );
+
+        // ── 6. Create contest_join transaction record ─────────────────────
+        await _client.from('transactions').insert({
+          'user_id': userId,
+          'type': 'contest_join',
+          'amount': -contest.entryFee,
+          'status': 'completed',
+          'description': 'Entry fee for ${contest.name}',
+          'reference_id': contestId,
+        });
+      }
+
+      // ── 7. Insert into contest_entries (used by LiveRankingRepository) ─
+      await _client.from('contest_entries').upsert({
+        'contest_id': contestId,
+        'user_id': userId,
+        'fantasy_team_id': fantasyTeamId,
+        'total_points': 0,
+        'prize_won': 0,
+      }, onConflict: 'contest_id,user_id');
+
+      // ── 8. Insert into leaderboard ────────────────────────────────────
+      await _client.from('leaderboard').upsert({
         'contest_id': contestId,
         'user_id': userId,
         'fantasy_team_id': fantasyTeamId,
         'points': 0,
         'rank': 0,
         'prize_won': 0,
-      });
+      }, onConflict: 'contest_id,user_id');
 
-      // Increment joined_teams count
-      await _client.rpc('increment_joined_teams', params: {
-        'contest_id_param': contestId,
-      });
-
-      return true;
-    } catch (e) {
-      // Fallback: try manual increment
+      // ── 9. Increment joined_teams counter ─────────────────────────────
       try {
-        final contest = await getContestById(contestId);
-        if (contest != null) {
+        await _client.rpc('increment_joined_teams',
+            params: {'contest_id_param': contestId});
+      } catch (_) {
+        // Fallback: manual increment
+        final fresh = await getContestById(contestId);
+        if (fresh != null) {
           await _client
               .from('contests')
-              .update({'joined_teams': contest.joinedTeams + 1})
+              .update({'joined_teams': fresh.joinedTeams + 1})
               .eq('id', contestId);
         }
-        return true;
-      } catch (_) {
-        return false;
       }
+
+      return const JoinContestResult.success();
+    } catch (e) {
+      return JoinContestResult.failure(
+          JoinContestFailReason.unknown, 'An unexpected error occurred: $e');
     }
   }
 
-  /// Fetch leaderboard for a contest.
+  /// Backwards-compatible bool wrapper — used by ContestDetailNotifier.joinContest().
+  Future<bool> joinContest({
+    required String contestId,
+    required String userId,
+    required String fantasyTeamId,
+  }) async {
+    final result = await joinContestWithResult(
+      contestId: contestId,
+      userId: userId,
+      fantasyTeamId: fantasyTeamId,
+    );
+    return result.success;
+  }
+
+  // ── Wallet debit helper ───────────────────────────────────────────────────
+
+  /// Debit [amount] from the user's wallet, consuming
+  /// deposited balance first, then winnings, then bonus.
+  Future<void> _debitWallet({
+    required String userId,
+    required double amount,
+    required double balance,
+    required double winnings,
+    required double bonus,
+  }) async {
+    double remaining = amount;
+    double newBalance  = balance;
+    double newWinnings = winnings;
+    double newBonus    = bonus;
+
+    // Consume deposited balance first
+    if (remaining > 0 && newBalance > 0) {
+      final use = remaining < newBalance ? remaining : newBalance;
+      newBalance  -= use;
+      remaining   -= use;
+    }
+    // Then winnings
+    if (remaining > 0 && newWinnings > 0) {
+      final use = remaining < newWinnings ? remaining : newWinnings;
+      newWinnings -= use;
+      remaining   -= use;
+    }
+    // Finally bonus
+    if (remaining > 0 && newBonus > 0) {
+      final use = remaining < newBonus ? remaining : newBonus;
+      newBonus  -= use;
+      remaining -= use;
+    }
+
+    await _client.from('wallets').update({
+      'balance':  newBalance,
+      'winnings': newWinnings,
+      'bonus':    newBonus,
+    }).eq('user_id', userId);
+  }
+
+  // ── Leaderboard ───────────────────────────────────────────────────────────
+
   Future<List<LeaderboardEntry>> getLeaderboard(String contestId) async {
     try {
       final response = await _client
@@ -185,26 +360,35 @@ class ContestRepository {
           .map((json) =>
               LeaderboardEntry.fromJson(json as Map<String, dynamic>))
           .toList();
-    } catch (e) {
+    } catch (_) {
       return [];
     }
   }
 
-  /// Check if user has already joined a contest.
   Future<bool> hasUserJoinedContest({
     required String contestId,
     required String userId,
   }) async {
     try {
-      final response = await _client
+      // Check both tables for maximum reliability
+      final leaderboardRow = await _client
           .from('leaderboard')
           .select('id')
           .eq('contest_id', contestId)
           .eq('user_id', userId)
           .maybeSingle();
 
-      return response != null;
-    } catch (e) {
+      if (leaderboardRow != null) return true;
+
+      final entryRow = await _client
+          .from('contest_entries')
+          .select('id')
+          .eq('contest_id', contestId)
+          .eq('user_id', userId)
+          .maybeSingle();
+
+      return entryRow != null;
+    } catch (_) {
       return false;
     }
   }
