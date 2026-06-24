@@ -124,6 +124,7 @@ class WalletNotifier extends StateNotifier<WalletState> {
   Future<bool> deposit({
     required double amount,
     required String paymentMethod,
+    String? utrNumber,
   }) async {
     if (_userId == null) return false;
     state = state.copyWith(isTransacting: true, errorMessage: null);
@@ -132,6 +133,7 @@ class WalletNotifier extends StateNotifier<WalletState> {
       userId: _userId!,
       amount: amount,
       paymentMethod: paymentMethod,
+      utrNumber: utrNumber,
     );
 
     if (transaction != null) {

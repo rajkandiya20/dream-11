@@ -3,16 +3,43 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../shared/widgets/celebration_overlay.dart';
 import '../../data/models/scoreboard_model.dart';
 
-/// Ball-by-ball commentary tab with real-time updates.
-class CommentaryTab extends StatelessWidget {
+/// Ball-by-ball commentary tab with real-time updates + celebration overlay.
+/// Ported from Fantasy- commentary.js — triggers confetti on SIX/FOUR/WICKET.
+class CommentaryTab extends StatefulWidget {
   final List<CommentaryModel> commentary;
 
   const CommentaryTab({super.key, required this.commentary});
 
   @override
+  State<CommentaryTab> createState() => _CommentaryTabState();
+}
+
+class _CommentaryTabState extends State<CommentaryTab> {
+  List<CommentaryModel> _prevCommentary = [];
+
+  @override
+  void didUpdateWidget(CommentaryTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.commentary.length > _prevCommentary.length &&
+        widget.commentary.isNotEmpty) {
+      final latest = widget.commentary.first;
+      if (latest.isWicket) {
+        CelebrationOverlay.show(context, type: CelebrationEventType.wicket);
+      } else if (latest.eventType == 'six') {
+        CelebrationOverlay.show(context, type: CelebrationEventType.six);
+      } else if (latest.eventType == 'four' || latest.isBoundary) {
+        CelebrationOverlay.show(context, type: CelebrationEventType.four);
+      }
+    }
+    _prevCommentary = widget.commentary;
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final commentary = widget.commentary;
     if (commentary.isEmpty) {
       return Center(
         child: Column(

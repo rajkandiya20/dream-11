@@ -1,12 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../domain/providers/wallet_provider.dart';
 
-/// Deposit flow screen with amount input and payment method selection.
+// ─────────────────────────────────────────────────────────────────────────────
+// Deposit screen — UPI details + manual UTR + screenshot upload
+// Ported from Fantasy- transaction/deposit.js
+// ─────────────────────────────────────────────────────────────────────────────
+
 class DepositScreen extends ConsumerStatefulWidget {
   const DepositScreen({super.key});
 
@@ -14,10 +20,335 @@ class DepositScreen extends ConsumerStatefulWidget {
   ConsumerState<DepositScreen> createState() => _DepositScreenState();
 }
 
-class _DepositScreenState extends ConsumerState<DepositScreen> {
+class _DepositScreenState extends ConsumerState<DepositScreen>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.scaffoldBackground,
+      appBar: AppBar(
+        backgroundColor: AppColors.secondary,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        title: Text('Add Money',
+            style: AppTypography.titleLarge.copyWith(color: Colors.white)),
+        bottom: TabBar(
+          controller: _tabController,
+          indicatorColor: AppColors.primary,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white54,
+          tabs: const [
+            Tab(text: 'UPI / Manual'),
+            Tab(text: 'Quick Add'),
+          ],
+        ),
+      ),
+      body: TabBarView(
+        controller: _tabController,
+        children: const [
+          _ManualDepositTab(),
+          _QuickDepositTab(),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Tab 1 — Manual UPI deposit with UTR + screenshot
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _ManualDepositTab extends ConsumerStatefulWidget {
+  const _ManualDepositTab();
+
+  @override
+  ConsumerState<_ManualDepositTab> createState() => _ManualDepositTabState();
+}
+
+class _ManualDepositTabState extends ConsumerState<_ManualDepositTab> {
+  final _amountCtrl = TextEditingController();
+  final _utrCtrl    = TextEditingController();
+  File? _screenshotFile;
+  bool _isSubmitting = false;
+
+  static const _upiId          = '7259293140@ybl';
+  static const _accountHolder  = 'Rajesh M N';
+
+  @override
+  void dispose() {
+    _amountCtrl.dispose();
+    _utrCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickScreenshot() async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(source: ImageSource.gallery);
+    if (picked != null && mounted) {
+      setState(() => _screenshotFile = File(picked.path));
+    }
+  }
+
+  Future<void> _submit() async {
+    final amount = double.tryParse(_amountCtrl.text.trim()) ?? 0;
+    final utr    = _utrCtrl.text.trim();
+
+    if (amount <= 0) {
+      _snack('Please enter a valid amount', isError: true);
+      return;
+    }
+    if (utr.length < 6) {
+      _snack('Please enter a valid UTR number (min 6 chars)', isError: true);
+      return;
+    }
+
+    setState(() => _isSubmitting = true);
+
+    final success = await ref.read(walletProvider.notifier).deposit(
+      amount: amount,
+      paymentMethod: 'upi_manual',
+      utrNumber: utr,
+    );
+
+    setState(() => _isSubmitting = false);
+
+    if (!mounted) return;
+    if (success) {
+      _snack('Deposit request submitted! Admin will approve shortly.');
+      Navigator.of(context).pop();
+    } else {
+      _snack('Failed to submit deposit request. Please try again.', isError: true);
+    }
+  }
+
+  void _snack(String msg, {bool isError = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(msg),
+      backgroundColor: isError ? AppColors.error : AppColors.success,
+    ));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ── UPI Details card ──────────────────────────────────────────
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.card,
+              borderRadius: AppSpacing.borderRadiusMd,
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Payment Details',
+                    style: AppTypography.titleSmall
+                        .copyWith(fontWeight: FontWeight.w700)),
+                AppSpacing.gapH12,
+                _DetailRow(label: 'UPI ID', value: _upiId),
+                AppSpacing.gapH6,
+                _DetailRow(label: 'Account Holder', value: _accountHolder),
+                AppSpacing.gapH12,
+                // PhonePe logo placeholder
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF5F259F).withOpacity(0.08),
+                    borderRadius: AppSpacing.borderRadiusSm,
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.phone_android,
+                          color: Color(0xFF5F259F), size: 18),
+                      const SizedBox(width: 6),
+                      Text('Pay via PhonePe / GPay / BHIM',
+                          style: AppTypography.labelSmall.copyWith(
+                              color: const Color(0xFF5F259F),
+                              fontWeight: FontWeight.w600)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          AppSpacing.gapH20,
+
+          // ── Important note ────────────────────────────────────────────
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppColors.error.withOpacity(0.06),
+              borderRadius: AppSpacing.borderRadiusSm,
+              border: Border.all(color: AppColors.error.withOpacity(0.2)),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.info_outline, color: AppColors.error, size: 18),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'IMPORTANT: After completing the transaction, fill in the UTR number and upload a screenshot. Without this your deposit will NOT be credited.',
+                    style: AppTypography.labelSmall
+                        .copyWith(color: AppColors.error),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          AppSpacing.gapH20,
+
+          // ── Amount field ──────────────────────────────────────────────
+          Text('Amount', style: AppTypography.titleSmall),
+          AppSpacing.gapH8,
+          TextField(
+            controller: _amountCtrl,
+            keyboardType: TextInputType.number,
+            decoration: InputDecoration(
+              prefixText: '₹ ',
+              hintText: 'Enter amount',
+              border: OutlineInputBorder(
+                  borderRadius: AppSpacing.borderRadiusMd),
+              focusedBorder: OutlineInputBorder(
+                  borderRadius: AppSpacing.borderRadiusMd,
+                  borderSide: const BorderSide(color: AppColors.primary, width: 2)),
+            ),
+          ),
+
+          AppSpacing.gapH16,
+
+          // ── UTR field ─────────────────────────────────────────────────
+          Text('UTR / Transaction Reference',
+              style: AppTypography.titleSmall),
+          AppSpacing.gapH8,
+          TextField(
+            controller: _utrCtrl,
+            decoration: InputDecoration(
+              hintText: 'Enter UTR number (12 digits)',
+              border: OutlineInputBorder(
+                  borderRadius: AppSpacing.borderRadiusMd),
+              focusedBorder: OutlineInputBorder(
+                  borderRadius: AppSpacing.borderRadiusMd,
+                  borderSide:
+                      const BorderSide(color: AppColors.primary, width: 2)),
+            ),
+          ),
+
+          AppSpacing.gapH16,
+
+          // ── Screenshot upload ─────────────────────────────────────────
+          Text('Upload Screenshot (Optional)',
+              style: AppTypography.titleSmall),
+          AppSpacing.gapH8,
+          GestureDetector(
+            onTap: _pickScreenshot,
+            child: Container(
+              width: double.infinity,
+              height: _screenshotFile == null ? 100 : 200,
+              decoration: BoxDecoration(
+                color: AppColors.card,
+                borderRadius: AppSpacing.borderRadiusMd,
+                border: Border.all(
+                    color: AppColors.border, style: BorderStyle.solid),
+              ),
+              child: _screenshotFile != null
+                  ? ClipRRect(
+                      borderRadius: AppSpacing.borderRadiusMd,
+                      child: Image.file(_screenshotFile!, fit: BoxFit.cover))
+                  : Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.upload_file,
+                            size: 32, color: AppColors.textTertiary),
+                        const SizedBox(height: 8),
+                        Text('Tap to upload screenshot',
+                            style: AppTypography.bodySmall.copyWith(
+                                color: AppColors.textSecondary)),
+                      ],
+                    ),
+            ),
+          ),
+          if (_screenshotFile != null)
+            TextButton.icon(
+              icon: const Icon(Icons.close, size: 16),
+              label: const Text('Remove'),
+              onPressed: () => setState(() => _screenshotFile = null),
+            ),
+
+          AppSpacing.gapH24,
+
+          // ── Submit button ─────────────────────────────────────────────
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                    borderRadius: AppSpacing.borderRadiusMd),
+              ),
+              onPressed: _isSubmitting ? null : _submit,
+              child: _isSubmitting
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                          color: Colors.white, strokeWidth: 2))
+                  : Text('Submit Deposit Request',
+                      style: AppTypography.labelLarge
+                          .copyWith(color: Colors.white)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Tab 2 — Quick amount selection (existing logic kept)
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _QuickDepositTab extends ConsumerStatefulWidget {
+  const _QuickDepositTab();
+
+  @override
+  ConsumerState<_QuickDepositTab> createState() => _QuickDepositTabState();
+}
+
+class _QuickDepositTabState extends ConsumerState<_QuickDepositTab> {
   final _amountController = TextEditingController();
-  final _quickAmounts = [100, 250, 500, 1000, 2000, 5000];
-  String _selectedMethod = 'upi';
+  final _quickAmounts     = [100, 250, 500, 1000, 2000, 5000];
+  String _selectedMethod  = 'upi';
 
   @override
   void dispose() {
@@ -29,281 +360,151 @@ class _DepositScreenState extends ConsumerState<DepositScreen> {
   Widget build(BuildContext context) {
     final walletState = ref.watch(walletProvider);
 
-    return Scaffold(
-      backgroundColor: AppColors.scaffoldBackground,
-      appBar: AppBar(
-        backgroundColor: AppColors.surface,
-        elevation: 0,
-        leading: IconButton(
-          onPressed: () => Navigator.of(context).pop(),
-          icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
-        ),
-        title: Text(
-          'Add Money',
-          style: AppTypography.titleLarge.copyWith(
-            color: AppColors.textPrimary,
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Balance card
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.info.withOpacity(0.05),
+              borderRadius: AppSpacing.borderRadiusMd,
+              border: Border.all(color: AppColors.info.withOpacity(0.2)),
+            ),
+            child: Row(children: [
+              Icon(Icons.account_balance_wallet_outlined, color: AppColors.info),
+              AppSpacing.gapW12,
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('Current Balance', style: AppTypography.bodySmall
+                    .copyWith(color: AppColors.textSecondary)),
+                Text('₹${walletState.totalBalance.toStringAsFixed(2)}',
+                    style: AppTypography.titleMedium
+                        .copyWith(fontWeight: FontWeight.w700)),
+              ]),
+            ]),
           ),
-        ),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Current Balance
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppColors.info.withOpacity(0.05),
-                borderRadius: AppSpacing.borderRadiusMd,
-                border: Border.all(color: AppColors.info.withOpacity(0.2)),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.account_balance_wallet_outlined,
-                      color: AppColors.info),
-                  AppSpacing.gapW12,
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Current Balance',
-                        style: AppTypography.bodySmall.copyWith(
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                      Text(
-                        '\u20B9${walletState.totalBalance.toStringAsFixed(2)}',
-                        style: AppTypography.titleMedium.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            AppSpacing.gapH24,
-            // Amount Input
-            Text('Enter Amount', style: AppTypography.titleMedium),
-            AppSpacing.gapH12,
-            TextField(
-              controller: _amountController,
-              keyboardType: TextInputType.number,
-              style: AppTypography.headlineMedium.copyWith(fontSize: 28),
-              decoration: InputDecoration(
-                prefixText: '\u20B9 ',
-                prefixStyle: AppTypography.headlineMedium.copyWith(fontSize: 28),
-                hintText: '0',
-                hintStyle: AppTypography.headlineMedium.copyWith(
-                  fontSize: 28,
-                  color: AppColors.textTertiary,
-                ),
-                border: OutlineInputBorder(
+          AppSpacing.gapH20,
+
+          // Amount input
+          Text('Enter Amount', style: AppTypography.titleMedium),
+          AppSpacing.gapH12,
+          TextField(
+            controller: _amountController,
+            keyboardType: TextInputType.number,
+            style: AppTypography.headlineMedium.copyWith(fontSize: 28),
+            decoration: InputDecoration(
+              prefixText: '₹ ',
+              hintText: '0',
+              border: OutlineInputBorder(borderRadius: AppSpacing.borderRadiusMd),
+              focusedBorder: OutlineInputBorder(
                   borderRadius: AppSpacing.borderRadiusMd,
-                  borderSide: const BorderSide(color: AppColors.border),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: AppSpacing.borderRadiusMd,
-                  borderSide:
-                      const BorderSide(color: AppColors.primary, width: 2),
-                ),
-                contentPadding: const EdgeInsets.all(20),
-              ),
+                  borderSide: const BorderSide(color: AppColors.primary, width: 2)),
             ),
-            AppSpacing.gapH16,
-            // Quick Amounts
-            Wrap(
-              spacing: 10,
-              runSpacing: 10,
-              children: _quickAmounts.map((amount) {
-                return InkWell(
-                  onTap: () {
-                    _amountController.text = amount.toString();
-                    setState(() {});
-                  },
-                  borderRadius: AppSpacing.borderRadiusSm,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: AppColors.card,
-                      borderRadius: AppSpacing.borderRadiusSm,
-                      border: Border.all(color: AppColors.border),
-                    ),
-                    child: Text(
-                      '\u20B9$amount',
-                      style: AppTypography.labelMedium.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
+          ),
+          AppSpacing.gapH16,
+
+          // Quick amounts
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: _quickAmounts.map((amount) {
+              return InkWell(
+                onTap: () {
+                  _amountController.text = amount.toString();
+                  setState(() {});
+                },
+                borderRadius: AppSpacing.borderRadiusSm,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: AppColors.card,
+                    borderRadius: AppSpacing.borderRadiusSm,
+                    border: Border.all(color: AppColors.border),
                   ),
-                );
-              }).toList(),
-            ),
-            AppSpacing.gapH32,
-            // Payment Method
-            Text('Payment Method', style: AppTypography.titleMedium),
-            AppSpacing.gapH12,
-            _PaymentMethodOption(
-              icon: Icons.account_balance_wallet,
-              title: 'UPI',
-              subtitle: 'Pay using any UPI app',
-              isSelected: _selectedMethod == 'upi',
-              onTap: () => setState(() => _selectedMethod = 'upi'),
-            ),
-            AppSpacing.gapH8,
-            _PaymentMethodOption(
-              icon: Icons.account_balance,
-              title: 'Net Banking',
-              subtitle: 'Pay using bank account',
-              isSelected: _selectedMethod == 'bank_account',
-              onTap: () => setState(() => _selectedMethod = 'bank_account'),
-            ),
-            AppSpacing.gapH8,
-            _PaymentMethodOption(
-              icon: Icons.phone_android,
-              title: 'PhonePe',
-              subtitle: 'Pay using PhonePe wallet',
-              isSelected: _selectedMethod == 'phonepe',
-              onTap: () => setState(() => _selectedMethod = 'phonepe'),
-            ),
-            AppSpacing.gapH32,
-            // Deposit Button
-            SizedBox(
-              width: double.infinity,
-              height: 56,
-              child: ElevatedButton(
-                onPressed: walletState.isTransacting
-                    ? null
-                    : () async {
-                        final amount =
-                            double.tryParse(_amountController.text) ?? 0;
-                        if (amount <= 0) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Please enter a valid amount'),
-                            ),
-                          );
-                          return;
-                        }
-                        final success = await ref
-                            .read(walletProvider.notifier)
-                            .deposit(
-                              amount: amount,
-                              paymentMethod: _selectedMethod,
-                            );
-                        if (success && mounted) {
-                          Navigator.of(context).pop();
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Deposit request submitted successfully!'),
-                              backgroundColor: AppColors.success,
-                            ),
-                          );
-                        }
-                      },
-                style: ElevatedButton.styleFrom(
+                  child: Text('₹$amount',
+                      style: AppTypography.labelMedium
+                          .copyWith(fontWeight: FontWeight.w600)),
+                ),
+              );
+            }).toList(),
+          ),
+          AppSpacing.gapH24,
+
+          // Proceed button
+          SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: ElevatedButton(
+              onPressed: walletState.isTransacting ? null : () async {
+                final amount = double.tryParse(_amountController.text) ?? 0;
+                if (amount <= 0) {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                      content: Text('Please enter a valid amount')));
+                  return;
+                }
+                final success = await ref.read(walletProvider.notifier).deposit(
+                    amount: amount, paymentMethod: _selectedMethod);
+                if (success && mounted) {
+                  Navigator.of(context).pop();
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                      content: Text('Deposit request submitted!'),
+                      backgroundColor: AppColors.success));
+                }
+              },
+              style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
-                    borderRadius: AppSpacing.borderRadiusMd,
-                  ),
-                  elevation: 2,
-                ),
-                child: walletState.isTransacting
-                    ? const SizedBox(
-                        width: 24,
-                        height: 24,
-                        child: CircularProgressIndicator(
-                          color: Colors.white,
-                          strokeWidth: 2,
-                        ),
-                      )
-                    : Text(
-                        'Proceed to Pay',
-                        style: AppTypography.titleMedium.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-              ),
+                      borderRadius: AppSpacing.borderRadiusMd)),
+              child: walletState.isTransacting
+                  ? const SizedBox(width: 24, height: 24,
+                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                  : Text('Proceed to Pay',
+                      style: AppTypography.titleMedium
+                          .copyWith(color: Colors.white, fontWeight: FontWeight.w600)),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _PaymentMethodOption extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final bool isSelected;
-  final VoidCallback onTap;
+// ─────────────────────────────────────────────────────────────────────────────
+// Helper widget
+// ─────────────────────────────────────────────────────────────────────────────
 
-  const _PaymentMethodOption({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.isSelected,
-    required this.onTap,
-  });
+class _DetailRow extends StatelessWidget {
+  final String label;
+  final String value;
+  const _DetailRow({required this.label, required this.value});
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: AppSpacing.borderRadiusMd,
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: AppColors.card,
-          borderRadius: AppSpacing.borderRadiusMd,
-          border: Border.all(
-            color: isSelected ? AppColors.primary : AppColors.border,
-            width: isSelected ? 2 : 1,
-          ),
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 130,
+          child: Text('$label :',
+              style: AppTypography.labelSmall.copyWith(
+                  color: AppColors.textSecondary,
+                  fontWeight: FontWeight.w600)),
         ),
-        child: Row(
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: (isSelected ? AppColors.primary : AppColors.textSecondary)
-                    .withOpacity(0.1),
-                borderRadius: AppSpacing.borderRadiusSm,
-              ),
-              child: Center(
-                child: Icon(
-                  icon,
-                  color: isSelected ? AppColors.primary : AppColors.textSecondary,
-                  size: 20,
-                ),
-              ),
-            ),
-            AppSpacing.gapW12,
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title, style: AppTypography.titleSmall),
-                  Text(
-                    subtitle,
-                    style: AppTypography.bodySmall.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            if (isSelected)
-              Icon(Icons.check_circle, color: AppColors.primary, size: 22),
-          ],
+        Expanded(
+          child: Text(value,
+              style: AppTypography.labelSmall
+                  .copyWith(fontWeight: FontWeight.w500)),
         ),
-      ),
+      ],
     );
   }
+}
+
+// Helper extension for spacing
+extension _SpacingX on AppSpacing {
+  static const gapH6 = SizedBox(height: 6);
 }

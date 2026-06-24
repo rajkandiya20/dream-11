@@ -80,6 +80,7 @@ class WalletRepository {
     required double amount,
     required String paymentMethod,
     String? description,
+    String? utrNumber,
   }) async {
     try {
       final response = await _client.from('transactions').insert({
@@ -89,6 +90,7 @@ class WalletRepository {
         'status': 'pending',
         'payment_method': paymentMethod,
         'description': description ?? 'Deposit via $paymentMethod',
+        if (utrNumber != null) 'reference_id': utrNumber,
       }).select().single();
 
       return TransactionModel.fromJson(response);

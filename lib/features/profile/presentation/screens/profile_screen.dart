@@ -421,6 +421,16 @@ class _SettingsSection extends StatelessWidget {
             onTap: () => context.push(AppRoutes.editProfile),
           ),
           _SettingsTile(
+            icon: Icons.emoji_events_outlined,
+            title: 'My Matches',
+            onTap: () => context.push('/my-matches'),
+          ),
+          _SettingsTile(
+            icon: Icons.people_outline,
+            title: 'Find People',
+            onTap: () => context.push('/find-people'),
+          ),
+          _SettingsTile(
             icon: Icons.notifications_outlined,
             title: 'Notifications',
             onTap: () => context.push(AppRoutes.notifications),

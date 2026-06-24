@@ -15,6 +15,9 @@ import '../../data/models/player_model.dart';
 import '../../data/models/player_stats_model.dart';
 import '../../domain/providers/match_provider.dart';
 import '../widgets/match_header.dart';
+import '../widgets/my_contests_tab.dart';
+import '../widgets/player_stats_tab.dart';
+import '../widgets/ball_display_row.dart';
 import '../widgets/scorecard_tab.dart';
 
 /// Provider that fetches user fantasy teams for a match, keyed by (userId, matchId).
@@ -47,7 +50,7 @@ class MatchDetailScreen extends ConsumerWidget {
                       ref.read(matchDetailProvider(matchId).notifier).refresh(),
                 )
               : DefaultTabController(
-                  length: 3,
+                  length: 5,  // Contests | My Contests | Scorecard | Stats | My Team
                   child: NestedScrollView(
                     headerSliverBuilder: (context, innerBoxIsScrolled) {
                       return [
@@ -83,7 +86,9 @@ class MatchDetailScreen extends ConsumerWidget {
                               indicatorWeight: 3,
                               tabs: [
                                 Tab(text: 'Contests (${state.contests.length})'),
+                                const Tab(text: 'My Contests'),
                                 const Tab(text: 'Scorecard'),
+                                const Tab(text: 'Stats'),
                                 const Tab(text: 'My Team'),
                               ],
                             ),
@@ -94,8 +99,15 @@ class MatchDetailScreen extends ConsumerWidget {
                     body: TabBarView(
                       children: [
                         _ContestsTab(matchId: matchId, state: state),
+                        // My Contests tab (FIX #13 from Fantasy- analysis)
+                        MyContestsTab(matchId: matchId),
                         ScorecardTab(scoreboard: state.scoreboard),
-                        // ── FIX #1: Pass playerStats for live points ──
+                        // Stats tab (FIX #12 from Fantasy- analysis)
+                        PlayerStatsTab(
+                          playerStats: state.playerStats,
+                          dreamTeamPlayerIds: _computeDreamTeamIds(state.playerStats),
+                        ),
+                        // My Team tab
                         _MyTeamTab(
                           matchId: matchId,
                           playerStats: state.playerStats,
@@ -107,6 +119,13 @@ class MatchDetailScreen extends ConsumerWidget {
                 ),
     );
   }
+}
+
+/// Compute top-11 players by fantasy points = "Dream Team"
+List<String> _computeDreamTeamIds(List<dynamic> playerStats) {
+  final sorted = [...playerStats]
+    ..sort((a, b) => b.fantasyPoints.compareTo(a.fantasyPoints));
+  return sorted.take(11).map<String>((p) => p.playerId as String).toList();
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
