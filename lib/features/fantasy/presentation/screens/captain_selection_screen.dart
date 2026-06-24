@@ -271,13 +271,6 @@ class _BottomBar extends ConsumerWidget {
 
                       if (result != null) {
                         debugPrint('[CaptainSelection] Team saved successfully: ${result.id}');
-                        // Invalidate cached teams so My Team tab picks up the new team
-                        final user = ref.read(currentUserProvider);
-                        if (user != null) {
-                          ref.invalidate(userTeamsForMatchProvider(
-                            (matchId: matchId, userId: user.uid),
-                          ));
-                        }
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(

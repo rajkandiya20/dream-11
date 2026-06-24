@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../auth/domain/providers/auth_provider.dart';
 import '../../../matches/data/models/contest_model.dart';
 import '../../data/models/contest_entry_model.dart';
 import '../../data/repositories/contest_repository.dart';
@@ -272,6 +273,7 @@ final contestDetailProvider = StateNotifierProvider.family<
     ContestDetailNotifier, ContestDetailState, String>((ref, contestId) {
   final repository = ref.watch(contestRepositoryProvider);
   final liveRankingRepository = ref.watch(liveRankingRepositoryProvider);
-  // Get user ID from auth state if available.
-  return ContestDetailNotifier(repository, liveRankingRepository, contestId, null);
+  // Get user ID from auth state.
+  final user = ref.read(currentUserProvider);
+  return ContestDetailNotifier(repository, liveRankingRepository, contestId, user?.uid);
 });

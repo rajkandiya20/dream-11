@@ -132,32 +132,40 @@ class ContestRepository {
     }
   }
 
-  /// Join a contest (increment joined_teams and create leaderboard entry).
+  /// Join a contest (increment joined_teams and create leaderboard + contest_entries).
   Future<bool> joinContest({
     required String contestId,
     required String userId,
     required String fantasyTeamId,
   }) async {
     try {
+      // Insert into contest_entries (for realtime tracking)
+      await _client.from('contest_entries').upsert({
+        'contest_id': contestId,
+        'user_id': userId,
+        'fantasy_team_id': fantasyTeamId,
+        'total_points': 0,
+        'rank': 0,
+        'prize_won': 0,
+      }, onConflict: 'contest_id,user_id');
+
       // Insert leaderboard entry
-      await _client.from('leaderboard').insert({
+      await _client.from('leaderboard').upsert({
         'contest_id': contestId,
         'user_id': userId,
         'fantasy_team_id': fantasyTeamId,
         'points': 0,
         'rank': 0,
         'prize_won': 0,
-      });
+      }, onConflict: 'contest_id,user_id');
 
       // Increment joined_teams count
-      await _client.rpc('increment_joined_teams', params: {
-        'contest_id_param': contestId,
-      });
-
-      return true;
-    } catch (e) {
-      // Fallback: try manual increment
       try {
+        await _client.rpc('increment_joined_teams', params: {
+          'contest_id_param': contestId,
+        });
+      } catch (_) {
+        // Fallback: manual increment
         final contest = await getContestById(contestId);
         if (contest != null) {
           await _client
@@ -165,10 +173,11 @@ class ContestRepository {
               .update({'joined_teams': contest.joinedTeams + 1})
               .eq('id', contestId);
         }
-        return true;
-      } catch (_) {
-        return false;
       }
+
+      return true;
+    } catch (e) {
+      return false;
     }
   }
 

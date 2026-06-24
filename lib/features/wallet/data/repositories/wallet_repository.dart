@@ -218,10 +218,58 @@ class WalletRepository {
       return [];
     }
   }
-}
+
+  /// Deduct balance from wallet for contest entry fee.
+  /// Returns true if successful, false if insufficient balance or error.
+  Future<bool> deductBalance({
+    required String userId,
+    required double amount,
+    required String description,
+  }) async {
+    try {
+      // Get current wallet
+      final wallet = await getWallet(userId);
+      if (wallet == null) return false;
+      if (wallet.totalBalance < amount) return false;
+
+      // Record transaction
+      await _client.from('transactions').insert({
+        'user_id': userId,
+        'type': 'contest_entry',
+        'amount': amount,
+        'status': 'completed',
+        'description': description,
+      });
+
+      // Deduct from balance (prefer bonus first, then deposited balance)
+      double remainingDeduction = amount;
+      double newBonus = wallet.bonus;
+      double newBalance = wallet.balance;
+
+      if (newBonus >= remainingDeduction) {
+        newBonus -= remainingDeduction;
+        remainingDeduction = 0;
+      } else {
+        remainingDeduction -= newBonus;
+        newBonus = 0;
+        newBalance -= remainingDeduction;
+      }
+
+      await _client.from('wallets').update({
+        'balance': newBalance,
+        'bonus': newBonus,
+      }).eq('user_id', userId);
+
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
 
 /// Provider for the wallet repository.
 final walletRepositoryProvider = Provider<WalletRepository>((ref) {
   final client = ref.watch(supabaseClientProvider);
   return WalletRepository(client);
 });
+
+}

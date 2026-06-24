@@ -8,6 +8,9 @@ import '../../../../core/theme/app_typography.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/cached_image.dart';
 import '../../../../shared/widgets/shimmer_loading.dart';
+import '../../../auth/domain/providers/auth_provider.dart';
+import '../../../fantasy/data/repositories/fantasy_repository.dart';
+import '../../../wallet/data/repositories/wallet_repository.dart';
 import '../../domain/providers/contest_provider.dart';
 import '../widgets/prize_breakdown.dart';
 
@@ -242,36 +245,23 @@ class ContestDetailScreen extends ConsumerWidget {
       child: SafeArea(
         child: Row(
           children: [
-            // Entry fee info
             Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Entry Fee',
-                  style: AppTypography.labelSmall,
-                ),
+                Text('Entry Fee', style: AppTypography.labelSmall),
                 Text(
                   contest.formattedEntryFee,
-                  style: AppTypography.headlineSmall.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
+                  style: AppTypography.headlineSmall.copyWith(fontWeight: FontWeight.w700),
                 ),
               ],
             ),
             AppSpacing.gapW16,
-            // Join button
             Expanded(
-              child: AppButton(
-                text: contest.isFull ? 'FULL' : 'JOIN CONTEST',
-                variant: AppButtonVariant.gradient,
-                isDisabled: contest.isFull,
-                onPressed: contest.isFull
-                    ? null
-                    : () {
-                        // Navigate to team selection or create team
-                        context.push('/create-team/${contest.matchId}');
-                      },
+              child: _JoinContestButton(
+                contestId: contestId,
+                contest: contest,
+                state: state,
               ),
             ),
           ],
@@ -280,6 +270,183 @@ class ContestDetailScreen extends ConsumerWidget {
     );
   }
 }
+
+/// Stateful join button that handles the complete join flow.
+class _JoinContestButton extends ConsumerWidget {
+  final String contestId;
+  final dynamic contest;
+  final ContestDetailState state;
+
+  const _JoinContestButton({
+    required this.contestId,
+    required this.contest,
+    required this.state,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (contest.isFull) {
+      return AppButton(text: 'FULL', isDisabled: true, onPressed: null);
+    }
+
+    return AppButton(
+      text: 'JOIN CONTEST',
+      variant: AppButtonVariant.gradient,
+      onPressed: () => _handleJoin(context, ref),
+    );
+  }
+
+  Future<void> _handleJoin(BuildContext context, WidgetRef ref) async {
+    final user = ref.read(currentUserProvider);
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please log in to join contests')),
+      );
+      return;
+    }
+
+    // Step 1: Check wallet balance
+    final walletRepo = ref.read(walletRepositoryProvider);
+    final wallet = await walletRepo.getWallet(user.uid);
+    final entryFee = (contest.entryFee as num).toDouble();
+
+    if (entryFee > 0) {
+      final balance = wallet?.totalBalance ?? 0.0;
+      if (balance < entryFee) {
+        // Insufficient balance — show deposit prompt
+        if (context.mounted) {
+          final shouldDeposit = await showDialog<bool>(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              title: const Text('Insufficient Balance'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Entry Fee: ₹${entryFee.toStringAsFixed(0)}'),
+                  Text('Your Balance: ₹${balance.toStringAsFixed(0)}'),
+                  const SizedBox(height: 8),
+                  Text(
+                    'You need to add ₹${(entryFee - balance).toStringAsFixed(0)} more to join this contest.',
+                    style: AppTypography.bodySmall,
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+                  onPressed: () => Navigator.pop(ctx, true),
+                  child: const Text('Add Money', style: TextStyle(color: Colors.white)),
+                ),
+              ],
+            ),
+          );
+          if (shouldDeposit == true && context.mounted) {
+            context.push('/wallet');
+          }
+        }
+        return;
+      }
+    }
+
+    // Step 2: Check if user has teams for this match
+    final fantasyRepo = ref.read(fantasyRepositoryProvider);
+    final userTeams = await fantasyRepo.getUserTeamsForMatch(
+      userId: user.uid,
+      matchId: contest.matchId,
+    );
+
+    if (!context.mounted) return;
+
+    if (userTeams.isEmpty) {
+      // No team — ask to create one
+      final shouldCreate = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('No Team Found'),
+          content: const Text('You need to create a team before joining this contest.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Create Team', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+      );
+      if (shouldCreate == true && context.mounted) {
+        context.push('/create-team/${contest.matchId}');
+      }
+      return;
+    }
+
+    // Step 3: Select team to join with
+    String? selectedTeamId;
+    if (userTeams.length == 1) {
+      selectedTeamId = userTeams.first.id;
+    } else {
+      if (!context.mounted) return;
+      selectedTeamId = await showModalBottomSheet<String>(
+        context: context,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        builder: (ctx) => _TeamSelectionSheet(teams: userTeams),
+      );
+    }
+
+    if (selectedTeamId == null || !context.mounted) return;
+
+    // Step 4: Deduct balance (if paid contest)
+    if (entryFee > 0) {
+      final deducted = await walletRepo.deductBalance(
+        userId: user.uid,
+        amount: entryFee,
+        description: 'Contest entry: ${contest.name}',
+      );
+      if (!deducted) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Failed to deduct balance. Try again.'), backgroundColor: Colors.red),
+          );
+        }
+        return;
+      }
+    }
+
+    // Step 5: Join contest
+    final notifier = ref.read(contestDetailProvider(contestId).notifier);
+    final success = await notifier.joinContest(selectedTeamId);
+
+    if (context.mounted) {
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Joined contest successfully!'), backgroundColor: Colors.green),
+        );
+      } else {
+        // Refund if join failed
+        if (entryFee > 0) {
+          await walletRepo.initiateDeposit(
+            userId: user.uid,
+            amount: entryFee,
+            paymentMethod: 'refund',
+            description: 'Refund: Failed to join contest',
+          );
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to join contest. Amount refunded.'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
 
 class _ContestStat extends StatelessWidget {
   final String label;
@@ -400,4 +567,80 @@ class _LeaderboardRow extends StatelessWidget {
       ),
     );
   }
+}
+
+
+/// Bottom sheet for selecting which team to join with.
+class _TeamSelectionSheet extends StatelessWidget {
+  final List<dynamic> teams;
+
+  const _TeamSelectionSheet({required this.teams});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            Text('Select Team', style: AppTypography.titleLarge),
+            const Spacer(),
+            IconButton(
+              icon: const Icon(Icons.close),
+              onPressed: () => Navigator.pop(context),
+            ),
+          ]),
+          AppSpacing.gapH12,
+          ...List.generate(teams.length, (i) {
+            final team = teams[i];
+            final name = team.teamName.isEmpty || team.teamName == 'My Team'
+                ? 'Team ${i + 1}'
+                : team.teamName;
+            return ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.shield, color: AppColors.primary, size: 22),
+              ),
+              title: Text(name, style: AppTypography.titleSmall),
+              subtitle: Text(
+                '${team.playerCount} players • ${team.totalPoints.toStringAsFixed(1)} pts',
+                style: AppTypography.labelSmall,
+              ),
+              trailing: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                ),
+                onPressed: () => Navigator.pop(context, team.id),
+                child: const Text('SELECT', style: TextStyle(color: Colors.white, fontSize: 12)),
+              ),
+            );
+          }),
+          AppSpacing.gapH8,
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              icon: const Icon(Icons.add),
+              label: const Text('Create New Team'),
+              onPressed: () => Navigator.pop(context, null),
+            ),
+          ),
+          AppSpacing.gapH8,
+        ],
+      ),
+    );
+  }
+}
+
+
+
+
 }
