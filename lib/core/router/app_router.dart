@@ -9,6 +9,8 @@ import '../../features/auth/presentation/screens/register_screen.dart';
 import '../../features/auth/presentation/screens/splash_screen.dart';
 import '../../features/home/presentation/screens/home_screen.dart';
 import '../../features/matches/presentation/screens/match_detail_screen.dart';
+import '../../features/matches/presentation/screens/completed_matches_screen.dart';
+import '../../features/matches/presentation/screens/find_people_screen.dart';
 import '../../features/matches/presentation/screens/matches_screen.dart';
 import '../../features/contests/presentation/screens/contest_detail_screen.dart';
 import '../../features/contests/presentation/screens/contest_list_screen.dart';
@@ -192,6 +194,20 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             builder: (_, __) => const ProfileScreen(),
           ),
         ],
+      ),
+
+      // ── My Matches (Completed) ───────────────────────────────────────
+      GoRoute(
+        path: '/my-matches',
+        name: 'myMatches',
+        builder: (_, __) => const CompletedMatchesScreen(),
+      ),
+
+      // ── Find People ──────────────────────────────────────────────────
+      GoRoute(
+        path: '/find-people',
+        name: 'findPeople',
+        builder: (_, __) => const FindPeopleScreen(),
       ),
 
       // ── Match detail ─────────────────────────────────────────────────
