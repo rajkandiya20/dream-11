@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -12,10 +11,13 @@ import '../../features/home/presentation/screens/home_screen.dart';
 import '../../features/matches/presentation/screens/match_detail_screen.dart';
 import '../../features/matches/presentation/screens/matches_screen.dart';
 import '../../features/contests/presentation/screens/contest_detail_screen.dart';
+import '../../features/contests/presentation/screens/contest_list_screen.dart';
 import '../../features/contests/presentation/screens/contests_screen.dart';
 import '../../features/fantasy/presentation/screens/captain_selection_screen.dart';
 import '../../features/fantasy/presentation/screens/create_team_screen.dart';
 import '../../features/fantasy/presentation/screens/fantasy_team_screen.dart';
+import '../../features/fantasy/presentation/screens/team_preview_screen.dart';
+import '../../features/matches/data/models/player_model.dart';
 import '../../features/wallet/presentation/screens/wallet_screen.dart';
 import '../../features/wallet/presentation/screens/transaction_history_screen.dart';
 import '../../features/groups/presentation/screens/groups_screen.dart';
@@ -37,37 +39,42 @@ import '../../features/admin/presentation/screens/admin_contests_screen.dart';
 import '../../features/admin/presentation/screens/admin_players_screen.dart';
 import '../../shared/widgets/main_scaffold.dart';
 
-/// Route names for type-safe navigation.
+/// Route name constants for type-safe navigation.
 class AppRoutes {
   AppRoutes._();
 
   // Auth
-  static const String splash = '/splash';
-  static const String login = '/login';
-  static const String register = '/register';
-  static const String forgotPassword = '/forgot-password';
+  static const String splash          = '/splash';
+  static const String login           = '/login';
+  static const String register        = '/register';
+  static const String forgotPassword  = '/forgot-password';
 
   // Main tabs
-  static const String home = '/';
-  static const String matches = '/matches';
+  static const String home     = '/';
+  static const String matches  = '/matches';
   static const String contests = '/contests';
-  static const String wallet = '/wallet';
-  static const String profile = '/profile';
+  static const String wallet   = '/wallet';
+  static const String profile  = '/profile';
 
-  // Match & Contest Details
-  static const String matchDetail = '/matches/:matchId';
+  // Match & Contest
+  static const String matchDetail   = '/matches/:matchId';
   static const String contestDetail = '/contests/:contestId';
 
+  // Contest list for a specific match (routable)
+  static const String contestList = '/contest-list/:matchId';
+
   // Fantasy Team
-  static const String createTeam = '/create-team/:matchId';
+  static const String createTeam       = '/create-team/:matchId';
   static const String captainSelection = '/captain-selection/:matchId';
-  static const String fantasyTeam = '/fantasy-team/:teamId';
+  static const String fantasyTeam      = '/fantasy-team/:teamId';
+  // team-preview receives data via GoRouter `extra` (no path params needed)
+  static const String teamPreview      = '/team-preview';
 
   // Wallet
   static const String transactionHistory = '/wallet/transactions';
 
   // Groups
-  static const String groups = '/groups';
+  static const String groups      = '/groups';
   static const String groupDetail = '/groups/:groupId';
 
   // Profile
@@ -77,17 +84,17 @@ class AppRoutes {
   static const String notifications = '/notifications';
 
   // Admin
-  static const String adminDashboard = '/admin';
-  static const String adminMatches = '/admin/matches';
-  static const String adminContests = '/admin/contests';
-  static const String adminPlayers = '/admin/players';
-  static const String adminUsers = '/admin/users';
-  static const String adminTournaments = '/admin/tournaments';
-  static const String adminTeams = '/admin/teams';
-  static const String adminScoreboard = '/admin/scoreboard';
-  static const String adminWallet = '/admin/wallet';
-  static const String adminReports = '/admin/reports';
-  static const String adminSettings = '/admin/settings';
+  static const String adminDashboard      = '/admin';
+  static const String adminMatches        = '/admin/matches';
+  static const String adminContests       = '/admin/contests';
+  static const String adminPlayers        = '/admin/players';
+  static const String adminUsers          = '/admin/users';
+  static const String adminTournaments    = '/admin/tournaments';
+  static const String adminTeams          = '/admin/teams';
+  static const String adminScoreboard     = '/admin/scoreboard';
+  static const String adminWallet         = '/admin/wallet';
+  static const String adminReports        = '/admin/reports';
+  static const String adminSettings       = '/admin/settings';
   static const String adminPaymentMethods = '/admin/payment-methods';
 }
 
@@ -102,13 +109,11 @@ const _publicRoutes = [
 /// Notifier that triggers GoRouter refresh when auth state changes.
 class AuthChangeNotifier extends ChangeNotifier {
   AuthChangeNotifier(Ref ref) {
-    ref.listen(authProvider, (_, __) {
-      notifyListeners();
-    });
+    ref.listen(authProvider, (_, __) => notifyListeners());
   }
 }
 
-/// GoRouter provider — router is created ONCE, refreshes on auth changes.
+/// GoRouter provider — created once, refreshes on auth changes.
 final appRouterProvider = Provider<GoRouter>((ref) {
   final authChangeNotifier = AuthChangeNotifier(ref);
 
@@ -117,237 +122,250 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     debugLogDiagnostics: false,
     refreshListenable: authChangeNotifier,
     redirect: (context, state) {
-      final authState = ref.read(authProvider);
-      final status = authState.status;
-      final isAuthenticated = authState.isAuthenticated;
-      final currentPath = state.uri.path;
-      final isPublicRoute = _publicRoutes.contains(currentPath);
-      final isSplash = currentPath == AppRoutes.splash;
+      final authState  = ref.read(authProvider);
+      final status     = authState.status;
+      final isAuth     = authState.isAuthenticated;
+      final path       = state.uri.path;
+      final isPublic   = _publicRoutes.contains(path);
+      final isSplash   = path == AppRoutes.splash;
 
-      // Don't redirect while auth state is loading or initial
       if (status == AuthStatus.loading || status == AuthStatus.initial) {
         return null;
       }
-
-      // Don't redirect on splash (it handles its own navigation)
       if (isSplash) return null;
-
-      // If not authenticated and trying to access protected route, redirect to login
-      if (!isAuthenticated && !isPublicRoute) {
-        return AppRoutes.login;
-      }
-
-      // If authenticated and trying to access auth routes, redirect to home
-      if (isAuthenticated && isPublicRoute) {
-        return AppRoutes.home;
-      }
-
+      if (!isAuth && !isPublic) return AppRoutes.login;
+      if (isAuth  &&  isPublic) return AppRoutes.home;
       return null;
     },
     routes: [
-      // Splash Screen
+      // ── Splash ───────────────────────────────────────────────────────
       GoRoute(
         path: AppRoutes.splash,
         name: 'splash',
-        builder: (context, state) => const SplashScreen(),
+        builder: (_, __) => const SplashScreen(),
       ),
 
-      // Auth Routes
+      // ── Auth ─────────────────────────────────────────────────────────
       GoRoute(
         path: AppRoutes.login,
         name: 'login',
-        builder: (context, state) => const LoginScreen(),
+        builder: (_, __) => const LoginScreen(),
       ),
       GoRoute(
         path: AppRoutes.register,
         name: 'register',
-        builder: (context, state) => const RegisterScreen(),
+        builder: (_, __) => const RegisterScreen(),
       ),
       GoRoute(
         path: AppRoutes.forgotPassword,
         name: 'forgotPassword',
-        builder: (context, state) => const ForgotPasswordScreen(),
+        builder: (_, __) => const ForgotPasswordScreen(),
       ),
 
-      // Main Shell with Bottom Navigation
+      // ── Main shell with bottom nav ────────────────────────────────────
       ShellRoute(
-        builder: (context, state, child) => MainScaffold(child: child),
+        builder: (_, __, child) => MainScaffold(child: child),
         routes: [
-          // Home Tab
           GoRoute(
             path: AppRoutes.home,
             name: 'home',
-            builder: (context, state) => const HomeScreen(),
+            builder: (_, __) => const HomeScreen(),
           ),
-
-          // Matches Tab
           GoRoute(
             path: AppRoutes.matches,
             name: 'matches',
-            builder: (context, state) => const MatchesScreen(),
+            builder: (_, __) => const MatchesScreen(),
           ),
-
-          // Contests Tab
           GoRoute(
             path: AppRoutes.contests,
             name: 'contests',
-            builder: (context, state) => const ContestsScreen(),
+            builder: (_, __) => const ContestsScreen(),
           ),
-
-          // Wallet Tab
           GoRoute(
             path: AppRoutes.wallet,
             name: 'wallet',
-            builder: (context, state) => const WalletScreen(),
+            builder: (_, __) => const WalletScreen(),
           ),
-
-          // Profile Tab
           GoRoute(
             path: AppRoutes.profile,
             name: 'profile',
-            builder: (context, state) => const ProfileScreen(),
+            builder: (_, __) => const ProfileScreen(),
           ),
         ],
       ),
 
-      // Match Detail
+      // ── Match detail ─────────────────────────────────────────────────
       GoRoute(
         path: AppRoutes.matchDetail,
         name: 'matchDetail',
-        builder: (context, state) => MatchDetailScreen(
+        builder: (_, state) => MatchDetailScreen(
           matchId: state.pathParameters['matchId']!,
         ),
       ),
 
-      // Contest Detail
+      // ── Contest detail ───────────────────────────────────────────────
       GoRoute(
         path: AppRoutes.contestDetail,
         name: 'contestDetail',
-        builder: (context, state) => ContestDetailScreen(
+        builder: (_, state) => ContestDetailScreen(
           contestId: state.pathParameters['contestId']!,
         ),
       ),
 
-      // Fantasy Team Routes
+      // ── Contest list for a match ─────────────────────────────────────
+      GoRoute(
+        path: AppRoutes.contestList,
+        name: 'contestList',
+        builder: (_, state) => ContestListScreen(
+          matchId: state.pathParameters['matchId']!,
+        ),
+      ),
+
+      // ── Create team
+      //    extra (String?) = contestId — passed through to captain selection
       GoRoute(
         path: AppRoutes.createTeam,
         name: 'createTeam',
-        builder: (context, state) => CreateTeamScreen(
-          matchId: state.pathParameters['matchId']!,
+        builder: (_, state) => CreateTeamScreen(
+          matchId:   state.pathParameters['matchId']!,
+          contestId: state.extra as String?,
         ),
       ),
+
+      // ── Captain selection
+      //    extra (String?) = contestId
       GoRoute(
         path: AppRoutes.captainSelection,
         name: 'captainSelection',
-        builder: (context, state) => CaptainSelectionScreen(
-          matchId: state.pathParameters['matchId']!,
+        builder: (_, state) => CaptainSelectionScreen(
+          matchId:   state.pathParameters['matchId']!,
+          contestId: state.extra as String?,
         ),
       ),
+
+      // ── Fantasy team detail ──────────────────────────────────────────
       GoRoute(
         path: AppRoutes.fantasyTeam,
         name: 'fantasyTeam',
-        builder: (context, state) => FantasyTeamScreen(
+        builder: (_, state) => FantasyTeamScreen(
           teamId: state.pathParameters['teamId']!,
         ),
       ),
 
-      // Wallet Transaction History
+      // ── Team preview (cricket-ground view)
+      //    extra = _TeamPreviewArgs (passed as GoRouter extra)
+      GoRoute(
+        path: AppRoutes.teamPreview,
+        name: 'teamPreview',
+        builder: (_, state) {
+          final args = state.extra as _TeamPreviewArgs?;
+          return TeamPreviewScreen(
+            players:      args?.players      ?? const [],
+            captainId:    args?.captainId,
+            viceCaptainId: args?.viceCaptainId,
+            playerPoints: args?.playerPoints,
+          );
+        },
+      ),
+
+      // ── Wallet transaction history ───────────────────────────────────
       GoRoute(
         path: AppRoutes.transactionHistory,
         name: 'transactionHistory',
-        builder: (context, state) => const TransactionHistoryScreen(),
+        builder: (_, __) => const TransactionHistoryScreen(),
       ),
 
-      // Groups
+      // ── Groups ───────────────────────────────────────────────────────
       GoRoute(
         path: AppRoutes.groups,
         name: 'groups',
-        builder: (context, state) => const GroupsScreen(),
+        builder: (_, __) => const GroupsScreen(),
       ),
       GoRoute(
         path: AppRoutes.groupDetail,
         name: 'groupDetail',
-        builder: (context, state) => GroupDetailScreen(
+        builder: (_, state) => GroupDetailScreen(
           groupId: state.pathParameters['groupId']!,
         ),
       ),
 
-      // Profile
+      // ── Profile ──────────────────────────────────────────────────────
       GoRoute(
         path: AppRoutes.editProfile,
         name: 'editProfile',
-        builder: (context, state) => const EditProfileScreen(),
+        builder: (_, __) => const EditProfileScreen(),
       ),
 
-      // Notifications
+      // ── Notifications ────────────────────────────────────────────────
       GoRoute(
         path: AppRoutes.notifications,
         name: 'notifications',
-        builder: (context, state) => const NotificationsScreen(),
+        builder: (_, __) => const NotificationsScreen(),
       ),
 
-      // Admin Routes
+      // ── Admin ─────────────────────────────────────────────────────────
       GoRoute(
         path: AppRoutes.adminDashboard,
         name: 'adminDashboard',
-        builder: (context, state) => const AdminDashboardScreen(),
+        builder: (_, __) => const AdminDashboardScreen(),
       ),
       GoRoute(
         path: AppRoutes.adminMatches,
         name: 'adminMatches',
-        builder: (context, state) => const AdminMatchesScreen(),
+        builder: (_, __) => const AdminMatchesScreen(),
       ),
       GoRoute(
         path: AppRoutes.adminContests,
         name: 'adminContests',
-        builder: (context, state) => const AdminContestsScreen(),
+        builder: (_, __) => const AdminContestsScreen(),
       ),
       GoRoute(
         path: AppRoutes.adminPlayers,
         name: 'adminPlayers',
-        builder: (context, state) => const AdminPlayersScreen(),
+        builder: (_, __) => const AdminPlayersScreen(),
       ),
       GoRoute(
         path: AppRoutes.adminUsers,
         name: 'adminUsers',
-        builder: (context, state) => const AdminUsersScreen(),
+        builder: (_, __) => const AdminUsersScreen(),
       ),
       GoRoute(
         path: AppRoutes.adminTournaments,
         name: 'adminTournaments',
-        builder: (context, state) => const AdminTournamentsScreen(),
+        builder: (_, __) => const AdminTournamentsScreen(),
       ),
       GoRoute(
         path: AppRoutes.adminTeams,
         name: 'adminTeams',
-        builder: (context, state) => const AdminTeamsScreen(),
+        builder: (_, __) => const AdminTeamsScreen(),
       ),
       GoRoute(
         path: AppRoutes.adminScoreboard,
         name: 'adminScoreboard',
-        builder: (context, state) => const AdminScoreboardScreen(),
+        builder: (_, __) => const AdminScoreboardScreen(),
       ),
       GoRoute(
         path: AppRoutes.adminWallet,
         name: 'adminWallet',
-        builder: (context, state) => const AdminWalletScreen(),
+        builder: (_, __) => const AdminWalletScreen(),
       ),
       GoRoute(
         path: AppRoutes.adminReports,
         name: 'adminReports',
-        builder: (context, state) => const AdminReportsScreen(),
+        builder: (_, __) => const AdminReportsScreen(),
       ),
       GoRoute(
         path: AppRoutes.adminSettings,
         name: 'adminSettings',
-        builder: (context, state) => const AdminSettingsScreen(),
+        builder: (_, __) => const AdminSettingsScreen(),
       ),
       GoRoute(
         path: AppRoutes.adminPaymentMethods,
         name: 'adminPaymentMethods',
-        builder: (context, state) => const AdminPaymentMethodsScreen(),
+        builder: (_, __) => const AdminPaymentMethodsScreen(),
       ),
     ],
+
     errorBuilder: (context, state) => Scaffold(
       body: Center(
         child: Column(
@@ -355,18 +373,52 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           children: [
             const Icon(Icons.error_outline, size: 48, color: Colors.red),
             const SizedBox(height: 16),
-            Text(
-              'Page not found',
-              style: Theme.of(context).textTheme.headlineSmall,
-            ),
+            Text('Page not found',
+                style: Theme.of(context).textTheme.headlineSmall),
             const SizedBox(height: 8),
-            Text(
-              state.uri.toString(),
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
+            Text(state.uri.toString(),
+                style: Theme.of(context).textTheme.bodyMedium),
           ],
         ),
       ),
     ),
   );
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Args class for /team-preview (passed via GoRouter extra)
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _TeamPreviewArgs {
+  final List<PlayerModel> players;
+  final String? captainId;
+  final String? viceCaptainId;
+  final Map<String, double>? playerPoints;
+
+  const _TeamPreviewArgs({
+    required this.players,
+    this.captainId,
+    this.viceCaptainId,
+    this.playerPoints,
+  });
+}
+
+/// Public helper to navigate to the team preview screen.
+/// Usage: navigateToTeamPreview(context, players: [...], captainId: 'x');
+void navigateToTeamPreview(
+  BuildContext context, {
+  required List<PlayerModel> players,
+  String? captainId,
+  String? viceCaptainId,
+  Map<String, double>? playerPoints,
+}) {
+  context.push(
+    AppRoutes.teamPreview,
+    extra: _TeamPreviewArgs(
+      players:       players,
+      captainId:     captainId,
+      viceCaptainId: viceCaptainId,
+      playerPoints:  playerPoints,
+    ),
+  );
+}

@@ -1,33 +1,33 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../shared/widgets/app_button.dart';
-import '../../../../shared/widgets/shimmer_loading.dart';
 import '../../../matches/data/models/player_model.dart';
 import '../../../matches/data/repositories/match_repository.dart';
 import '../../domain/providers/fantasy_provider.dart';
-import '../widgets/credit_counter.dart';
 import '../widgets/player_card.dart';
-import '../widgets/role_filter_tabs.dart';
-import '../widgets/team_count_indicator.dart';
 
-/// Player selection screen with credit counter, role filters, and search.
+/// Player selection screen — Dream11-style grouped layout.
+/// [contestId] is optional. When provided the saved team will be
+/// linked to that contest and joinContest() will be called after saving.
 class CreateTeamScreen extends ConsumerStatefulWidget {
   final String matchId;
+  final String? contestId;
 
-  const CreateTeamScreen({super.key, required this.matchId});
+  const CreateTeamScreen({
+    super.key,
+    required this.matchId,
+    this.contestId,
+  });
 
   @override
   ConsumerState<CreateTeamScreen> createState() => _CreateTeamScreenState();
 }
 
 class _CreateTeamScreenState extends ConsumerState<CreateTeamScreen> {
-  final TextEditingController _searchController = TextEditingController();
   bool _isLoadingPlayers = true;
 
   @override
@@ -42,15 +42,7 @@ class _CreateTeamScreenState extends ConsumerState<CreateTeamScreen> {
     ref
         .read(teamBuilderProvider(widget.matchId).notifier)
         .setAvailablePlayers(players);
-    if (mounted) {
-      setState(() => _isLoadingPlayers = false);
-    }
-  }
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
+    if (mounted) setState(() => _isLoadingPlayers = false);
   }
 
   @override
@@ -59,16 +51,16 @@ class _CreateTeamScreenState extends ConsumerState<CreateTeamScreen> {
     final notifier = ref.read(teamBuilderProvider(widget.matchId).notifier);
 
     // Group players by role
-    final wkPlayers = state.players.where((p) => p.role == 'WK').toList();
-    final batPlayers = state.players.where((p) => p.role == 'Batsman').toList();
-    final arPlayers = state.players.where((p) => p.role == 'All-rounder').toList();
-    final bowlPlayers = state.players.where((p) => p.role == 'Bowler').toList();
+    final wkPlayers   = state.availablePlayers.where((p) => p.role == 'WK').toList();
+    final batPlayers  = state.availablePlayers.where((p) => p.role == 'Batsman').toList();
+    final arPlayers   = state.availablePlayers.where((p) => p.role == 'All-rounder').toList();
+    final bowlPlayers = state.availablePlayers.where((p) => p.role == 'Bowler').toList();
 
     return Scaffold(
       backgroundColor: AppColors.scaffoldBackground,
       body: Column(
         children: [
-          // Dream11-style Black/Red Header
+          // ── Dark header ──────────────────────────────────────────────
           Container(
             padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top),
             decoration: const BoxDecoration(
@@ -96,11 +88,24 @@ class _CreateTeamScreenState extends ConsumerState<CreateTeamScreen> {
                           textAlign: TextAlign.center,
                         ),
                       ),
-                      const SizedBox(width: 48),
+                      // Reset button
+                      TextButton(
+                        onPressed: state.selectedPlayers.isNotEmpty
+                            ? () => notifier.reset()
+                            : null,
+                        child: Text(
+                          'RESET',
+                          style: AppTypography.labelMedium.copyWith(
+                            color: state.selectedPlayers.isNotEmpty
+                                ? AppColors.error
+                                : Colors.white24,
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ),
-                // Credits + Count row
+                // Credits + player count row
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   decoration: BoxDecoration(
@@ -112,22 +117,27 @@ class _CreateTeamScreenState extends ConsumerState<CreateTeamScreen> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      // Players selected
                       Row(children: [
                         const Icon(Icons.people, color: Colors.white, size: 18),
                         const SizedBox(width: 6),
                         Text(
                           '${state.selectedCount}/11 Players',
-                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 14),
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14),
                         ),
                       ]),
-                      // Credits
                       Row(children: [
-                        const Icon(Icons.monetization_on, color: Color(0xFFFCD34D), size: 18),
+                        const Icon(Icons.monetization_on,
+                            color: Color(0xFFFCD34D), size: 18),
                         const SizedBox(width: 6),
                         Text(
                           '${(100.0 - state.creditsUsed).toStringAsFixed(1)} Credits Left',
-                          style: const TextStyle(color: Color(0xFFFCD34D), fontWeight: FontWeight.w600, fontSize: 14),
+                          style: const TextStyle(
+                              color: Color(0xFFFCD34D),
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14),
                         ),
                       ]),
                     ],
@@ -139,9 +149,9 @@ class _CreateTeamScreenState extends ConsumerState<CreateTeamScreen> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
-                      _RoleBadge(label: 'WK', count: state.wkCount, max: 4),
-                      _RoleBadge(label: 'BAT', count: state.batCount, max: 6),
-                      _RoleBadge(label: 'AR', count: state.arCount, max: 4),
+                      _RoleBadge(label: 'WK',   count: state.wkCount,   max: 4),
+                      _RoleBadge(label: 'BAT',  count: state.batCount,  max: 6),
+                      _RoleBadge(label: 'AR',   count: state.arCount,   max: 4),
                       _RoleBadge(label: 'BOWL', count: state.bowlCount, max: 6),
                     ],
                   ),
@@ -149,34 +159,66 @@ class _CreateTeamScreenState extends ConsumerState<CreateTeamScreen> {
               ],
             ),
           ),
-          // Player list grouped by category
+
+          // ── Player list ──────────────────────────────────────────────
           Expanded(
             child: _isLoadingPlayers
-                ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+                ? const Center(
+                    child: CircularProgressIndicator(color: AppColors.primary))
                 : ListView(
                     padding: const EdgeInsets.only(bottom: 80),
                     children: [
-                      if (wkPlayers.isNotEmpty) _buildSection('WICKET-KEEPERS', 'WK', wkPlayers, state, notifier),
-                      if (batPlayers.isNotEmpty) _buildSection('BATTERS', 'BAT', batPlayers, state, notifier),
-                      if (arPlayers.isNotEmpty) _buildSection('ALL-ROUNDERS', 'AR', arPlayers, state, notifier),
-                      if (bowlPlayers.isNotEmpty) _buildSection('BOWLERS', 'BOWL', bowlPlayers, state, notifier),
+                      if (wkPlayers.isNotEmpty)
+                        _buildSection('WICKET-KEEPERS', wkPlayers, state, notifier),
+                      if (batPlayers.isNotEmpty)
+                        _buildSection('BATTERS', batPlayers, state, notifier),
+                      if (arPlayers.isNotEmpty)
+                        _buildSection('ALL-ROUNDERS', arPlayers, state, notifier),
+                      if (bowlPlayers.isNotEmpty)
+                        _buildSection('BOWLERS', bowlPlayers, state, notifier),
                     ],
                   ),
           ),
         ],
       ),
-      // Bottom sticky bar
+
+      // ── Bottom sticky bar ────────────────────────────────────────────
       bottomNavigationBar: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: AppColors.surface,
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 8, offset: const Offset(0, -2))],
+          boxShadow: [
+            BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 8,
+                offset: const Offset(0, -2))
+          ],
         ),
         child: SafeArea(
           child: AppButton(
-            label: state.selectedCount == 11 ? 'NEXT →' : 'SELECT ${11 - state.selectedCount} MORE',
+            text: state.selectedCount == 11
+                ? 'NEXT →'
+                : 'SELECT ${11 - state.selectedCount} MORE',
             onPressed: state.selectedCount == 11
-                ? () => context.push('/captain-selection')
+                ? () {
+                    // Validate minimum role constraints
+                    if (!state.isValidTeam) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                              'Team must have min 1 WK, 3 BAT, 1 AR and 3 BOWL'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                      return;
+                    }
+                    // Pass both matchId AND contestId to captain selection
+                    final extra = widget.contestId;
+                    context.push(
+                      '/captain-selection/${widget.matchId}',
+                      extra: extra,
+                    );
+                  }
                 : null,
             isLoading: false,
           ),
@@ -185,8 +227,15 @@ class _CreateTeamScreenState extends ConsumerState<CreateTeamScreen> {
     );
   }
 
-  Widget _buildSection(String title, String roleCode, List<PlayerModel> players, dynamic state, dynamic notifier) {
-    final selectedCount = players.where((p) => state.selectedPlayers.contains(p.id)).length;
+  Widget _buildSection(
+    String title,
+    List<PlayerModel> players,
+    dynamic state,
+    dynamic notifier,
+  ) {
+    final selectedCount =
+        players.where((p) => state.selectedPlayers.any((s) => s.id == p.id)).length;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -199,339 +248,78 @@ class _CreateTeamScreenState extends ConsumerState<CreateTeamScreen> {
             children: [
               Text(
                 title,
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 1, color: Color(0xFF64748B)),
+                style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1,
+                    color: Color(0xFF64748B)),
               ),
               const Spacer(),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
-                  color: selectedCount > 0 ? AppColors.primary.withOpacity(0.1) : Colors.transparent,
+                  color: selectedCount > 0
+                      ? AppColors.primary.withOpacity(0.1)
+                      : Colors.transparent,
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
                   '$selectedCount selected',
-                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: selectedCount > 0 ? AppColors.primary : const Color(0xFF94A3B8)),
+                  style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: selectedCount > 0
+                          ? AppColors.primary
+                          : const Color(0xFF94A3B8)),
                 ),
               ),
             ],
           ),
         ),
         // Players
-        ...players.map((player) => PlayerCard(
-          player: player,
-          isSelected: state.selectedPlayers.contains(player.id),
-          onTap: () => notifier.togglePlayer(player),
-        )),
+        ...players.map((player) => PlayerSelectionCard(
+              player: player,
+              isSelected: state.selectedPlayers.any((p) => p.id == player.id),
+              isDisabled: !state.canAddPlayer(player) &&
+                  !state.selectedPlayers.any((p) => p.id == player.id),
+              onTap: () => notifier.togglePlayer(player),
+            )),
       ],
-    );
-  }
-
-    return Scaffold(
-      backgroundColor: AppColors.scaffoldBackground,
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF0F172A),
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => context.pop(),
-        ),
-        title: Text('Create Team', style: AppTypography.titleLarge.copyWith(color: Colors.white)),
-        centerTitle: true,
-        actions: [
-          TextButton(
-            onPressed: state.selectedPlayers.isNotEmpty
-                ? () => notifier.reset()
-                : null,
-            child: Text(
-              'RESET',
-              style: AppTypography.labelMedium.copyWith(
-                color: state.selectedPlayers.isNotEmpty
-                    ? AppColors.error
-                    : AppColors.textTertiary,
-              ),
-            ),
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          // Credit counter
-          CreditCounter(creditsUsed: state.creditsUsed),
-          // Team count indicator
-          TeamCountIndicator(
-            selectedCount: state.selectedCount,
-            wkCount: state.wkCount,
-            batCount: state.batCount,
-            arCount: state.arCount,
-            bowlCount: state.bowlCount,
-          ),
-          // Role filter tabs
-          RoleFilterTabs(
-            activeFilter: state.activeFilter,
-            wkCount: state.wkCount,
-            batCount: state.batCount,
-            arCount: state.arCount,
-            bowlCount: state.bowlCount,
-            onFilterChanged: (filter) => notifier.setFilter(filter),
-          ),
-          // Search bar
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: TextField(
-              controller: _searchController,
-              onChanged: (value) => notifier.setSearchQuery(value),
-              decoration: InputDecoration(
-                hintText: 'Search players...',
-                hintStyle: AppTypography.bodySmall.copyWith(
-                  color: Colors.white38,
-                ),
-                prefixIcon: const Icon(
-                  Icons.search,
-                  color: Colors.white38,
-                  size: 20,
-                ),
-                suffixIcon: _searchController.text.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear, size: 18),
-                        onPressed: () {
-                          _searchController.clear();
-                          notifier.setSearchQuery('');
-                        },
-                      )
-                    : null,
-                filled: true,
-                fillColor: AppColors.border.withOpacity(0.3),
-                border: OutlineInputBorder(
-                  borderRadius: AppSpacing.borderRadiusFull,
-                  borderSide: BorderSide.none,
-                ),
-                contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16, vertical: 10),
-              ),
-              style: AppTypography.bodyMedium,
-            ),
-          ),
-          // Player list
-          Expanded(
-            child: _isLoadingPlayers
-                ? ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    itemCount: 8,
-                    itemBuilder: (context, index) => Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child:
-                          ShimmerLoading(width: double.infinity, height: 72),
-                    ),
-                  )
-                : state.filteredPlayers.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.search_off,
-                              size: 48,
-                              color: Colors.white38,
-                            ),
-                            AppSpacing.gapH12,
-                            Text(
-                              'No players found',
-                              style: AppTypography.bodyMedium.copyWith(
-                                color: AppColors.textSecondary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      )
-                    : ListView.builder(
-                        itemCount: state.filteredPlayers.length,
-                        itemBuilder: (context, index) {
-                          final player = state.filteredPlayers[index];
-                          final isSelected = state.isSelected(player.id);
-                          final canAdd = state.canAddPlayer(player);
-
-                          return PlayerSelectionCard(
-                            player: player,
-                            isSelected: isSelected,
-                            isDisabled: !canAdd && !isSelected,
-                            onTap: () => notifier.togglePlayer(player),
-                          );
-                        },
-                      ),
-          ),
-        ],
-      ),
-      // Bottom action bar
-      bottomNavigationBar: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 10,
-              offset: const Offset(0, -2),
-            ),
-          ],
-        ),
-        child: SafeArea(
-          child: Row(
-            children: [
-              // Team preview button
-              GestureDetector(
-                onTap: state.selectedPlayers.isNotEmpty
-                    ? () => _showTeamPreview(context, state)
-                    : null,
-                child: Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: state.selectedPlayers.isNotEmpty
-                        ? AppColors.secondary.withOpacity(0.05)
-                        : AppColors.border.withOpacity(0.3),
-                    borderRadius: AppSpacing.borderRadiusSm,
-                    border: Border.all(color: AppColors.border),
-                  ),
-                  child: Icon(
-                    Icons.preview_outlined,
-                    color: state.selectedPlayers.isNotEmpty
-                        ? AppColors.textPrimary
-                        : AppColors.textTertiary,
-                  ),
-                ),
-              ),
-              AppSpacing.gapW12,
-              // Continue button
-              Expanded(
-                child: AppButton(
-                  text: state.isTeamComplete
-                      ? 'SELECT CAPTAIN'
-                      : 'SELECT ${RoleConstraints.totalPlayers - state.selectedCount} MORE',
-                  variant: state.isTeamComplete
-                      ? AppButtonVariant.gradient
-                      : AppButtonVariant.outline,
-                  isDisabled: !state.isTeamComplete,
-                  onPressed: state.isTeamComplete
-                      ? () {
-                          // Validate team composition before proceeding
-                          if (!state.isValidTeam) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                  'Team must have min 1 WK, 3 BAT, 1 AR, and 3 BOWL',
-                                ),
-                                backgroundColor: Colors.red,
-                              ),
-                            );
-                            return;
-                          }
-                          debugPrint('[CreateTeam] Navigating to captain selection with ${state.selectedCount} players for match ${widget.matchId}');
-                          context.push('/captain-selection/${widget.matchId}');
-                        }
-                      : null,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _showTeamPreview(BuildContext context, TeamBuilderState state) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => _TeamPreviewSheet(
-        selectedPlayers: state.selectedPlayers,
-      ),
     );
   }
 }
 
-/// Bottom sheet for quick team preview.
-class _TeamPreviewSheet extends StatelessWidget {
-  final List<PlayerModel> selectedPlayers;
+/// Small role badge showing count / max.
+class _RoleBadge extends StatelessWidget {
+  final String label;
+  final int count;
+  final int max;
 
-  const _TeamPreviewSheet({required this.selectedPlayers});
+  const _RoleBadge(
+      {required this.label, required this.count, required this.max});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height * 0.7,
-      ),
-      decoration: const BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Handle
-          Container(
-            margin: const EdgeInsets.only(top: 12),
-            width: 40,
-            height: 4,
-            decoration: BoxDecoration(
-              color: AppColors.border,
-              borderRadius: AppSpacing.borderRadiusFull,
-            ),
-          ),
-          // Title
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Text(
-              'Selected Players (${selectedPlayers.length})',
-              style: AppTypography.titleLarge,
-            ),
-          ),
-          // Player list
-          Flexible(
-            child: ListView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: selectedPlayers.length,
-              itemBuilder: (context, index) {
-                final player = selectedPlayers[index];
-                return ListTile(
-                  leading: Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withOpacity(0.1),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Center(
-                      child: Text(
-                        player.roleAbbreviation,
-                        style: AppTypography.labelSmall.copyWith(
-                          color: AppColors.primary,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ),
-                  title: Text(
-                    player.name,
-                    style: AppTypography.bodyMedium.copyWith(
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  subtitle: Text(
-                    '${player.teamName} - ${player.credits} Cr',
-                    style: AppTypography.labelSmall,
-                  ),
-                  trailing: Text(
-                    '${player.points.toStringAsFixed(0)} pts',
-                    style: AppTypography.labelMedium.copyWith(
-                      color: AppColors.primary,
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
-      ),
+    final isFull = count >= max;
+    return Column(
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+              color: isFull ? AppColors.success : Colors.white54,
+              fontSize: 11,
+              fontWeight: FontWeight.w600),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          '$count',
+          style: TextStyle(
+              color: isFull ? AppColors.success : Colors.white,
+              fontSize: 16,
+              fontWeight: FontWeight.w700),
+        ),
+      ],
     );
   }
+}
