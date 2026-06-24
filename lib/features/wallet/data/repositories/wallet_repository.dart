@@ -105,6 +105,10 @@ class WalletRepository {
     required double amount,
     required String paymentMethod,
     String? description,
+    String? upiId,       // Task #12: UPI ID for admin to process
+    String? accountNo,  // Bank account number
+    String? ifscCode,   // IFSC for bank transfer
+    String? accountName,
   }) async {
     try {
       final response = await _client.from('transactions').insert({
@@ -114,6 +118,14 @@ class WalletRepository {
         'status': 'pending',
         'payment_method': paymentMethod,
         'description': description ?? 'Withdrawal to $paymentMethod',
+        // Store payment details so admin can process it
+        if (upiId != null) 'reference_id': upiId,
+        'notes': {
+          if (upiId != null)       'upi_id': upiId,
+          if (accountNo != null)   'account_no': accountNo,
+          if (ifscCode != null)    'ifsc': ifscCode,
+          if (accountName != null) 'account_name': accountName,
+        }.toString(),
       }).select().single();
 
       return TransactionModel.fromJson(response);

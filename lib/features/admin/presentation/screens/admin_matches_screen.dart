@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -19,11 +21,92 @@ class _AdminMatchesScreenState extends ConsumerState<AdminMatchesScreen> {
   bool _loading = false;
   List<Map<String, dynamic>> _matches = [];
   List<Map<String, dynamic>> _tournaments = [];
+  // Task #6: Timers for 10-minute Playing XI alert
+  final Map<String, Timer> _tenMinAlertTimers = {};
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) => _load());
+  }
+
+  @override
+  void dispose() {
+    for (final t in _tenMinAlertTimers.values) {
+      t.cancel();
+    }
+    super.dispose();
+  }
+
+  // Task #6: Schedule 10-minute alert for each upcoming match
+  void _scheduleTenMinAlerts(List<Map<String, dynamic>> matches) {
+    for (final t in _tenMinAlertTimers.values) {
+      t.cancel();
+    }
+    _tenMinAlertTimers.clear();
+
+    for (final match in matches) {
+      if (match['status'] != 'upcoming') continue;
+      final dateTimeStr = match['date_time'] as String?;
+      if (dateTimeStr == null) continue;
+      final matchTime = DateTime.tryParse(dateTimeStr);
+      if (matchTime == null) continue;
+
+      final alertTime = matchTime.subtract(const Duration(minutes: 10));
+      final delay = alertTime.difference(DateTime.now());
+      if (delay.isNegative || delay.inHours > 24) continue;
+
+      _tenMinAlertTimers[match['id'] as String] = Timer(delay, () {
+        if (!mounted) return;
+        _showTenMinAlert(match);
+      });
+    }
+  }
+
+  void _showTenMinAlert(Map<String, dynamic> match) {
+    final teamA = match['team_a_name'] ?? 'Team A';
+    final teamB = match['team_b_name'] ?? 'Team B';
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(children: [
+          Container(
+            width: 36, height: 36,
+            decoration: BoxDecoration(
+              color: AppColors.warning.withOpacity(0.15),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.alarm, color: AppColors.warning, size: 20),
+          ),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Text('⏰ 10 Minutes Alert!',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+          ),
+        ]),
+        content: Text(
+          '$teamA vs $teamB starts in 10 minutes!\n\nPlease set the Playing XI for both teams now so users can see lineups.',
+          style: const TextStyle(fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Later'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+            onPressed: () {
+              Navigator.pop(context);
+              _showPlayingXIDialog(match);
+            },
+            child: const Text('Set Playing XI',
+                style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _load() async {
@@ -37,6 +120,8 @@ class _AdminMatchesScreenState extends ConsumerState<AdminMatchesScreen> {
         _tournaments = s.tournaments;
         _loading = false;
       });
+      // Task #6: Schedule 10-min alerts after loading
+      _scheduleTenMinAlerts(_matches);
     } catch (e) {
       setState(() => _loading = false);
     }

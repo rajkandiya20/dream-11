@@ -1,16 +1,29 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:image_picker/image_picker.dart';
-import 'dart:io';
+import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../admin/data/repositories/admin_repository.dart';
 import '../../domain/providers/wallet_provider.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Deposit screen — UPI details + manual UTR + screenshot upload
-// Ported from Fantasy- transaction/deposit.js
+// Provider: load admin payment methods (UPI IDs, QR codes)
+// ─────────────────────────────────────────────────────────────────────────────
+
+final _adminPaymentMethodsProvider =
+    FutureProvider<List<Map<String, dynamic>>>((ref) async {
+  final repo = ref.watch(adminRepositoryProvider);
+  return repo.getAdminPaymentMethods();
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Deposit Screen — 3 steps:
+//   Step 1: Choose amount
+//   Step 2: Show payment details (UPI ID / QR), user pays in their app
+//   Step 3: Enter UTR + confirm → request goes to admin
 // ─────────────────────────────────────────────────────────────────────────────
 
 class DepositScreen extends ConsumerStatefulWidget {
@@ -20,77 +33,14 @@ class DepositScreen extends ConsumerStatefulWidget {
   ConsumerState<DepositScreen> createState() => _DepositScreenState();
 }
 
-class _DepositScreenState extends ConsumerState<DepositScreen>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
-
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 2, vsync: this);
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.scaffoldBackground,
-      appBar: AppBar(
-        backgroundColor: AppColors.secondary,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: Text('Add Money',
-            style: AppTypography.titleLarge.copyWith(color: Colors.white)),
-        bottom: TabBar(
-          controller: _tabController,
-          indicatorColor: AppColors.primary,
-          labelColor: Colors.white,
-          unselectedLabelColor: Colors.white54,
-          tabs: const [
-            Tab(text: 'UPI / Manual'),
-            Tab(text: 'Quick Add'),
-          ],
-        ),
-      ),
-      body: TabBarView(
-        controller: _tabController,
-        children: const [
-          _ManualDepositTab(),
-          _QuickDepositTab(),
-        ],
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Tab 1 — Manual UPI deposit with UTR + screenshot
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _ManualDepositTab extends ConsumerStatefulWidget {
-  const _ManualDepositTab();
-
-  @override
-  ConsumerState<_ManualDepositTab> createState() => _ManualDepositTabState();
-}
-
-class _ManualDepositTabState extends ConsumerState<_ManualDepositTab> {
+class _DepositScreenState extends ConsumerState<DepositScreen> {
+  int _step = 0; // 0=amount, 1=pay, 2=confirm
+  double _selectedAmount = 0;
   final _amountCtrl = TextEditingController();
   final _utrCtrl    = TextEditingController();
-  File? _screenshotFile;
-  bool _isSubmitting = false;
+  bool _submitting  = false;
 
-  static const _upiId          = '7259293140@ybl';
-  static const _accountHolder  = 'Rajesh M N';
+  static const _quickAmounts = [100, 250, 500, 1000, 2000, 5000];
 
   @override
   void dispose() {
@@ -99,52 +49,123 @@ class _ManualDepositTabState extends ConsumerState<_ManualDepositTab> {
     super.dispose();
   }
 
-  Future<void> _pickScreenshot() async {
-    final picker = ImagePicker();
-    final picked = await picker.pickImage(source: ImageSource.gallery);
-    if (picked != null && mounted) {
-      setState(() => _screenshotFile = File(picked.path));
-    }
+  @override
+  Widget build(BuildContext context) {
+    final walletState = ref.watch(walletProvider);
+    return Scaffold(
+      backgroundColor: AppColors.scaffoldBackground,
+      appBar: AppBar(
+        backgroundColor: AppColors.secondary,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
+          onPressed: () {
+            if (_step > 0) {
+              setState(() => _step--);
+            } else {
+              Navigator.of(context).pop();
+            }
+          },
+        ),
+        title: Text(
+          _step == 0
+              ? 'Add Money'
+              : _step == 1
+                  ? 'Make Payment'
+                  : 'Confirm Payment',
+          style: AppTypography.titleLarge.copyWith(color: Colors.white),
+        ),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(4),
+          child: LinearProgressIndicator(
+            value: (_step + 1) / 3,
+            backgroundColor: Colors.white24,
+            valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
+          ),
+        ),
+      ),
+      body: IndexedStack(
+        index: _step,
+        children: [
+          _StepAmount(
+            amountCtrl: _amountCtrl,
+            quickAmounts: _quickAmounts,
+            currentBalance: walletState.totalBalance,
+            onNext: () {
+              final amt = double.tryParse(_amountCtrl.text.trim()) ?? 0;
+              if (amt < 10) {
+                _snack('Minimum deposit is ₹10');
+                return;
+              }
+              setState(() {
+                _selectedAmount = amt;
+                _step = 1;
+              });
+            },
+          ),
+          _StepPay(
+            amount: _selectedAmount,
+            onNext: () => setState(() => _step = 2),
+          ),
+          _StepConfirm(
+            amount: _selectedAmount,
+            utrCtrl: _utrCtrl,
+            submitting: _submitting,
+            onSubmit: _submitDeposit,
+          ),
+        ],
+      ),
+    );
   }
 
-  Future<void> _submit() async {
-    final amount = double.tryParse(_amountCtrl.text.trim()) ?? 0;
-    final utr    = _utrCtrl.text.trim();
-
-    if (amount <= 0) {
-      _snack('Please enter a valid amount', isError: true);
-      return;
-    }
+  Future<void> _submitDeposit() async {
+    final utr = _utrCtrl.text.trim();
     if (utr.length < 6) {
-      _snack('Please enter a valid UTR number (min 6 chars)', isError: true);
+      _snack('Please enter a valid UTR/transaction reference (min 6 chars)');
       return;
     }
-
-    setState(() => _isSubmitting = true);
-
-    final success = await ref.read(walletProvider.notifier).deposit(
-      amount: amount,
+    setState(() => _submitting = true);
+    final ok = await ref.read(walletProvider.notifier).deposit(
+      amount: _selectedAmount,
       paymentMethod: 'upi_manual',
       utrNumber: utr,
     );
-
-    setState(() => _isSubmitting = false);
-
+    setState(() => _submitting = false);
     if (!mounted) return;
-    if (success) {
-      _snack('Deposit request submitted! Admin will approve shortly.');
-      Navigator.of(context).pop();
+    if (ok) {
+      _snack('Deposit request submitted! Admin will credit within 30 min.',
+          isSuccess: true);
+      context.pop();
     } else {
-      _snack('Failed to submit deposit request. Please try again.', isError: true);
+      _snack('Failed to submit. Please try again.');
     }
   }
 
-  void _snack(String msg, {bool isError = false}) {
+  void _snack(String msg, {bool isSuccess = false}) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(msg),
-      backgroundColor: isError ? AppColors.error : AppColors.success,
+      backgroundColor: isSuccess ? AppColors.success : AppColors.error,
     ));
   }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Step 1: Amount Selection
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _StepAmount extends StatelessWidget {
+  final TextEditingController amountCtrl;
+  final List<int> quickAmounts;
+  final double currentBalance;
+  final VoidCallback onNext;
+
+  const _StepAmount({
+    required this.amountCtrl,
+    required this.quickAmounts,
+    required this.currentBalance,
+    required this.onNext,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -153,159 +174,80 @@ class _ManualDepositTabState extends ConsumerState<_ManualDepositTab> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── UPI Details card ──────────────────────────────────────────
+          // Current balance chip
           Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: AppColors.card,
+              color: AppColors.info.withOpacity(0.06),
               borderRadius: AppSpacing.borderRadiusMd,
-              border: Border.all(color: AppColors.border),
+              border: Border.all(color: AppColors.info.withOpacity(0.2)),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Payment Details',
-                    style: AppTypography.titleSmall
-                        .copyWith(fontWeight: FontWeight.w700)),
-                AppSpacing.gapH12,
-                _DetailRow(label: 'UPI ID', value: _upiId),
-                AppSpacing.gapH6,
-                _DetailRow(label: 'Account Holder', value: _accountHolder),
-                AppSpacing.gapH12,
-                // PhonePe logo placeholder
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF5F259F).withOpacity(0.08),
-                    borderRadius: AppSpacing.borderRadiusSm,
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.phone_android,
-                          color: Color(0xFF5F259F), size: 18),
-                      const SizedBox(width: 6),
-                      Text('Pay via PhonePe / GPay / BHIM',
-                          style: AppTypography.labelSmall.copyWith(
-                              color: const Color(0xFF5F259F),
-                              fontWeight: FontWeight.w600)),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          AppSpacing.gapH20,
-
-          // ── Important note ────────────────────────────────────────────
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: AppColors.error.withOpacity(0.06),
-              borderRadius: AppSpacing.borderRadiusSm,
-              border: Border.all(color: AppColors.error.withOpacity(0.2)),
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(Icons.info_outline, color: AppColors.error, size: 18),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'IMPORTANT: After completing the transaction, fill in the UTR number and upload a screenshot. Without this your deposit will NOT be credited.',
+            child: Row(children: [
+              const Icon(Icons.account_balance_wallet_outlined,
+                  color: AppColors.info, size: 20),
+              AppSpacing.gapW12,
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('Current Balance',
                     style: AppTypography.labelSmall
-                        .copyWith(color: AppColors.error),
-                  ),
-                ),
-              ],
-            ),
+                        .copyWith(color: AppColors.textSecondary)),
+                Text('₹${currentBalance.toStringAsFixed(2)}',
+                    style: AppTypography.titleMedium
+                        .copyWith(fontWeight: FontWeight.w700)),
+              ]),
+            ]),
           ),
-
           AppSpacing.gapH20,
-
-          // ── Amount field ──────────────────────────────────────────────
-          Text('Amount', style: AppTypography.titleSmall),
-          AppSpacing.gapH8,
+          Text('Enter Amount', style: AppTypography.titleMedium),
+          AppSpacing.gapH10,
           TextField(
-            controller: _amountCtrl,
+            controller: amountCtrl,
             keyboardType: TextInputType.number,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            style: AppTypography.headlineMedium,
             decoration: InputDecoration(
               prefixText: '₹ ',
-              hintText: 'Enter amount',
+              hintText: '0',
               border: OutlineInputBorder(
                   borderRadius: AppSpacing.borderRadiusMd),
               focusedBorder: OutlineInputBorder(
-                  borderRadius: AppSpacing.borderRadiusMd,
-                  borderSide: const BorderSide(color: AppColors.primary, width: 2)),
-            ),
-          ),
-
-          AppSpacing.gapH16,
-
-          // ── UTR field ─────────────────────────────────────────────────
-          Text('UTR / Transaction Reference',
-              style: AppTypography.titleSmall),
-          AppSpacing.gapH8,
-          TextField(
-            controller: _utrCtrl,
-            decoration: InputDecoration(
-              hintText: 'Enter UTR number (12 digits)',
-              border: OutlineInputBorder(
-                  borderRadius: AppSpacing.borderRadiusMd),
-              focusedBorder: OutlineInputBorder(
-                  borderRadius: AppSpacing.borderRadiusMd,
-                  borderSide:
-                      const BorderSide(color: AppColors.primary, width: 2)),
-            ),
-          ),
-
-          AppSpacing.gapH16,
-
-          // ── Screenshot upload ─────────────────────────────────────────
-          Text('Upload Screenshot (Optional)',
-              style: AppTypography.titleSmall),
-          AppSpacing.gapH8,
-          GestureDetector(
-            onTap: _pickScreenshot,
-            child: Container(
-              width: double.infinity,
-              height: _screenshotFile == null ? 100 : 200,
-              decoration: BoxDecoration(
-                color: AppColors.card,
                 borderRadius: AppSpacing.borderRadiusMd,
-                border: Border.all(
-                    color: AppColors.border, style: BorderStyle.solid),
+                borderSide:
+                    const BorderSide(color: AppColors.primary, width: 2),
               ),
-              child: _screenshotFile != null
-                  ? ClipRRect(
-                      borderRadius: AppSpacing.borderRadiusMd,
-                      child: Image.file(_screenshotFile!, fit: BoxFit.cover))
-                  : Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.upload_file,
-                            size: 32, color: AppColors.textTertiary),
-                        const SizedBox(height: 8),
-                        Text('Tap to upload screenshot',
-                            style: AppTypography.bodySmall.copyWith(
-                                color: AppColors.textSecondary)),
-                      ],
-                    ),
             ),
           ),
-          if (_screenshotFile != null)
-            TextButton.icon(
-              icon: const Icon(Icons.close, size: 16),
-              label: const Text('Remove'),
-              onPressed: () => setState(() => _screenshotFile = null),
-            ),
-
-          AppSpacing.gapH24,
-
-          // ── Submit button ─────────────────────────────────────────────
+          AppSpacing.gapH16,
+          Text('Quick Select', style: AppTypography.labelMedium
+              .copyWith(color: AppColors.textSecondary)),
+          AppSpacing.gapH10,
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: quickAmounts.map((amt) {
+              return GestureDetector(
+                onTap: () =>
+                    amountCtrl.text = amt.toString(),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 18, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: AppColors.card,
+                    borderRadius: AppSpacing.borderRadiusFull,
+                    border: Border.all(color: AppColors.border),
+                    boxShadow: [
+                      BoxShadow(
+                          color: Colors.black.withOpacity(0.04),
+                          blurRadius: 4)
+                    ],
+                  ),
+                  child: Text('₹$amt',
+                      style: AppTypography.labelMedium
+                          .copyWith(fontWeight: FontWeight.w700)),
+                ),
+              );
+            }).toList(),
+          ),
+          AppSpacing.gapH32,
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
@@ -316,16 +258,10 @@ class _ManualDepositTabState extends ConsumerState<_ManualDepositTab> {
                 shape: RoundedRectangleBorder(
                     borderRadius: AppSpacing.borderRadiusMd),
               ),
-              onPressed: _isSubmitting ? null : _submit,
-              child: _isSubmitting
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                          color: Colors.white, strokeWidth: 2))
-                  : Text('Submit Deposit Request',
-                      style: AppTypography.labelLarge
-                          .copyWith(color: Colors.white)),
+              onPressed: onNext,
+              child: Text('PROCEED TO PAY',
+                  style: AppTypography.labelLarge
+                      .copyWith(color: Colors.white)),
             ),
           ),
         ],
@@ -335,136 +271,129 @@ class _ManualDepositTabState extends ConsumerState<_ManualDepositTab> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Tab 2 — Quick amount selection (existing logic kept)
+// Step 2: Show payment details — user pays in their UPI app
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _QuickDepositTab extends ConsumerStatefulWidget {
-  const _QuickDepositTab();
+class _StepPay extends ConsumerWidget {
+  final double amount;
+  final VoidCallback onNext;
+
+  const _StepPay({required this.amount, required this.onNext});
 
   @override
-  ConsumerState<_QuickDepositTab> createState() => _QuickDepositTabState();
-}
-
-class _QuickDepositTabState extends ConsumerState<_QuickDepositTab> {
-  final _amountController = TextEditingController();
-  final _quickAmounts     = [100, 250, 500, 1000, 2000, 5000];
-  String _selectedMethod  = 'upi';
-
-  @override
-  void dispose() {
-    _amountController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final walletState = ref.watch(walletProvider);
+  Widget build(BuildContext context, WidgetRef ref) {
+    final methodsAsync = ref.watch(_adminPaymentMethodsProvider);
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Balance card
+          // Amount to pay
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              gradient: AppColors.primaryGradient,
+              borderRadius: AppSpacing.borderRadiusMd,
+            ),
+            child: Column(children: [
+              Text('Pay Exactly',
+                  style: AppTypography.labelMedium
+                      .copyWith(color: Colors.white70)),
+              AppSpacing.gapH4,
+              Text('₹${amount.toStringAsFixed(0)}',
+                  style: AppTypography.displayMedium.copyWith(
+                      color: Colors.white, fontWeight: FontWeight.w700)),
+            ]),
+          ),
+          AppSpacing.gapH20,
+
+          // Warning
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppColors.warning.withOpacity(0.08),
+              borderRadius: AppSpacing.borderRadiusSm,
+              border: Border.all(color: AppColors.warning.withOpacity(0.3)),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(Icons.warning_amber_rounded,
+                    color: AppColors.warning, size: 18),
+                AppSpacing.gapW8,
+                Expanded(
+                  child: Text(
+                    'Pay EXACTLY ₹${amount.toStringAsFixed(0)}. Different amounts cannot be matched to your account.',
+                    style: AppTypography.labelSmall
+                        .copyWith(color: AppColors.warningDark),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          AppSpacing.gapH20,
+
+          // Payment methods from admin
+          methodsAsync.when(
+            loading: () => const Center(
+                child: CircularProgressIndicator(color: AppColors.primary)),
+            error: (_, __) => _FallbackUPI(amount: amount),
+            data: (methods) {
+              if (methods.isEmpty) return _FallbackUPI(amount: amount);
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Pay to any of these UPI IDs:',
+                      style: AppTypography.titleSmall),
+                  AppSpacing.gapH12,
+                  ...methods.map((m) => _UPIMethodCard(method: m)),
+                ],
+              );
+            },
+          ),
+          AppSpacing.gapH24,
+
+          // Instructions
+          Container(
+            padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
               color: AppColors.info.withOpacity(0.05),
               borderRadius: AppSpacing.borderRadiusMd,
               border: Border.all(color: AppColors.info.withOpacity(0.2)),
             ),
-            child: Row(children: [
-              Icon(Icons.account_balance_wallet_outlined, color: AppColors.info),
-              AppSpacing.gapW12,
-              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text('Current Balance', style: AppTypography.bodySmall
-                    .copyWith(color: AppColors.textSecondary)),
-                Text('₹${walletState.totalBalance.toStringAsFixed(2)}',
-                    style: AppTypography.titleMedium
-                        .copyWith(fontWeight: FontWeight.w700)),
-              ]),
-            ]),
-          ),
-          AppSpacing.gapH20,
-
-          // Amount input
-          Text('Enter Amount', style: AppTypography.titleMedium),
-          AppSpacing.gapH12,
-          TextField(
-            controller: _amountController,
-            keyboardType: TextInputType.number,
-            style: AppTypography.headlineMedium.copyWith(fontSize: 28),
-            decoration: InputDecoration(
-              prefixText: '₹ ',
-              hintText: '0',
-              border: OutlineInputBorder(borderRadius: AppSpacing.borderRadiusMd),
-              focusedBorder: OutlineInputBorder(
-                  borderRadius: AppSpacing.borderRadiusMd,
-                  borderSide: const BorderSide(color: AppColors.primary, width: 2)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('How to pay:',
+                    style: AppTypography.titleSmall
+                        .copyWith(color: AppColors.info)),
+                AppSpacing.gapH8,
+                _Step('1', 'Open PhonePe / GPay / BHIM / Paytm'),
+                _Step('2', 'Send ₹${amount.toStringAsFixed(0)} to the UPI ID above'),
+                _Step('3', 'Note the UTR/transaction number'),
+                _Step('4', 'Come back and click "I Have Paid"'),
+              ],
             ),
-          ),
-          AppSpacing.gapH16,
-
-          // Quick amounts
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: _quickAmounts.map((amount) {
-              return InkWell(
-                onTap: () {
-                  _amountController.text = amount.toString();
-                  setState(() {});
-                },
-                borderRadius: AppSpacing.borderRadiusSm,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: AppColors.card,
-                    borderRadius: AppSpacing.borderRadiusSm,
-                    border: Border.all(color: AppColors.border),
-                  ),
-                  child: Text('₹$amount',
-                      style: AppTypography.labelMedium
-                          .copyWith(fontWeight: FontWeight.w600)),
-                ),
-              );
-            }).toList(),
           ),
           AppSpacing.gapH24,
 
-          // Proceed button
           SizedBox(
             width: double.infinity,
-            height: 52,
-            child: ElevatedButton(
-              onPressed: walletState.isTransacting ? null : () async {
-                final amount = double.tryParse(_amountController.text) ?? 0;
-                if (amount <= 0) {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                      content: Text('Please enter a valid amount')));
-                  return;
-                }
-                final success = await ref.read(walletProvider.notifier).deposit(
-                    amount: amount, paymentMethod: _selectedMethod);
-                if (success && mounted) {
-                  Navigator.of(context).pop();
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                      content: Text('Deposit request submitted!'),
-                      backgroundColor: AppColors.success));
-                }
-              },
+            child: ElevatedButton.icon(
               style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: AppSpacing.borderRadiusMd)),
-              child: walletState.isTransacting
-                  ? const SizedBox(width: 24, height: 24,
-                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                  : Text('Proceed to Pay',
-                      style: AppTypography.titleMedium
-                          .copyWith(color: Colors.white, fontWeight: FontWeight.w600)),
+                backgroundColor: AppColors.success,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                    borderRadius: AppSpacing.borderRadiusMd),
+              ),
+              icon: const Icon(Icons.check_circle_outline),
+              label: Text('I HAVE PAID ₹${amount.toStringAsFixed(0)}',
+                  style: AppTypography.labelLarge
+                      .copyWith(color: Colors.white)),
+              onPressed: onNext,
             ),
           ),
         ],
@@ -473,38 +402,265 @@ class _QuickDepositTabState extends ConsumerState<_QuickDepositTab> {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Helper widget
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _DetailRow extends StatelessWidget {
-  final String label;
-  final String value;
-  const _DetailRow({required this.label, required this.value});
+class _FallbackUPI extends StatelessWidget {
+  final double amount;
+  const _FallbackUPI({required this.amount});
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          width: 130,
-          child: Text('$label :',
-              style: AppTypography.labelSmall.copyWith(
-                  color: AppColors.textSecondary,
-                  fontWeight: FontWeight.w600)),
+    return _UPIMethodCard(method: const {
+      'upi_id': '7259293140@ybl',
+      'account_name': 'Admin',
+      'type': 'upi',
+    });
+  }
+}
+
+class _UPIMethodCard extends StatelessWidget {
+  final Map<String, dynamic> method;
+  const _UPIMethodCard({required this.method});
+
+  @override
+  Widget build(BuildContext context) {
+    final upiId      = method['upi_id'] as String? ?? '';
+    final name       = method['account_name'] as String? ?? 'Admin';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: AppSpacing.borderRadiusMd,
+        border: Border.all(color: AppColors.border),
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 6,
+              offset: const Offset(0, 2))
+        ],
+      ),
+      child: Row(children: [
+        Container(
+          width: 40, height: 40,
+          decoration: BoxDecoration(
+            color: AppColors.primary.withOpacity(0.08),
+            borderRadius: AppSpacing.borderRadiusSm,
+          ),
+          child: const Icon(Icons.payment, color: AppColors.primary, size: 22),
         ),
+        AppSpacing.gapW12,
         Expanded(
-          child: Text(value,
-              style: AppTypography.labelSmall
-                  .copyWith(fontWeight: FontWeight.w500)),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(name,
+                  style: AppTypography.labelMedium
+                      .copyWith(fontWeight: FontWeight.w600)),
+              Text(upiId,
+                  style: AppTypography.titleSmall
+                      .copyWith(color: AppColors.primary)),
+            ],
+          ),
         ),
-      ],
+        IconButton(
+          icon: const Icon(Icons.copy, size: 18,
+              color: AppColors.textSecondary),
+          onPressed: () {
+            Clipboard.setData(ClipboardData(text: upiId));
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+              content: Text('UPI ID copied!'),
+              duration: Duration(seconds: 2),
+            ));
+          },
+        ),
+      ]),
     );
   }
 }
 
-// Helper extension for spacing
-extension _SpacingX on AppSpacing {
-  static const gapH6 = SizedBox(height: 6);
+class _Step extends StatelessWidget {
+  final String number;
+  final String text;
+  const _Step(this.number, this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(children: [
+        Container(
+          width: 20, height: 20,
+          decoration: BoxDecoration(
+            color: AppColors.info.withOpacity(0.15),
+            shape: BoxShape.circle,
+          ),
+          child: Center(
+            child: Text(number,
+                style: const TextStyle(
+                    color: AppColors.info,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700)),
+          ),
+        ),
+        AppSpacing.gapW8,
+        Expanded(
+            child: Text(text,
+                style: AppTypography.bodySmall
+                    .copyWith(color: AppColors.textSecondary))),
+      ]),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Step 3: Confirm — enter UTR and submit to admin
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _StepConfirm extends StatelessWidget {
+  final double amount;
+  final TextEditingController utrCtrl;
+  final bool submitting;
+  final VoidCallback onSubmit;
+
+  const _StepConfirm({
+    required this.amount,
+    required this.utrCtrl,
+    required this.submitting,
+    required this.onSubmit,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Summary
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.scaffoldBackground,
+              borderRadius: AppSpacing.borderRadiusMd,
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Column(children: [
+              _Row('Amount Paid', '₹${amount.toStringAsFixed(0)}',
+                  bold: true),
+              const Divider(height: 16),
+              _Row('Credit to Wallet', '₹${amount.toStringAsFixed(0)}',
+                  color: AppColors.success),
+            ]),
+          ),
+          AppSpacing.gapH24,
+          Text('Enter Transaction Reference (UTR)',
+              style: AppTypography.titleMedium),
+          AppSpacing.gapH8,
+          Text(
+            'Find the 12-digit UTR number in your payment app under transaction details.',
+            style: AppTypography.bodySmall
+                .copyWith(color: AppColors.textSecondary),
+          ),
+          AppSpacing.gapH12,
+          TextField(
+            controller: utrCtrl,
+            keyboardType: TextInputType.text,
+            decoration: InputDecoration(
+              hintText: 'e.g. 425812345678',
+              prefixIcon: const Icon(Icons.receipt_long_outlined,
+                  color: AppColors.textSecondary),
+              border: OutlineInputBorder(
+                  borderRadius: AppSpacing.borderRadiusMd),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: AppSpacing.borderRadiusMd,
+                borderSide:
+                    const BorderSide(color: AppColors.primary, width: 2),
+              ),
+            ),
+          ),
+          AppSpacing.gapH12,
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppColors.error.withOpacity(0.05),
+              borderRadius: AppSpacing.borderRadiusSm,
+              border:
+                  Border.all(color: AppColors.error.withOpacity(0.2)),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(Icons.info_outline,
+                    color: AppColors.error, size: 16),
+                AppSpacing.gapW8,
+                Expanded(
+                  child: Text(
+                    'Without a valid UTR, admin cannot verify your payment and wallet will NOT be credited.',
+                    style: AppTypography.labelSmall
+                        .copyWith(color: AppColors.error),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          AppSpacing.gapH24,
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                    borderRadius: AppSpacing.borderRadiusMd),
+              ),
+              onPressed: submitting ? null : onSubmit,
+              child: submitting
+                  ? const SizedBox(
+                      width: 22, height: 22,
+                      child: CircularProgressIndicator(
+                          color: Colors.white, strokeWidth: 2))
+                  : Text('SUBMIT DEPOSIT REQUEST',
+                      style: AppTypography.labelLarge
+                          .copyWith(color: Colors.white)),
+            ),
+          ),
+          AppSpacing.gapH12,
+          Text(
+            'Your wallet will be credited within 30 minutes after admin approval.',
+            style: AppTypography.labelSmall
+                .copyWith(color: AppColors.textTertiary),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Row extends StatelessWidget {
+  final String label;
+  final String value;
+  final bool bold;
+  final Color? color;
+  const _Row(this.label, this.value,
+      {this.bold = false, this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label,
+            style: AppTypography.bodySmall
+                .copyWith(color: AppColors.textSecondary)),
+        Text(value,
+            style: AppTypography.bodyMedium.copyWith(
+              fontWeight: bold ? FontWeight.w700 : FontWeight.w500,
+              color: color ?? AppColors.textPrimary,
+            )),
+      ],
+    );
+  }
 }

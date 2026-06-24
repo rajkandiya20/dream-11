@@ -7,6 +7,7 @@ import '../../../../core/theme/app_typography.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../matches/data/models/player_model.dart';
 import '../../../matches/data/repositories/match_repository.dart';
+import '../../../matches/domain/providers/playing_xi_provider.dart';
 import '../../domain/providers/fantasy_provider.dart';
 import '../widgets/player_card.dart';
 
@@ -73,6 +74,13 @@ class _CreateTeamScreenState extends ConsumerState<CreateTeamScreen>
   Widget build(BuildContext context) {
     final state = ref.watch(teamBuilderProvider(widget.matchId));
     final notifier = ref.read(teamBuilderProvider(widget.matchId).notifier);
+    // Task #8: Load Playing XI for lineup indicators
+    final playingXIAsync = ref.watch(playingXIProvider(widget.matchId));
+    final playingXIIds = playingXIAsync.maybeWhen(
+      data: (ids) => ids,
+      orElse: () => <String>{},
+    );
+    final lineupAnnounced = playingXIIds.isNotEmpty;
 
     return Scaffold(
       backgroundColor: AppColors.scaffoldBackground,
@@ -281,7 +289,32 @@ class _CreateTeamScreenState extends ConsumerState<CreateTeamScreen>
 
           // ── Player list (filtered by active tab) ─────────────────────
           Expanded(
-            child: _isLoadingPlayers
+            child: Column(
+              children: [
+                // Task #8: Lineup announced banner
+                if (lineupAnnounced)
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 8),
+                    color: AppColors.success.withOpacity(0.1),
+                    child: Row(
+                      children: [
+                        Icon(Icons.check_circle,
+                            color: AppColors.success, size: 16),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Playing XI announced! ✓ = playing, ✗ = not playing',
+                          style: AppTypography.labelSmall.copyWith(
+                            color: AppColors.success,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                Expanded(
+                  child: _isLoadingPlayers
                 ? const Center(
                     child: CircularProgressIndicator(
                         color: AppColors.primary))
@@ -309,17 +342,26 @@ class _CreateTeamScreenState extends ConsumerState<CreateTeamScreen>
                           final isSelected = state.isSelected(player.id);
                           final isDisabled =
                               !isSelected && !state.canAddPlayer(player);
+                          // Task #8: lineup indicator
+                          final bool? inXI = lineupAnnounced
+                              ? playingXIIds.contains(player.id)
+                              : null;
                           return PlayerSelectionCard(
                             player: player,
                             isSelected: isSelected,
                             isDisabled: isDisabled,
+                            isInPlayingXI: inXI,
                             onTap: () => notifier.togglePlayer(player),
                           );
                         },
                       ),
-          ),
+                    ),
+                  ), // Expanded (list)
+              ],
+            ), // Column
+          ), // Expanded (outer)
         ],
-      ),
+      ), // Column (body)
 
       // ── Bottom sticky NEXT button ──────────────────────────────────────
       bottomNavigationBar: Container(
